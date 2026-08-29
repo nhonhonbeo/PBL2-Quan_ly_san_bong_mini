@@ -1,24 +1,29 @@
 #ifndef NGUOITHUE_H
 #define NGUOITHUE_H
-#include "NguoiDung.h"
+#include<string>
 
-// Ke thua tu NguoiDung - dai dien cho tai khoan nguoi thue san
-class NguoiThue : public NguoiDung {
+class Customer : public User{
 private:
-    int soLanDatSan;
-
+    int booking_count;
+    int cancel_count;
 public:
-    NguoiThue(const std::string& id, const std::string& tenDangNhap,
-              const std::string& matKhau, const std::string& sdt,
-              const std::string& hoTen);
+    Customer(
+        const string& user_id,
+        const string& user_name,
+        const string& password,
+        const string& name,
+        const string& phone_number
+    );
+    
+    void show_menu() const override;
+    string get_account_type() const override;
 
-    void hienThiMenu() const override;
-    std::string layVaiTro() const override { return "NguoiThue"; }
+    int get_booking_count() const;
+    int get_cancel_count() const;
 
-    int laySoLanDatSan() const { return soLanDatSan; }
-    void tangSoLanDatSan() { soLanDatSan++; }
+    void increase_booking_count() const;
+    void cancel_count() const;
 
-    // TODO: em bo sung ham dat san, huy san, tao giai, danh gia
+    bool reg_customer() const;
 };
-
 #endif

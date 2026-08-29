@@ -1,29 +1,34 @@
-#ifndef NGUOIDUNG_H
-#define NGUOIDUNG_H
-#include <string>
+#ifndef USER_H
+#define USER_H
+#include<string>
+using namespace std;
 
-// Lop co so cho tai khoan - the hien tinh DONG GOI (encapsulation)
-class NguoiDung {
-protected:
-    std::string id;
-    std::string tenDangNhap;
-    std::string matKhau;
-    std::string soDienThoai;
-    std::string hoTen;
+class User{
+protected: 
+    std::string user_id;
+    std::string user_name;
+    std::string password;
+    std::string name;
+    std::string phone_number;
+public: 
+    User(
+        const std::string& user_id,
+        const std::string& user_name,
+        const std::string& password,
+        const std::string& name,
+        const std::string& phone_number
+    );
+    virtual ~User();
 
-public:
-    NguoiDung(const std::string& id, const std::string& tenDangNhap,
-              const std::string& matKhau, const std::string& sdt,
-              const std::string& hoTen);
-    virtual ~NguoiDung() {}
+    std::string get_user_id() const;
+    std::string get_user_name() const;
+    std::string get_name() const;
+    std::string get_phone_number() const;
 
-    bool xacThuc(const std::string& matKhauNhap) const;
-    std::string layTenDangNhap() const { return tenDangNhap; }
+    void rename(const std::string& new_name);
+    void update_pw(const std::string& new_password);
 
-    // Ham ao - moi lop con (ChuSan / NguoiThue) se override khac nhau
-    // => the hien tinh DA HINH (polymorphism)
-    virtual void hienThiMenu() const = 0;
-    virtual std::string layVaiTro() const = 0;
+    virtual void show_menu() const = 0;
+    virtual std::string get_account_type() const = 0;
 };
-
 #endif
