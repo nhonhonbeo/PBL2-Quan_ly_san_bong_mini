@@ -1,6 +1,6 @@
 #ifndef USER_H
 #define USER_H
-#include<string>
+#include <string>
 using namespace std;
 
 class User{
