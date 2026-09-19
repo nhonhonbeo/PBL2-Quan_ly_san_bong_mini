@@ -5,7 +5,7 @@
 template <typename T>
 
 class LinkedList{
-private:
+public:
     struct Node {
         T data;
         Node* next;
@@ -14,25 +14,26 @@ private:
             next = nullptr;
         }
     };
+private:
     Node* head;
     Node* tail;
     int count;
 public:
-    LinkedList{
+    LinkedList(){
         head = nullptr;
         tail = nullptr;
         count = 0;
     }
-    ~LinkList(){
+    ~LinkedList(){
         clear();
     }
 
-    void pushBack(const T& value){
+    void push_back(const T& value){
         Node *newNode = new Node(value);
         if(tail == nullptr){
             head = tail = newNode;
         }else{
-            tail->next == newNode;
+            tail->next = newNode;
             tail = newNode;
         }
         count++;
@@ -44,10 +45,16 @@ public:
     int size() const{
         return count;
     }
-    void clear{
+    Node* get_head() const {
+        return head;
+    }
+    bool delete_val(const T& value) {
+        return removeIf([&](const T& data) { return data == value; });
+    }
+    void clear(){
         Node *cur = head;
         while(cur != nullptr){
-            Node *next = cur->next
+            Node *next = cur->next;
             delete cur;
             cur = next;
         }
@@ -58,7 +65,7 @@ public:
     template<typename Func> 
     void forEach(Func f) const{
         Node* cur = head;
-        while(cur!=null){
+        while(cur!=nullptr){
             f(cur->data);
             cur = cur->next;
         }
@@ -85,7 +92,10 @@ public:
                 count--;
                 return true;
             }
+            prev = cur;
+            cur = cur->next;
         }
         return false;
     }
 };
+#endif
