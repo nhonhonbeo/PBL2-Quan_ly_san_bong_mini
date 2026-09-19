@@ -1,6 +1,8 @@
 #ifndef OWNER_H
 #define OWNER_H
-#include<string>
+#include <string>
+#include <User.h>
+
 using namespace std;
 
 class Owner: public User{
@@ -54,4 +56,5 @@ public:
     string owner_name() const;
     void set_owner_name(const std::string& new_owner_name);
 
-}
+};
+#endif
