@@ -1,6 +1,7 @@
 #ifndef OWNER_H
 #define OWNER_H
 #include<string>
+#include "User.h"
 using namespace std;
 
 class Owner: public User{
@@ -45,13 +46,14 @@ public:
     std::string get_field_rules() const;
     void set_field_rules(const std::string& field_rules);
 
-    std::string get_close_time() const;
-    void set_open_time(const std::string& new_close_time);
+    std::string get_open_time() const;
+    void set_open_time(const std::string& new_open_time);
 
     std::string get_close_time() const;
     void set_close_time(const std::string& new_close_time);
 
-    std::string owner_name() const;
+    std::string get_owner_name() const;
     void set_owner_name(const std::string& new_owner_name);
 
-}
+};
+#endif
