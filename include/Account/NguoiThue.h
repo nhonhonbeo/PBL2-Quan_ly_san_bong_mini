@@ -1,22 +1,22 @@
 #ifndef NGUOITHUE_H
 #define NGUOITHUE_H
 #include<string>
-
+#include<NguoiDung.h>
 class Customer : public User{
 private:
     int booking_count;
     int cancel_count;
 public:
     Customer(
-        const string& user_id,
-        const string& user_name,
-        const string& password,
-        const string& name,
-        const string& phone_number
+        const std::string& user_id,
+        const std::string& user_name,
+        const std::string& password,
+        const std::string& name,
+        const std::string& phone_number
     );
     
     void show_menu() const override;
-    string get_account_type() const override;
+    std::string get_account_type() const override;
 
     int get_booking_count() const;
     int get_cancel_count() const;
