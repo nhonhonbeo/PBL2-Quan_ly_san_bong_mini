@@ -12,7 +12,8 @@ CONSOLE_OBJECTS := $(CONSOLE_SOURCES:.cpp=.o)
 
 # Mọi mã nghiệp vụ, trừ hai entry point, được liên kết vào ứng dụng GUI.
 BUSINESS_SOURCES := $(filter-out src/main.cpp src/main_gui.cpp,$(foreach dir,$(CONSOLE_SRC_DIRS),$(wildcard $(dir)/*.cpp)))
-GUI_SOURCES := src/main_gui.cpp $(shell find src/GUI -type f -name '*.cpp' 2>/dev/null)
+GUI_SRC_DIRS := src/GUI src/GUI/App src/GUI/Theme src/GUI/Widgets src/GUI/Screens src/GUI/Screens/Auth src/GUI/Screens/Owner src/GUI/Screens/Renter
+GUI_SOURCES := src/main_gui.cpp $(foreach dir,$(GUI_SRC_DIRS),$(wildcard $(dir)/*.cpp))
 IMGUI_SOURCES := $(wildcard third_party/imgui/*.cpp) \
                 third_party/imgui/backends/imgui_impl_glfw.cpp \
                 third_party/imgui/backends/imgui_impl_opengl3.cpp
@@ -20,7 +21,7 @@ IMGUI_SOURCES := $(wildcard third_party/imgui/*.cpp) \
 ifeq ($(OS),Windows_NT)
     GUI_TARGET := $(GUI_TARGET).exe
     GLFW_INCLUDE := -Ithird_party/glfw/include
-    GLFW_LIB := -Lthird_party/glfw/lib -lglfw3 -lopengl32 -lgdi32
+    GLFW_LIB := -Lthird_party/glfw/lib -lglfw3 -lopengl32 -lgdi32 -static-libgcc -static-libstdc++
 else
     GLFW_INCLUDE :=
     GLFW_LIB := -lglfw -lGL -ldl -lpthread
@@ -50,6 +51,6 @@ run-gui: gui
 	./$(GUI_TARGET)
 
 clean:
-	rm -f $(CONSOLE_OBJECTS) $(CONSOLE_TARGET) $(GUI_TARGET)
+	rm -f $(CONSOLE_OBJECTS) $(CONSOLE_TARGET) $(CONSOLE_TARGET).exe $(GUI_TARGET)
 
 .PHONY: all gui run run-gui clean

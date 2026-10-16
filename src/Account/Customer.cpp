@@ -1,4 +1,4 @@
-#include "../../include/Account/Renter.h"
+#include "Account/Customer.h"
 #include <iostream>
 using namespace std;
 Customer::Customer(const string& user_id, const string& user_name, const string& password, const string& name, const string& phone_number)

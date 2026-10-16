@@ -43,6 +43,8 @@ Fonts loadFonts() {
     ImGuiIO& io = ImGui::GetIO();
     const char* fontPath = findFontFile();
 
+    // LÝ DO CHỌN: Fallback về font mặc định của ImGui nếu không tìm thấy font trong assets/fonts/
+    // để đảm bảo giao diện luôn mở được bình thường, không gây sập (crash) ứng dụng.
     if (fontPath == nullptr) {
         std::cerr << "Không tìm thấy font .ttf/.otf trong assets/fonts/. "
                      "Sử dụng font mặc định; tiếng Việt có thể không hiển thị đầy đủ.\n";
@@ -50,6 +52,8 @@ Fonts loadFonts() {
         return {fallback, fallback, fallback};
     }
 
+    // LÝ DO CHỌN: io.Fonts->GetGlyphRangesVietnamese() cung cấp dải Unicode đầy đủ
+    // bao gồm toàn bộ ký tự Latinh mở rộng và dấu thanh tiếng Việt (Ắ, Ằ, Ể, Ố, Ự...).
     const ImWchar* vietnamese = io.Fonts->GetGlyphRangesVietnamese();
     Fonts fonts;
     fonts.regular = io.Fonts->AddFontFromFileTTF(fontPath, 18.0F, nullptr, vietnamese);
