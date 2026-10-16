@@ -1,10 +1,12 @@
 #pragma once
 
+#include "GUI/App/ScreenManager.h"
+
 // LÝ DO CHỌN: Sử dụng mẫu Application bọc toàn bộ vòng đời (init, run, shutdown)
 // theo nguyên lý RAII để quản lý tài nguyên GLFW/OpenGL/ImGui tập trung, tránh rò rỉ bộ nhớ.
 class Application {
 public:
-    Application() = default;
+    explicit Application(bool runDemo = false);
     ~Application();
 
     // LÝ DO CHỌN: Xóa copy constructor và copy assignment operator để đảm bảo tính duy nhất
@@ -12,7 +14,7 @@ public:
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
 
-    // Khởi tạo cửa sổ GLFW, nạp OpenGL3, cấu hình Dear ImGui và font chữ
+    // Khởi tạo cửa sổ GLFW, nạp OpenGL3, áp dụng Theme và cấu hình font chữ
     bool init();
 
     // Vòng lặp chính xử lý sự kiện và render khung hình
@@ -24,4 +26,5 @@ public:
 private:
     struct GLFWwindow* window_ = nullptr;
     bool initialized_ = false;
+    bool runDemo_ = false;
 };
