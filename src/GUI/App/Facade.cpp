@@ -310,11 +310,11 @@ void Facade::moManHinhChinhChoUser(User* user, ScreenManager& sm) {
         return;
     }
 
-    if (auto owner = dynamic_cast<Owner*>(user)) {
-        (void)owner;
+    std::string accType = user->get_account_type();
+    if (dynamic_cast<Owner*>(user) || accType == "Owner" || accType == u8"Chủ sân") {
         sm.replace(std::make_unique<GUI::Screens::Owner::OwnerShellScreen>());
-    } else if (auto customer = dynamic_cast<Customer*>(user)) {
-        (void)customer;
+    } else {
+        // Mặc định cho Customer / Người thuê
         sm.replace(std::make_unique<GUI::Screens::Renter::RenterShellScreen>());
     }
 }

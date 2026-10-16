@@ -233,12 +233,28 @@ void DatSanScreen::renderBuoc1ChonLoaiSan() {
             if (i > 0) ImGui::SameLine(0.0f, 16.0f);
 
             bool isSelected = (loaiSanChon_ == dsLoai[i].loai);
-            std::string subCardId = "card_type_" + std::to_string(dsLoai[i].loai);
+            std::string childId = "##card_type_box_" + std::to_string(dsLoai[i].loai);
 
-            ImGui::BeginGroup();
-            Widgets::Card(subCardId.c_str(), dsLoai[i].title, [this, i, isSelected, &dsLoai]() {
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, isSelected ? ImVec4(0.92f, 0.98f, 0.94f, 1.0f) : GUI::Theme::Colors::WhiteCard);
+            ImGui::PushStyleColor(ImGuiCol_Border, isSelected ? GUI::Theme::Colors::GrassGreen : GUI::Theme::Colors::BorderLight);
+            ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.0f);
+            ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, isSelected ? 2.0f : 1.0f);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.0f, 16.0f));
+
+            if (ImGui::BeginChild(childId.c_str(), ImVec2(cardW, 200.0f), true)) {
+                // Tiêu đề loại sân
+                ImGui::PushStyleColor(ImGuiCol_Text, isSelected ? GUI::Theme::Colors::GrassGreen : GUI::Theme::Colors::DarkText);
+                ImGui::TextUnformatted(dsLoai[i].title);
+                ImGui::PopStyleColor();
+
+                ImGui::Spacing();
+                ImGui::PushStyleColor(ImGuiCol_Separator, GUI::Theme::Colors::BorderLight);
+                ImGui::Separator();
+                ImGui::PopStyleColor();
+                ImGui::Spacing();
+
                 ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
-                ImGui::TextWrapped(u8"%s", dsLoai[i].desc);
+                ImGui::TextWrapped("%s", dsLoai[i].desc);
                 ImGui::PopStyleColor();
 
                 ImGui::Spacing();
@@ -260,8 +276,11 @@ void DatSanScreen::renderBuoc1ChonLoaiSan() {
                         reloadViewModel();
                     }
                 }
-            });
-            ImGui::EndGroup();
+            }
+            ImGui::EndChild();
+
+            ImGui::PopStyleVar(3);
+            ImGui::PopStyleColor(2);
         }
 
         ImGui::Spacing();

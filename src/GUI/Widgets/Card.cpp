@@ -16,12 +16,13 @@ void Card(const char* id, const char* tieuDe, float paddingX, float paddingY, co
     float availableWidth = ImGui::GetContentRegionAvail().x;
     ImVec2 startCursor = ImGui::GetCursorScreenPos();
 
-    // LÝ DO CHỌN: Tách 2 kênh vẽ (ChannelsSplit): kênh 1 vẽ nội dung trước để tính kích thước thực tế,
-    // sau đó kênh 0 vẽ nền trắng và đổ bóng bên dưới mà không cần cố định chiều cao thẻ.
-    drawList->ChannelsSplit(2);
+    // LÝ DO CHỌN: Dùng ImDrawListSplitter riêng cục bộ cho mỗi Card thay vì drawList->ChannelsSplit(),
+    // cho phép các thẻ Card lồng nhau tùy ý mà không vi phạm ràng buộc phân kênh của ImGui (tránh assert fail gây crash).
+    ImDrawListSplitter splitter;
+    splitter.Split(drawList, 2);
 
     // Kênh 1: Nội dung bên trong thẻ
-    drawList->ChannelsSetCurrent(1);
+    splitter.SetCurrentChannel(drawList, 1);
     ImGui::SetCursorScreenPos(ImVec2(startCursor.x + paddingX, startCursor.y + paddingY));
     ImGui::BeginGroup();
 
@@ -59,7 +60,7 @@ void Card(const char* id, const char* tieuDe, float paddingX, float paddingY, co
     ImVec2 cardMax = ImVec2(startCursor.x + availableWidth, startCursor.y + finalHeight);
 
     // Kênh 0: Nền thẻ và đổ bóng mềm
-    drawList->ChannelsSetCurrent(0);
+    splitter.SetCurrentChannel(drawList, 0);
 
     // LÝ DO CHỌN: Vẽ 3 lớp bóng mờ xếp chồng để tạo hiệu ứng đổ bóng khuếch tán (soft ambient shadow)
     drawList->AddRectFilled(
@@ -83,7 +84,7 @@ void Card(const char* id, const char* tieuDe, float paddingX, float paddingY, co
     ImU32 borderColor = GUI::Theme::Colors::toU32(GUI::Theme::Colors::BorderLight);
     drawList->AddRect(cardMin, cardMax, borderColor, 8.0f, 0, 1.0f);
 
-    drawList->ChannelsMerge();
+    splitter.Merge(drawList);
 
     // Đẩy con trỏ layout xuống dưới thẻ vừa vẽ kèm khoảng cách 12px
     ImGui::SetCursorScreenPos(ImVec2(startCursor.x, cardMax.y + 12.0f));

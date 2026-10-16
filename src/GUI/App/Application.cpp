@@ -135,28 +135,34 @@ void Application::run() {
         return;
     }
 
-    while (glfwWindowShouldClose(window_) == GLFW_FALSE) {
-        glfwPollEvents();
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
+    try {
+        while (glfwWindowShouldClose(window_) == GLFW_FALSE) {
+            glfwPollEvents();
+            ImGui_ImplOpenGL3_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
 
-        // Render màn hình hiện tại thông qua ScreenManager toàn cục
-        GUI::App::ScreenManager::getInstance().renderCurrentScreen();
+            // Render màn hình hiện tại thông qua ScreenManager toàn cục
+            GUI::App::ScreenManager::getInstance().renderCurrentScreen();
 
-        // Render hàng đợi thông báo Toast trên cùng
-        Widgets::RenderToasts();
+            // Render hàng đợi thông báo Toast trên cùng
+            Widgets::RenderToasts();
 
-        ImGui::Render();
-        int displayWidth = 0;
-        int displayHeight = 0;
-        glfwGetFramebufferSize(window_, &displayWidth, &displayHeight);
-        glViewport(0, 0, displayWidth, displayHeight);
+            ImGui::Render();
+            int displayWidth = 0;
+            int displayHeight = 0;
+            glfwGetFramebufferSize(window_, &displayWidth, &displayHeight);
+            glViewport(0, 0, displayWidth, displayHeight);
 
-        glClearColor(0.957f, 0.969f, 0.961f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-        glfwSwapBuffers(window_);
+            glClearColor(0.957f, 0.969f, 0.961f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+            glfwSwapBuffers(window_);
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "[CRITICAL ERROR] Ngoại lệ không xác định trong vòng lặp Application: " << e.what() << std::endl;
+    } catch (...) {
+        std::cerr << "[CRITICAL ERROR] Ngoại lệ không xác định trong vòng lặp Application!" << std::endl;
     }
 }
 
