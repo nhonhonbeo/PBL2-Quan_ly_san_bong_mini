@@ -35,6 +35,12 @@ OwnerShellScreen::OwnerShellScreen() {
             fieldMgmtScreen_->reloadViewModel();
         }
     });
+
+    // Quản lý khách hàng 4 tab
+    khachHangScreen_ = std::make_unique<KhachHangScreen>();
+
+    // Quản lý giải đấu 4 tab
+    giaiScreen_ = std::make_unique<GiaiScreen>();
 }
 
 void OwnerShellScreen::onEnter() {
@@ -42,12 +48,16 @@ void OwnerShellScreen::onEnter() {
     if (dashboardScreen_) dashboardScreen_->onEnter();
     if (fieldMgmtScreen_) fieldMgmtScreen_->onEnter();
     if (wizardScreen_) wizardScreen_->onEnter();
+    if (khachHangScreen_) khachHangScreen_->onEnter();
+    if (giaiScreen_) giaiScreen_->onEnter();
 }
 
 void OwnerShellScreen::onExit() {
     if (dashboardScreen_) dashboardScreen_->onExit();
     if (fieldMgmtScreen_) fieldMgmtScreen_->onExit();
     if (wizardScreen_) wizardScreen_->onExit();
+    if (khachHangScreen_) khachHangScreen_->onExit();
+    if (giaiScreen_) giaiScreen_->onExit();
 }
 
 void OwnerShellScreen::render() {
@@ -124,11 +134,13 @@ void OwnerShellScreen::renderSidebar() {
         }
     );
 
-    // Kích hoạt onEnter tương ứng khi đổi tab qua Sidebar
+    // Kích hoạt nạp lại ViewModel tương ứng khi đổi tab qua Sidebar
     if (selectedTab_ != prevTab) {
         if (selectedTab_ == 0 && dashboardScreen_) dashboardScreen_->onEnter();
         else if (selectedTab_ == 1 && fieldMgmtScreen_) fieldMgmtScreen_->reloadViewModel();
         else if (selectedTab_ == 2 && wizardScreen_) wizardScreen_->onEnter();
+        else if (selectedTab_ == 3 && khachHangScreen_) khachHangScreen_->reloadViewModel();
+        else if (selectedTab_ == 4 && giaiScreen_) giaiScreen_->reloadViewModel();
     }
 }
 
@@ -137,8 +149,8 @@ void OwnerShellScreen::renderTopBar() {
         u8"Tổng quan & Báo cáo cơ sở sân",
         u8"Quản lý sân bóng mini (4 tab)",
         u8"Khởi tạo sân bóng mới (Wizard 4 bước)",
-        u8"Quản lý khách hàng & Ưu đãi",
-        u8"Quản lý sự kiện & Giải đấu"
+        u8"Quản lý khách hàng & Ưu đãi (4 tab)",
+        u8"Quản lý sự kiện & Giải đấu (4 tab)"
     };
 
     std::string currentTabName = tabTitles[selectedTab_];
@@ -174,66 +186,18 @@ void OwnerShellScreen::renderContentArea() {
             }
             break;
         case 3:
-            renderTabQuanLyKhachHang();
+            if (khachHangScreen_) {
+                khachHangScreen_->render();
+            }
             break;
         case 4:
-            renderTabQuanLyGiaiDau();
+            if (giaiScreen_) {
+                giaiScreen_->render();
+            }
             break;
         default:
             break;
     }
-}
-
-void OwnerShellScreen::renderTabQuanLyKhachHang() {
-    Widgets::Card("card_owner_cust_mgmt", u8"Quản lý khách hàng, Ưu đãi & Danh sách đen (Blacklist)", []() {
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-        ImGui::TextWrapped(u8"Theo dõi danh bạ khách hàng theo số điện thoại: Tự động tính số lần đặt sân để áp dụng ưu đãi giảm giá (VIP), hoặc đưa vào danh sách đen nếu hủy đặt nhiều lần quá quy định.");
-        ImGui::PopStyleColor();
-        ImGui::Spacing();
-
-        Widgets::BadgeVIP(u8"Khách hàng thân thiết (VIP)");
-        ImGui::SameLine();
-        Widgets::BadgeDanhSachDen(u8"Danh sách đen (Hủy nhiều)");
-        ImGui::Spacing();
-        ImGui::Spacing();
-
-        if (Widgets::NutPhu(u8"Xem đánh giá & phản hồi của khách")) {
-            Widgets::ToastThongTin(u8"Hiển thị danh sách nhận xét sao đánh giá");
-        }
-
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-        ImGui::TextWrapped(u8"// TODO: Sinh viên triển khai liên kết với CustomerManager, Blacklist và Discount trong include/Customer.");
-        ImGui::PopStyleColor();
-    });
-}
-
-void OwnerShellScreen::renderTabQuanLyGiaiDau() {
-    Widgets::Card("card_owner_tournament", u8"Quản lý giải đấu & Sự kiện sân bóng", []() {
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-        ImGui::TextWrapped(u8"Tổ chức và phê duyệt các giải đấu bóng đá phong trào: Tên giải đấu, khách đặt sự kiện thi đấu, lịch thi đấu và điều phối trọng tài/sân bãi.");
-        ImGui::PopStyleColor();
-        ImGui::Spacing();
-
-        Widgets::Badge(u8"Mô đun Giải đấu", GUI::Theme::Colors::GoldAccent, GUI::Theme::Colors::WhiteCard);
-        ImGui::Spacing();
-        ImGui::Spacing();
-
-        if (Widgets::NutChinh(u8"+ Tạo giải đấu mới")) {
-            Widgets::ToastThongTin(u8"Tạo giải đấu: gọi Facade::themGiaiDau");
-        }
-
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-        ImGui::TextWrapped(u8"// TODO: Sinh viên triển khai liên kết với TournamentManager trong include/Tournament.");
-        ImGui::PopStyleColor();
-    });
 }
 
 }  // namespace GUI::Screens::Owner
