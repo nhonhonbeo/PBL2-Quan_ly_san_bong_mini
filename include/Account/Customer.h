@@ -25,6 +25,6 @@ public:
     void increase_booking_count();
     void increase_cancel_count();
 
-    bool reg_customer() const;
+    bool reg_customer(int&) const;
 };
 #endif
