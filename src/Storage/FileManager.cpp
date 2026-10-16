@@ -3,11 +3,11 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
-
-namespace Storage {
+#include <vector>
 
 namespace {
 
+// Hàm phụ trợ tách chuỗi dùng riêng cho module Account cũ
 std::vector<std::string> tachChuoi(const std::string& str, char delimiter) {
     std::vector<std::string> tokens;
     std::stringstream ss(str);
@@ -18,7 +18,47 @@ std::vector<std::string> tachChuoi(const std::string& str, char delimiter) {
     return tokens;
 }
 
+// Hàm hỗ trợ báo lỗi theo chuẩn TODO của đồ án
+bool reportTodo(std::string& error, const char* responsibility) {
+    error = std::string("TODO FileManager: ") + responsibility +
+            ". Sinh viên cần cài đặt truy xuất file an toàn.";
+    return false;
+}
+
 }  // namespace
+
+// --- 1. Triển khai API đọc/ghi tổng quát (Dùng chung cho các Repository) ---
+
+bool FileManager::readAllLines(const std::string& path,
+                              LinkedList<std::string>& out,
+                              std::string& error) const {
+    (void)path;
+    (void)out;
+    // TODO: Đầu vào là đường dẫn hợp lệ; kết quả mong đợi là nạp từng dòng vào
+    // out hoặc trả false kèm lỗi. Không đọc file khi chưa có format đã duyệt.
+    return reportTodo(error, "đọc toàn bộ dòng");
+}
+
+bool FileManager::writeAllLines(const std::string& path,
+                              const LinkedList<std::string>& lines,
+                              std::string& error) const {
+    (void)path;
+    (void)lines;
+    // TODO: Đầu vào là danh sách dòng đã serialize; kết quả mong đợi là ghi an
+    // toàn hoặc trả false kèm lỗi, không tạo dữ liệu giả.
+    return reportTodo(error, "ghi toàn bộ dòng");
+}
+
+bool FileManager::appendLine(const std::string& path, const std::string& line,
+                            std::string& error) const {
+    (void)path;
+    (void)line;
+    // TODO: Đầu vào là một dòng do Repository serialize; kết quả mong đợi là
+    // thêm dòng hoặc trả false kèm lỗi.
+    return reportTodo(error, "thêm một dòng");
+}
+
+// --- 2. Triển khai API hỗ trợ trực tiếp module Account ---
 
 bool FileManager::docDanhSachUser(
     std::vector<std::shared_ptr<User>>& danhSach,
@@ -150,5 +190,3 @@ bool FileManager::ghiDanhSachUser(
     outFile.close();
     return true;
 }
-
-}  // namespace Storage
