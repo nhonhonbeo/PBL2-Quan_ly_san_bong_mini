@@ -1,0 +1,2 @@
+#include "Tournament/TournamentResult.h"
+TournamentResult::TournamentResult():home_score_(0),away_score_(0){} TournamentResult::TournamentResult(const std::string&id,int home,int away):match_id_(id),home_score_(home),away_score_(away){} const std::string& TournamentResult::getMatchId()const{return match_id_;} int TournamentResult::getHomeScore()const{return home_score_;} int TournamentResult::getAwayScore()const{return away_score_;}

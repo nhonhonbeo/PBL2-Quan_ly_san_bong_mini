@@ -11,6 +11,7 @@
 #include "GUI/Screens/Owner/OwnerShellScreen.h"
 #include "GUI/Screens/Renter/RenterShellScreen.h"
 #include "Storage/FileManager.h"
+#include "Core/LinkedList.h"
 
 namespace GUI::App {
 
@@ -190,6 +191,20 @@ void Facade::napDuLieu() {
 
 void Facade::luuDuLieu() {
     Storage::FileManager::ghiDanhSachUser(danhSachUser_);
+    FileManager manager;
+    LinkedList<std::string> bookings;
+    for (const DonDatSanInfo& booking : danhSachDonDat_) {
+        bookings.push_back(FileManager::join(booking.maDon) + "|" +
+                           FileManager::join(booking.maSan) + "|" +
+                           FileManager::join(booking.tenKhachHang) + "|" +
+                           FileManager::join(booking.sdt) + "|" +
+                           FileManager::join(booking.ngay) + "|" +
+                           FileManager::join(booking.khungGio) + "|" +
+                           std::to_string(booking.giaTien) + "|" +
+                           FileManager::join(booking.trangThai));
+    }
+    std::string error;
+    manager.writeAllLines("data/bookings.txt", bookings, error);
 }
 
 bool Facade::kiemTraSDTDaTonTai(const std::string& sdt) const {
@@ -420,6 +435,9 @@ KetQua Facade::taoNhieuSan(
 }
 
 KetQua Facade::suaSanBong(const std::string& maSan, const std::string& tenSan, int loaiSan, int giaThue) {
+    if (giaThue <= 0) {
+        return {false, u8"Giá thuê phải lớn hơn 0."};
+    }
     auto san = getSanBong(maSan);
     if (!san) {
         return {false, u8"Không tìm thấy sân bóng với mã: " + maSan};
@@ -485,7 +503,7 @@ KetQua Facade::sinhKhungGioTuDong(const std::string& gioMo, const std::string& g
     int endM = gioSangPhut(gioDong);
 
     if (endM <= startM) {
-        endM += 24 * 60;
+        return {false, u8"Giờ mở cửa phải nhỏ hơn giờ đóng cửa."};
     }
 
     if (buocPhut <= 0 || (endM - startM) < buocPhut) {
@@ -1049,6 +1067,7 @@ KetQua Facade::datSanMoi(
         customer->increase_booking_count();
     }
 
+    luuDuLieu();
     return {true, ""};
 }
 
@@ -1064,7 +1083,7 @@ KetQua Facade::huyDonDat(const std::string& maDon, const std::string& sdtKhach) 
             auto it = mapIndexKhachSDT_.find(sdtKhach);
             if (it != mapIndexKhachSDT_.end() && it->second < danhSachKhachHang_.size()) {
                 danhSachKhachHang_[it->second].soLanHuy++;
-                if (danhSachKhachHang_[it->second].soLanHuy >= 5) {
+                if (danhSachKhachHang_[it->second].soLanHuy >= 3) {
                     danhSachKhachHang_[it->second].biChan = true;
                     danhSachKhachHang_[it->second].lyDoChan = u8"Hủy sân tự động quá 5 lần";
                     danhSachKhachHang_[it->second].ngayChan = "17/10/2026";
@@ -1077,6 +1096,7 @@ KetQua Facade::huyDonDat(const std::string& maDon, const std::string& sdtKhach) 
                 customer->increase_cancel_count();
             }
 
+            luuDuLieu();
             return {true, ""};
         }
     }

@@ -9,6 +9,8 @@ std::string User::get_user_id() const { return user_id; }
 std::string User::get_user_name() const { return user_name; }
 std::string User::get_name() const { return name; }
 std::string User::get_phone_number() const { return phone_number; }
+std::string User::get_password() const { return password; }
 
 void User::rename(const std::string& new_name) { this->name = new_name; }
+void User::update_phone_number(const std::string& new_phone_number) { this->phone_number = new_phone_number; }
 void User::update_pw(const std::string& new_password) { this->password = new_password; }

@@ -27,11 +27,30 @@ bool reportTodo(std::string& error, const char* responsibility) {
 
 }  // namespace
 
+std::string FileManager::join(const std::string& value) {
+    std::string sanitized = value;
+    for (char& character : sanitized) {
+        if (character == '|') character = '-';
+        else if (character == '\n' || character == '\r') character = ' ';
+    }
+    return sanitized;
+}
+
 // --- 1. Triển khai API đọc/ghi tổng quát (Dùng chung cho các Repository) ---
 
 bool FileManager::readAllLines(const std::string& path,
                               LinkedList<std::string>& out,
                               std::string& error) const {
+    out.clear();
+    std::ifstream input(path);
+    if (!input.is_open()) {
+        if (!std::filesystem::exists(path)) return true;
+        error = "Khong the mo file: " + path;
+        return false;
+    }
+    std::string line;
+    while (std::getline(input, line)) out.push_back(line);
+    return true;
     (void)path;
     (void)out;
     // TODO: Đầu vào là đường dẫn hợp lệ; kết quả mong đợi là nạp từng dòng vào
@@ -42,6 +61,12 @@ bool FileManager::readAllLines(const std::string& path,
 bool FileManager::writeAllLines(const std::string& path,
                               const LinkedList<std::string>& lines,
                               std::string& error) const {
+    const std::filesystem::path filePath(path);
+    if (!filePath.parent_path().empty()) std::filesystem::create_directories(filePath.parent_path());
+    std::ofstream output(path, std::ios::trunc);
+    if (!output.is_open()) { error = "Khong the ghi file: " + path; return false; }
+    lines.forEach([&output](const std::string& line) { output << line << '\n'; });
+    return static_cast<bool>(output);
     (void)path;
     (void)lines;
     // TODO: Đầu vào là danh sách dòng đã serialize; kết quả mong đợi là ghi an
@@ -51,6 +76,12 @@ bool FileManager::writeAllLines(const std::string& path,
 
 bool FileManager::appendLine(const std::string& path, const std::string& line,
                             std::string& error) const {
+    const std::filesystem::path filePath(path);
+    if (!filePath.parent_path().empty()) std::filesystem::create_directories(filePath.parent_path());
+    std::ofstream output(path, std::ios::app);
+    if (!output.is_open()) { error = "Khong the ghi file: " + path; return false; }
+    output << line << '\n';
+    return static_cast<bool>(output);
     (void)path;
     (void)line;
     // TODO: Đầu vào là một dòng do Repository serialize; kết quả mong đợi là
@@ -165,7 +196,7 @@ bool FileManager::ghiDanhSachUser(
             outFile << "CUSTOMER|"
                     << user->get_user_id() << "|"
                     << user->get_user_name() << "|"
-                    << "123456" << "|" // Mật khẩu mặc định hoặc lưu kèm
+                    << join(user->get_password()) << "|"
                     << user->get_name() << "|"
                     << user->get_phone_number() << "|"
                     << (cust ? cust->get_booking_count() : 0) << "|"
@@ -175,7 +206,7 @@ bool FileManager::ghiDanhSachUser(
             outFile << "OWNER|"
                     << user->get_user_id() << "|"
                     << user->get_user_name() << "|"
-                    << "123456" << "|"
+                    << join(user->get_password()) << "|"
                     << user->get_name() << "|"
                     << user->get_phone_number() << "|"
                     << (own ? own->get_field_name() : "") << "|"

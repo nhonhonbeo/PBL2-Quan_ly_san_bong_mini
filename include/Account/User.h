@@ -23,8 +23,10 @@ public:
     std::string get_user_name() const;
     std::string get_name() const;
     std::string get_phone_number() const;
+    std::string get_password() const;
 
     void rename(const std::string& new_name);
+    void update_phone_number(const std::string& new_phone_number);
     void update_pw(const std::string& new_password);
 
     virtual void show_menu() const = 0;
