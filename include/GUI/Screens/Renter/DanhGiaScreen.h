@@ -31,6 +31,7 @@ private:
     std::string formDanhGiaIdDangSua_; // Rỗng: Tạo mới, Khác rỗng: Đang sửa
 
     // ViewModel
+    std::vector<GUI::App::SanBongInfo> danhSachSan_;
     std::vector<GUI::App::SanBongInfo> danhSachSanDaThue_;
     std::vector<GUI::App::DanhGiaInfo> danhSachDanhGiaCuaToi_;
 };

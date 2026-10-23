@@ -76,13 +76,15 @@ void AuthScreen::render() {
 void AuthScreen::renderBanner(float width, float height) {
     ImGui::PushStyleColor(ImGuiCol_ChildBg, GUI::Theme::Colors::GrassGreen);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(28.0f, 28.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0.0f);
 
     if (ImGui::BeginChild("##AuthBanner", ImVec2(width, height), false, ImGuiWindowFlags_NoScrollbar)) {
         ImGui::Spacing();
 
         // Tiêu đề thương hiệu
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
-        ImGui::TextUnformatted(u8"⚽ QUẢN LÝ SÂN BÓNG MINI");
+        ImGui::TextUnformatted(u8"QUẢN LÝ SÂN BÓNG MINI");
         ImGui::PopStyleColor();
 
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.88f, 0.98f, 0.92f, 1.0f));
@@ -161,28 +163,29 @@ void AuthScreen::renderBanner(float width, float height) {
         ImGui::PopStyleColor();
 
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.90f, 0.98f, 0.94f, 1.0f));
-        ImGui::TextUnformatted(u8"✔ Đặt sân & giữ chỗ 24/7 trực tuyến");
-        ImGui::TextUnformatted(u8"✔ Thiết lập giá & khung giờ linh hoạt");
-        ImGui::TextUnformatted(u8"✔ Tích điểm ưu đãi cho khách thân thiết");
-        ImGui::TextUnformatted(u8"✔ Quản lý sự kiện giải đấu bóng đá mini");
+        ImGui::TextUnformatted(u8"Đặt sân & giữ chỗ 24/7 trực tuyến");
+        ImGui::TextUnformatted(u8"Thiết lập giá & khung giờ linh hoạt");
+        ImGui::TextUnformatted(u8"Tích điểm ưu đãi cho khách thân thiết");
+        ImGui::TextUnformatted(u8"Quản lý sự kiện giải đấu bóng đá mini");
         ImGui::PopStyleColor();
 
         // Nút mở nhanh Thư viện Widget Demo ở chân banner
-        float bottomPosY = height - 52.0f;
+        float bottomPosY = height - 56.0f;
         if (bottomPosY > ImGui::GetCursorPosY() + 20.0f) {
             ImGui::SetCursorPosY(bottomPosY);
         }
 
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.06f, 0.38f, 0.24f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
-        if (ImGui::Button(u8"🎨 Xem Thư viện Widget Demo", ImVec2(ImGui::GetContentRegionAvail().x, 32.0f))) {
+        float demoButtonWidth = std::max(0.0f, ImGui::GetContentRegionAvail().x);
+        if (ImGui::Button(u8"Xem Thư viện Widget Demo", ImVec2(demoButtonWidth, 32.0f))) {
             GUI::App::ScreenManager::getInstance().push(std::make_unique<GUI::Screens::DemoScreen>());
         }
         ImGui::PopStyleColor(2);
     }
     ImGui::EndChild();
 
-    ImGui::PopStyleVar();
+    ImGui::PopStyleVar(3);
     ImGui::PopStyleColor();
 }
 
@@ -283,7 +286,7 @@ void AuthScreen::renderTabDangNhap() {
     // Thông báo lỗi chung nếu đăng nhập thất bại
     if (!loginLoiChung_.empty()) {
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::RedDanger);
-        ImGui::TextWrapped(u8"✕ %s", loginLoiChung_.c_str());
+        ImGui::TextWrapped(u8"%s", loginLoiChung_.c_str());
         ImGui::PopStyleColor();
         ImGui::Spacing();
     }
@@ -331,8 +334,8 @@ void AuthScreen::renderTabDangKy() {
     // Thẻ Người thuê
     bool isRenter = (regVaiTro_ == 1);
     if (isRenter) {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.90f, 0.96f, 0.92f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::GrassGreen);
+        ImGui::PushStyleColor(ImGuiCol_Button, GUI::Theme::Colors::GrassGreen);
+        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
         ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::GrassGreen);
     } else {
         ImGui::PushStyleColor(ImGuiCol_Button, GUI::Theme::Colors::WhiteCard);
@@ -341,7 +344,7 @@ void AuthScreen::renderTabDangKy() {
     }
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, isRenter ? 2.0f : 1.0f);
 
-    if (ImGui::Button(u8"🏃  Người thuê sân", ImVec2(cardW, 46.0f))) {
+    if (ImGui::Button(u8"Người thuê sân", ImVec2(cardW, 46.0f))) {
         regVaiTro_ = 1;
     }
     ImGui::PopStyleVar();
@@ -352,8 +355,8 @@ void AuthScreen::renderTabDangKy() {
     // Thẻ Chủ sân
     bool isOwner = (regVaiTro_ == 0);
     if (isOwner) {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.90f, 0.96f, 0.92f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::GrassGreen);
+        ImGui::PushStyleColor(ImGuiCol_Button, GUI::Theme::Colors::GrassGreen);
+        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
         ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::GrassGreen);
     } else {
         ImGui::PushStyleColor(ImGuiCol_Button, GUI::Theme::Colors::WhiteCard);
@@ -362,7 +365,7 @@ void AuthScreen::renderTabDangKy() {
     }
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, isOwner ? 2.0f : 1.0f);
 
-    if (ImGui::Button(u8"⚽  Chủ sân bóng", ImVec2(cardW, 46.0f))) {
+    if (ImGui::Button(u8"Chủ sân bóng", ImVec2(cardW, 46.0f))) {
         regVaiTro_ = 0;
     }
     ImGui::PopStyleVar();
@@ -415,12 +418,12 @@ void AuthScreen::renderTabDangKy() {
 
     // Mật khẩu
     Widgets::InputPassword(
-        u8"Mật khẩu (* tối thiểu 6 ký tự):",
+        u8"Mật khẩu (*):",
         "reg_pw",
         regMatKhau_,
         regHienMatKhau_,
         regLoiMatKhau_.empty() ? nullptr : regLoiMatKhau_.c_str(),
-        u8"Nhập mật khẩu..."
+        u8"Tối thiểu 6 ký tự..."
     );
     ImGui::Spacing();
 
@@ -506,14 +509,12 @@ void AuthScreen::xuLyDangKy() {
 
     if (!regLoiHoTen_.empty() || !regLoiSDT_.empty() || !regLoiMatKhau_.empty() ||
         !regLoiNhapLai_.empty() || !regLoiTenCoSo_.empty() || !regLoiDiaChi_.empty()) {
-        Widgets::ToastCanhBao(u8"Vui lòng kiểm tra và sửa các thông tin chưa hợp lệ.");
         return;
     }
 
     // Kiểm tra SĐT trùng qua Facade
     if (GUI::App::Facade::getInstance().kiemTraSDTDaTonTai(regSDT_)) {
         regLoiSDT_ = u8"Số điện thoại này đã được đăng ký trong hệ thống.";
-        Widgets::ToastLoi(regLoiSDT_);
         return;
     }
 
@@ -525,12 +526,9 @@ void AuthScreen::xuLyDangKy() {
     }
 
     if (kq.ok) {
-        Widgets::ToastThanhCong(u8"Đăng ký tài khoản thành công! Vui lòng đăng nhập.");
         loginSDT_ = regSDT_;
         loginMatKhau_ = regMatKhau_;
         activeTab_ = 0; // Chuyển về Tab Đăng nhập điền sẵn SĐT & Mật khẩu
-    } else {
-        Widgets::ToastLoi(kq.loi);
     }
 }
 

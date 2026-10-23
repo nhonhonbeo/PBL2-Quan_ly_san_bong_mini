@@ -28,3 +28,13 @@ void Customer::increase_cancel_count() {
 bool Customer::reg_customer() const { 
     return booking_count >= 10; 
 }
+
+const std::string& Customer::getUserId() const { return user_id; }
+int Customer::getBookingCount() const { return booking_count; }
+int Customer::getCancelCount() const { return cancel_count; }
+void Customer::recordBooking() { increase_booking_count(); }
+void Customer::recordCancellation() { increase_cancel_count(); }
+void Customer::setStatistics(int bookingCount, int cancelCount) {
+    booking_count = bookingCount;
+    cancel_count = cancelCount;
+}

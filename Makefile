@@ -2,16 +2,11 @@ CXX ?= g++
 CXXFLAGS ?= -std=c++17 -Wall -Wextra -Iinclude
 
 BUILD_DIR := build
-CONSOLE_TARGET := $(BUILD_DIR)/QuanLySanBong
 GUI_TARGET := $(BUILD_DIR)/QuanLySanBong_GUI
 
-# Phần console giữ nguyên danh sách mã nguồn cũ để không kéo mã GUI vào.
-CONSOLE_SRC_DIRS := src src/Core src/Account src/Field src/Booking src/Customer src/Tournament src/Storage src/UI
-CONSOLE_SOURCES := $(filter-out src/main_gui.cpp,$(foreach dir,$(CONSOLE_SRC_DIRS),$(wildcard $(dir)/*.cpp)))
-CONSOLE_OBJECTS := $(CONSOLE_SOURCES:.cpp=.o)
-
 # Mọi mã nghiệp vụ, trừ hai entry point, được liên kết vào ứng dụng GUI.
-BUSINESS_SOURCES := $(filter-out src/main.cpp src/main_gui.cpp,$(foreach dir,$(CONSOLE_SRC_DIRS),$(wildcard $(dir)/*.cpp)))
+BUSINESS_SRC_DIRS := src/Core src/Account src/Field src/Booking src/Customer src/Repository src/Service src/Payment src/Tournament src/Storage
+BUSINESS_SOURCES := $(foreach dir,$(BUSINESS_SRC_DIRS),$(wildcard $(dir)/*.cpp))
 GUI_SRC_DIRS := src/GUI src/GUI/App src/GUI/Theme src/GUI/Widgets src/GUI/Screens src/GUI/Screens/Auth src/GUI/Screens/Owner src/GUI/Screens/Renter
 GUI_SOURCES := src/main_gui.cpp $(foreach dir,$(GUI_SRC_DIRS),$(wildcard $(dir)/*.cpp))
 IMGUI_SOURCES := $(wildcard third_party/imgui/*.cpp) \
@@ -29,11 +24,7 @@ endif
 
 GUI_CXXFLAGS := $(CXXFLAGS) -Ithird_party/imgui -Ithird_party/imgui/backends -Ithird_party/stb $(GLFW_INCLUDE)
 
-all: $(CONSOLE_TARGET)
-
-$(CONSOLE_TARGET): $(CONSOLE_OBJECTS)
-	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -o $@ $^
+all: gui
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -44,13 +35,13 @@ gui:
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(GUI_CXXFLAGS) -o $(GUI_TARGET) $(BUSINESS_SOURCES) $(GUI_SOURCES) $(IMGUI_SOURCES) $(GLFW_LIB)
 
-run: all
-	./$(CONSOLE_TARGET)
+run: gui
+	./$(GUI_TARGET)
 
 run-gui: gui
 	./$(GUI_TARGET)
 
 clean:
-	rm -f $(CONSOLE_OBJECTS) $(CONSOLE_TARGET) $(CONSOLE_TARGET).exe $(GUI_TARGET)
+	rm -f $(GUI_TARGET) $(GUI_TARGET).exe
 
 .PHONY: all gui run run-gui clean

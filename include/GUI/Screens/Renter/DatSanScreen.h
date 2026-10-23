@@ -30,15 +30,14 @@ private:
 
     // Các bước đặt sân
     void renderBuoc1ChonLoaiSan();
-    void renderBuoc2ChonNgay();
-    void renderBuoc3ChonSlot();
-    void renderBuoc4XacNhan();
-    void renderBuoc5PhieuDatSan();
+    void renderBuoc2ChonNgayVaKhungGio();
+    void renderBuoc3XacNhan();
+    void renderPhieuDatSan();
 
     std::function<void()> onXemLichCuaToi_;
 
     // Trạng thái Wizard
-    int buocHienTai_ = 1; // 1: Loại sân, 2: Ngày, 3: SlotGrid, 4: Xác nhận, 5: Phiếu đặt
+    int buocHienTai_ = 1; // 1: Loại sân, 2: Ngày và SlotGrid, 3: Xác nhận, 4: Phiếu đặt
     bool biChanDatSan_ = false;
 
     // Dữ liệu lựa chọn đặt sân
@@ -53,6 +52,7 @@ private:
     std::string maDonDaDat_;
 
     // Dữ liệu ViewModel
+    std::map<int, int> giaThapNhatTheoLoai_;
     std::vector<GUI::App::SanBongInfo> danhSachSanTheoLoai_;
     std::vector<GUI::App::KhungGioInfo> danhSachKhungGio_;
     std::map<std::pair<std::string, std::string>, Widgets::SlotInfo> slotDataMap_;

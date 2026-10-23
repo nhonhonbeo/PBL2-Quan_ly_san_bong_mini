@@ -1,13 +1,35 @@
 #include "GUI/Widgets/Modal.h"
 
+#include <string>
+#include <unordered_set>
 #include <imgui.h>
 #include "GUI/Theme/Theme.h"
 #include "GUI/Widgets/Button.h"
 
 namespace Widgets {
 
+// LÝ DO CHỌN: Lưu danh sách tiêu đề Modal cần mở vào s_PendingModals để khi ModalXacNhan hoặc BeginPopupModal
+// được gọi ở cửa sổ cha, ImGui::OpenPopup sẽ được kích hoạt tại đúng cấp ID stack của cửa sổ cha đó.
+// Điều này khắc phục triệt để lỗi của Dear ImGui khi OpenPopup được gọi từ Child window (như Sidebar) hoặc vùng PushID.
+static std::unordered_set<std::string> s_PendingModals;
+
 void MoModalXacNhan(const char* tieuDe) {
+    if (tieuDe != nullptr && tieuDe[0] != '\0') {
+        s_PendingModals.insert(tieuDe);
+    }
     ImGui::OpenPopup(tieuDe);
+}
+
+bool KiemTraVaMoModal(const char* tieuDe) {
+    if (tieuDe != nullptr && tieuDe[0] != '\0') {
+        auto it = s_PendingModals.find(tieuDe);
+        if (it != s_PendingModals.end()) {
+            ImGui::OpenPopup(tieuDe);
+            s_PendingModals.erase(it);
+            return true;
+        }
+    }
+    return false;
 }
 
 bool ModalXacNhan(
@@ -19,6 +41,9 @@ bool ModalXacNhan(
     bool laNguyHiem
 ) {
     bool daDongY = false;
+
+    // Tự động kiểm tra và mở popup tại ngữ cảnh ID stack hiện tại
+    KiemTraVaMoModal(tieuDe);
 
     // Căn giữa màn hình hiển thị
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();

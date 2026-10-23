@@ -4,7 +4,7 @@
 #include <string>
 
 class Blacklist;
-class CustomerProfile;
+class Customer;
 class Discount;
 class FileManager;
 class Review;
@@ -19,10 +19,10 @@ public:
     explicit CustomerRepository(FileManager& fileManager);
 
     bool findCustomerByUserId(const std::string& userId,
-                              CustomerProfile& out,
+                              Customer& out,
                               std::string& error) const;
-    bool saveCustomer(const CustomerProfile& customer, std::string& error);
-    bool updateCustomer(const CustomerProfile& customer, std::string& error);
+    bool saveCustomer(const Customer& customer, std::string& error);
+    bool updateCustomer(const Customer& customer, std::string& error);
 
     bool findActiveBlacklist(const std::string& customerId, Blacklist& out,
                              std::string& error) const;

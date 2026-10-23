@@ -96,6 +96,7 @@ bool Application::init() {
     // Khởi tạo Dear ImGui context và thiết lập backend GLFW + OpenGL3
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+    ImGui::GetIO().IniFilename = nullptr;
 
     // Áp dụng bảng màu và kiểu dáng sân bóng mini toàn cục
     GUI::Theme::apply();
@@ -154,7 +155,7 @@ void Application::run() {
             glfwGetFramebufferSize(window_, &displayWidth, &displayHeight);
             glViewport(0, 0, displayWidth, displayHeight);
 
-            glClearColor(0.957f, 0.969f, 0.961f, 1.0f);
+            glClearColor(0.886f, 0.910f, 0.941f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
             glfwSwapBuffers(window_);

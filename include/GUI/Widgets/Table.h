@@ -24,7 +24,7 @@ struct TableRow {
 // Trạng thái tìm kiếm, sắp xếp và phân trang của bảng
 struct TableState {
     std::string tuKhoaTimKiem;
-    int soDongMoiTrang = 10; // 10, 20, 50 dòng
+    int soDongMoiTrang = 10;
     int trangHienTai = 1;
     int cotSapXep = 0;
     bool sapXepTangDan = true;
@@ -39,7 +39,8 @@ bool Table(
     const std::vector<TableRow>& danhSachDong,
     TableState& state,
     const std::function<void(const TableRow&, int cot)>& customRenderCell = nullptr,
-    const std::function<void(const TableRow&)>& onDongClicked = nullptr
+    const std::function<void(const TableRow&)>& onDongClicked = nullptr,
+    ImGuiTableFlags extraFlags = ImGuiTableFlags_None
 );
 
 }  // namespace Widgets

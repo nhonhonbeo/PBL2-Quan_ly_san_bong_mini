@@ -3,6 +3,7 @@
 #include <chrono>
 #include <ctime>
 #include <iomanip>
+#include <algorithm>
 #include <sstream>
 #include <string>
 #include <imgui.h>
@@ -99,9 +100,18 @@ bool DatePicker(
 
     float nutLichWidth = 76.0f;
     float availWidth = ImGui::GetContentRegionAvail().x;
-    ImGui::SetNextItemWidth(availWidth - nutLichWidth - ImGui::GetStyle().ItemSpacing.x);
-
-    bool changed = InputText("##date_txt", "##date_txt_id", dateStr, nullptr, u8"dd/MM/yyyy");
+    float dateInputWidth = std::max(
+        1.0f,
+        availWidth - nutLichWidth - ImGui::GetStyle().ItemSpacing.x
+    );
+    bool changed = InputText(
+        nullptr,
+        "##date_txt_id",
+        dateStr,
+        nullptr,
+        u8"dd/MM/yyyy",
+        dateInputWidth
+    );
 
     if (coLoi) {
         ImGui::PopStyleVar();
@@ -113,7 +123,7 @@ bool DatePicker(
     // Nút mở lịch popup
     ImGui::PushStyleColor(ImGuiCol_Button, GUI::Theme::Colors::WhiteCard);
     ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::GrassGreen);
-    ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::BorderLight);
+    ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::InputBorder);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
     if (ImGui::Button(u8"Lịch", ImVec2(nutLichWidth, 0.0f))) {
         ImGui::OpenPopup("##DatePickerPopup");

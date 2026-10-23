@@ -154,9 +154,13 @@ bool SlotGrid::Render(
 
     if (ImGui::BeginTable("##slot_table", totalCols, tblFlags)) {
         // Cột 0: Khung giờ
-        ImGui::TableSetupColumn(u8"Khung giờ", ImGuiTableColumnFlags_WidthFixed, 140.0f);
+        ImGui::TableSetupColumn(u8"Khung giờ", ImGuiTableColumnFlags_WidthFixed, 120.0f);
         for (const auto& maSan : danhSachMaSan) {
-            ImGui::TableSetupColumn(maSan.c_str(), ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn(
+                maSan.c_str(),
+                ImGuiTableColumnFlags_WidthStretch,
+                1.0f
+            );
         }
         ImGui::TableHeadersRow();
 
@@ -269,7 +273,7 @@ bool SlotGrid::Render(
                         }
                         if (choPhepChon) {
                             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::GrassGreen);
-                            ImGui::TextUnformatted(u8"👉 Bấm chuột để chọn đặt khung giờ này");
+                            ImGui::TextUnformatted(u8"Bấm chuột để chọn đặt khung giờ này");
                             ImGui::PopStyleColor();
                         }
                     }

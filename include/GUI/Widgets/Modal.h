@@ -10,6 +10,9 @@ namespace Widgets {
 // Kích hoạt mở popup modal xác nhận theo tiêu đề
 void MoModalXacNhan(const char* tieuDe);
 
+// Kiểm tra và kích hoạt mở popup nếu có yêu cầu mở đang chờ
+bool KiemTraVaMoModal(const char* tieuDe);
+
 // Render modal xác nhận (gọi mỗi frame tại nơi quản lý màn hình hoặc loop)
 bool ModalXacNhan(
     const char* tieuDe,

@@ -1,6 +1,9 @@
 #include "GUI/Screens/Renter/TaoGiaiScreen.h"
 
+#include <ctime>
 #include <cstdio>
+#include <iomanip>
+#include <sstream>
 #include <string>
 #include <vector>
 #include <imgui.h>
@@ -19,6 +22,43 @@ namespace GUI::Screens::Renter {
 
 namespace {
 
+int ngayDangSo(const std::string& ngay) {
+    if (ngay.size() != 10 || ngay[2] != '/' || ngay[5] != '/') {
+        return 0;
+    }
+    try {
+        int day = std::stoi(ngay.substr(0, 2));
+        int month = std::stoi(ngay.substr(3, 2));
+        int year = std::stoi(ngay.substr(6, 4));
+        if (day < 1 || day > 31 || month < 1 || month > 12 || year < 1) {
+            return 0;
+        }
+        return year * 10000 + month * 100 + day;
+    } catch (const std::invalid_argument&) {
+        return 0;
+    } catch (const std::out_of_range&) {
+        return 0;
+    }
+}
+
+std::string ngayHienTai(int soNgayCongThem = 0) {
+    std::time_t now = std::time(nullptr);
+    std::tm* localTime = std::localtime(&now);
+    if (localTime == nullptr) {
+        return {};
+    }
+    std::tm date = *localTime;
+    date.tm_mday += soNgayCongThem;
+    if (std::mktime(&date) == static_cast<std::time_t>(-1)) {
+        return {};
+    }
+    std::ostringstream result;
+    result << std::setfill('0') << std::setw(2) << date.tm_mday << '/'
+           << std::setw(2) << (date.tm_mon + 1) << '/'
+           << (date.tm_year + 1900);
+    return result.str();
+}
+
 const char* tenTrangThaiGiai(GUI::App::TrangThaiGiaiDau tt) {
     switch (tt) {
         case GUI::App::TrangThaiGiaiDau::ChoDuyet:   return u8"Chờ duyệt";
@@ -34,8 +74,8 @@ const char* tenTrangThaiGiai(GUI::App::TrangThaiGiaiDau tt) {
 
 void TaoGiaiScreen::onEnter() {
     formTenGiai_.clear();
-    formNgayBatDau_ = "28/10/2026";
-    formNgayKetThuc_ = "04/11/2026";
+    formNgayBatDau_ = ngayHienTai();
+    formNgayKetThuc_ = ngayHienTai(1);
     formSoDoi_ = 8;
     formLoaiSanIndex_ = 0;
     formGhiChu_.clear();
@@ -106,6 +146,21 @@ void TaoGiaiScreen::renderFormTaoGiai() {
         ImGui::Spacing();
 
         Widgets::DatePicker(u8"Ngày kết thúc giải (*)", "##r_dp_end", formNgayKetThuc_);
+        int today = ngayDangSo(ngayHienTai());
+        int startDate = ngayDangSo(formNgayBatDau_);
+        int endDate = ngayDangSo(formNgayKetThuc_);
+        bool startDateValid = startDate != 0 && today != 0 && startDate >= today;
+        bool endDateValid = endDate != 0 && startDate != 0 && endDate >= startDate;
+        if (!startDateValid) {
+            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::RedDanger);
+            ImGui::TextUnformatted(u8"Ngày bắt đầu không được ở trong quá khứ.");
+            ImGui::PopStyleColor();
+        }
+        if (!endDateValid) {
+            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::RedDanger);
+            ImGui::TextUnformatted(u8"Ngày kết thúc phải cùng ngày hoặc sau ngày bắt đầu.");
+            ImGui::PopStyleColor();
+        }
         ImGui::Spacing();
 
         ImGui::NextColumn();
@@ -126,9 +181,14 @@ void TaoGiaiScreen::renderFormTaoGiai() {
         ImGui::TextUnformatted(u8"Ghi chú / Điều lệ dự kiến:");
         char descBuf[1024];
         std::snprintf(descBuf, sizeof(descBuf), "%s", formGhiChu_.c_str());
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, GUI::Theme::Colors::WhiteCard);
+        ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::InputBorder);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.5f);
         if (ImGui::InputTextMultiline("##r_t_notes", descBuf, sizeof(descBuf), ImVec2(-1.0f, 90.0f))) {
             formGhiChu_ = descBuf;
         }
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor(2);
 
         ImGui::Columns(1);
 
@@ -137,9 +197,9 @@ void TaoGiaiScreen::renderFormTaoGiai() {
         ImGui::Separator();
         ImGui::Spacing();
 
+        ImGui::BeginDisabled(!startDateValid || !endDateValid);
         if (Widgets::NutChinh(u8"Gửi yêu cầu tổ chức giải đấu tới Chủ sân", ImVec2(340.0f, 38.0f))) {
             if (formTenGiai_.empty()) {
-                Widgets::ToastLoi(u8"Vui lòng nhập tên giải đấu!");
                 return;
             }
 
@@ -161,14 +221,13 @@ void TaoGiaiScreen::renderFormTaoGiai() {
 
             auto kq = GUI::App::Facade::getInstance().guiYeuCauTaoGiai(gMoi);
             if (kq.ok) {
-                Widgets::ToastThanhCong(u8"Đã gửi yêu cầu tổ chức giải đấu thành công!");
                 formTenGiai_.clear();
                 formGhiChu_.clear();
                 reloadViewModel();
             } else {
-                Widgets::ToastLoi(kq.loi);
             }
         }
+        ImGui::EndDisabled();
     });
 }
 
@@ -205,7 +264,7 @@ void TaoGiaiScreen::renderBangTheoDoiTrangThai() {
                     // Lý do phản hồi từ chủ sân
                     if (row.oDuLieu[4] == u8"Bị từ chối") {
                         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::RedDanger);
-                        ImGui::TextWrapped(u8"✕ %s", row.oDuLieu[5].c_str());
+                        ImGui::TextWrapped(u8"%s", row.oDuLieu[5].c_str());
                         ImGui::PopStyleColor();
                     } else {
                         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);

@@ -74,6 +74,13 @@ void OwnerShellScreen::render() {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 
     if (ImGui::Begin("##OwnerShellRootWindow", nullptr, flags)) {
+        // LÝ DO CHỌN: Kích hoạt mở modal đăng xuất ngay tại cửa sổ gốc OwnerShellRootWindow
+        // để ImGui::BeginPopupModal có cùng ID stack với OpenPopup, đảm bảo modal luôn hiển thị.
+        if (yeuCauDangXuat_) {
+            Widgets::MoModalXacNhan(u8"Xác nhận đăng xuất");
+            yeuCauDangXuat_ = false;
+        }
+
         // 1. Sidebar menu trái
         renderSidebar();
 
@@ -84,7 +91,7 @@ void OwnerShellScreen::render() {
         if (ImGui::BeginChild("##OwnerRightContent", ImVec2(0.0f, 0.0f), false)) {
             renderTopBar();
 
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(20.0f, 16.0f));
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(22.0f, 20.0f));
             if (ImGui::BeginChild("##OwnerScrollContent", ImVec2(0.0f, 0.0f), false)) {
                 renderContentArea();
             }
@@ -117,11 +124,11 @@ void OwnerShellScreen::render() {
 
 void OwnerShellScreen::renderSidebar() {
     std::vector<Widgets::SidebarItem> menuItems = {
-        {"0", "[📊]", u8"Tổng quan cơ sở"},
-        {"1", "[⚽]", u8"Quản lý sân bóng"},
-        {"2", "[✨]", u8"Khởi tạo sân mới"},
-        {"3", "[👥]", u8"Quản lý khách hàng"},
-        {"4", "[🏆]", u8"Quản lý giải đấu"}
+        {"0", "", u8"Tổng quan cơ sở"},
+        {"1", "", u8"Quản lý sân bóng"},
+        {"2", "", u8"Khởi tạo sân mới"},
+        {"3", "", u8"Quản lý khách hàng"},
+        {"4", "", u8"Quản lý giải đấu"}
     };
 
     int prevTab = selectedTab_;
@@ -129,8 +136,8 @@ void OwnerShellScreen::renderSidebar() {
         menuItems,
         selectedTab_,
         240.0f,
-        []() {
-            Widgets::MoModalXacNhan(u8"Xác nhận đăng xuất");
+        [this]() {
+            yeuCauDangXuat_ = true;
         }
     );
 

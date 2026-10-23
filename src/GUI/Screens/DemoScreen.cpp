@@ -6,6 +6,9 @@
 #include <imgui.h>
 
 #include "GUI/Theme/Theme.h"
+#include "GUI/App/ScreenManager.h"
+#include "GUI/App/Session.h"
+#include "GUI/Screens/Auth/AuthScreen.h"
 #include "GUI/Widgets/Badge.h"
 #include "GUI/Widgets/Button.h"
 #include "GUI/Widgets/Card.h"
@@ -25,11 +28,11 @@ namespace GUI::Screens {
 void DemoScreen::onEnter() {
     // 1. Nạp danh mục Sidebar
     sidebarItems_ = {
-        {"0", "[🏠]", u8"Tổng quan"},
-        {"1", "[⚽]", u8"Quản lý sân"},
-        {"2", "[📅]", u8"Lịch đặt sân"},
-        {"3", "[👥]", u8"Khách hàng"},
-        {"4", "[🎨]", u8"Thư viện UI"}
+        {"0", "", u8"Tổng quan"},
+        {"1", "", u8"Quản lý sân"},
+        {"2", "", u8"Lịch đặt sân"},
+        {"3", "", u8"Khách hàng"},
+        {"4", "", u8"Thư viện UI"}
     };
     selectedSidebarIdx_ = 4;
 
@@ -98,7 +101,6 @@ void DemoScreen::onEnter() {
 
     selectedRowInfo_ = u8"Chưa chọn dòng nào";
 
-    Widgets::ToastThongTin(u8"Chào mừng bạn đến với Màn hình Thư viện Widget!");
 }
 
 void DemoScreen::onExit() {
@@ -135,42 +137,18 @@ void DemoScreen::render() {
             renderTopBar();
 
             // Nội dung cuộn bên dưới TopBar
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(20.0f, 16.0f));
-            if (ImGui::BeginChild("##ScrollableContent", ImVec2(0.0f, 0.0f), false)) {
-                float availWidth = ImGui::GetContentRegionAvail().x;
-                float columnSpacing = 16.0f;
-                float halfWidth = (availWidth - columnSpacing) * 0.5f;
-
-                // Lưới 2 cột hiển thị các nhóm widget
-                // CỘT TRÁI
-                ImGui::BeginGroup();
-                ImGui::PushItemWidth(halfWidth);
-
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(22.0f, 20.0f));
+            if (ImGui::BeginChild(
+                    "##ScrollableContent",
+                    ImVec2(0.0f, 0.0f),
+                    false
+                )) {
                 renderButtonSection();
                 renderInputSection();
                 renderValidationSection();
-
-                ImGui::PopItemWidth();
-                ImGui::EndGroup();
-
-                ImGui::SameLine(0.0f, columnSpacing);
-
-                // CỘT PHẢI
-                ImGui::BeginGroup();
-                ImGui::PushItemWidth(halfWidth);
-
                 renderPickerSection();
                 renderFeedbackSection();
-
-                ImGui::PopItemWidth();
-                ImGui::EndGroup();
-
-                ImGui::Spacing();
-
-                // KHỐI BẢNG DỮ LIỆU FULL WIDTH BÊN DƯỚI
                 renderTableSection();
-
-                // Popup modal xác nhận
                 renderModalSection();
             }
             ImGui::EndChild();
@@ -187,19 +165,19 @@ void DemoScreen::render() {
 }
 
 void DemoScreen::renderSidebar() {
-    int prevIdx = selectedSidebarIdx_;
     Widgets::Sidebar(
         sidebarItems_,
         selectedSidebarIdx_,
         240.0f,
         []() {
-            Widgets::ToastCanhBao(u8"Đã nhấn nút Đăng xuất!");
+            GUI::App::Session::getInstance().logout();
+            Widgets::ToastThongTin(u8"Đã đăng xuất tài khoản thành công!");
+            GUI::App::ScreenManager::getInstance().replace(
+                std::make_unique<GUI::Screens::Auth::AuthScreen>()
+            );
         }
     );
 
-    if (selectedSidebarIdx_ != prevIdx) {
-        Widgets::ToastThongTin(u8"Chuyển sang mục: " + sidebarItems_[selectedSidebarIdx_].tieuDe);
-    }
 }
 
 void DemoScreen::renderTopBar() {
@@ -218,25 +196,19 @@ void DemoScreen::renderButtonSection() {
         ImGui::TextUnformatted(u8"Ba kiểu nút chuẩn hệ thống (Chính, Phụ, Nguy hiểm):");
         ImGui::Spacing();
 
-        if (Widgets::NutChinh(u8"Nút Chính (#1B8A5A)")) {
-            Widgets::ToastThanhCong(u8"Bạn đã nhấn Nút Chính!");
-        }
+        Widgets::NutChinh(u8"Nút Chính (#1B8A5A)");
         ImGui::SameLine();
-        if (Widgets::NutPhu(u8"Nút Phụ (Border)")) {
-            Widgets::ToastThongTin(u8"Bạn đã nhấn Nút Phụ!");
-        }
+        Widgets::NutPhu(u8"Nút Phụ (Border)");
         ImGui::SameLine();
-        if (Widgets::NutNguyHiem(u8"Nút Nguy Hiểm (#DC3545)")) {
-            Widgets::ToastLoi(u8"Bạn đã nhấn Nút Nguy Hiểm!");
-        }
+        Widgets::NutNguyHiem(u8"Nút Nguy Hiểm (#DC3545)");
 
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
 
-        ImGui::TextUnformatted(u8"Kích hoạt Popup Modal xác nhận thao tác:");
+        ImGui::TextUnformatted(u8"Kích hoạt hộp thoại xác nhận thao tác:");
         ImGui::Spacing();
-        if (Widgets::NutNguyHiem(u8"Mở Modal Xác nhận xóa sân", ImVec2(240.0f, 34.0f))) {
+        if (Widgets::NutNguyHiem(u8"Mở hộp thoại xác nhận xóa sân", ImVec2(260.0f, 34.0f))) {
             Widgets::MoModalXacNhan(u8"Xác nhận xóa sân");
         }
     });
@@ -290,7 +262,7 @@ void DemoScreen::renderInputSection() {
 void DemoScreen::renderValidationSection() {
     Widgets::Card("card_validation", u8"3. Kiểm tra tính hợp lệ biểu mẫu (FormValidator)", [this]() {
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-        ImGui::TextWrapped(u8"Kiểm tra tính hợp lệ theo thời gian thực (SĐT 10 số bắt đầu bằng 0, mật khẩu >= 6 ký tự, không để trống, kiểm tra ngày tháng và năm nhuận).");
+        ImGui::TextWrapped(u8"Kiểm tra tính hợp lệ theo thời gian thực (SĐT 10 số bắt đầu bằng 0, mật khẩu ≥ 6 ký tự, không để trống, kiểm tra ngày tháng và năm nhuận).");
         ImGui::PopStyleColor();
         ImGui::Spacing();
 
@@ -336,11 +308,6 @@ void DemoScreen::renderValidationSection() {
             errMatKhau_  = Widgets::FormValidator::kiemTraMatKhau(valMatKhau_, 6);
             errNgay_     = Widgets::FormValidator::kiemTraNgayHopLe(valNgay_);
 
-            if (errTenKhach_.empty() && errSDT_.empty() && errMatKhau_.empty() && errNgay_.empty()) {
-                Widgets::ToastThanhCong(u8"Chúc mừng! Toàn bộ biểu mẫu hoàn toàn hợp lệ.");
-            } else {
-                Widgets::ToastLoi(u8"Biểu mẫu còn chứa lỗi, vui lòng xem thông báo đỏ dưới các ô!");
-            }
         }
     });
 }
@@ -424,7 +391,11 @@ void DemoScreen::renderFeedbackSection() {
         // ProgressBar
         ImGui::TextUnformatted(u8"Thanh tiến trình (ProgressBar có nhãn phần trăm):");
         ImGui::Spacing();
-        Widgets::ProgressBar(progressTiLe_, u8"Tỷ lệ lấp đầy sân hôm nay");
+        Widgets::ProgressBar(
+            progressTiLe_,
+            u8"Tỷ lệ lấp đầy sân hôm nay",
+            ImVec2(ImGui::GetContentRegionAvail().x, 30.0f)
+        );
         ImGui::Spacing();
 
         // Thanh slider điều chỉnh tỷ lệ demo
@@ -434,32 +405,13 @@ void DemoScreen::renderFeedbackSection() {
         ImGui::Separator();
         ImGui::Spacing();
 
-        // Toast Triggers
-        ImGui::TextUnformatted(u8"Bấm các nút bên dưới để thử nghiệm Toast thông báo góc phải:");
-        ImGui::Spacing();
-
-        if (Widgets::NutChinh(u8"Toast Thành công")) {
-            Widgets::ToastThanhCong(u8"Đặt sân bóng thành công cho khách hàng!");
-        }
-        ImGui::SameLine();
-        if (Widgets::NutNguyHiem(u8"Toast Lỗi")) {
-            Widgets::ToastLoi(u8"Không thể kết nối đến máy chủ lưu trữ!");
-        }
-        ImGui::SameLine();
-        if (Widgets::NutPhu(u8"Toast Cảnh báo")) {
-            Widgets::ToastCanhBao(u8"Khách hàng đã hủy đặt sân quá 3 lần!");
-        }
-        ImGui::SameLine();
-        if (Widgets::NutPhu(u8"Toast Thông tin")) {
-            Widgets::ToastThongTin(u8"Khung giờ 19:00 - 20:30 sắp đến lượt thi đấu.");
-        }
     });
 }
 
 void DemoScreen::renderTableSection() {
     Widgets::Card("card_table", u8"6. Bảng dữ liệu chuyên nghiệp (ImGuiTable 50 dòng mẫu)", [this]() {
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-        ImGui::TextWrapped(u8"Bảng hỗ trợ: Ô tìm kiếm tức thời phía trên, phân trang (10 / 20 / 50 dòng), sắp xếp tăng/giảm theo từng cột khi click tiêu đề cột, tô xen kẽ hàng và callback khi bấm chọn dòng.");
+        ImGui::TextWrapped(u8"Bảng hỗ trợ: Ô tìm kiếm tức thời phía trên, phân trang (10 dòng mỗi trang), sắp xếp tăng/giảm theo từng cột khi click tiêu đề cột, tô xen kẽ hàng và callback khi bấm chọn dòng.");
         ImGui::PopStyleColor();
         ImGui::Spacing();
 
@@ -492,8 +444,8 @@ void DemoScreen::renderTableSection() {
             },
             [this](const Widgets::TableRow& clickedRow) {
                 selectedRowInfo_ = clickedRow.oDuLieu[1] + " (" + clickedRow.oDuLieu[0] + u8", Giá: " + clickedRow.oDuLieu[3] + " đ)";
-                Widgets::ToastThanhCong(u8"Đã chọn: " + selectedRowInfo_);
-            }
+            },
+            ImGuiTableFlags_ScrollX
         );
     });
 }
@@ -503,7 +455,6 @@ void DemoScreen::renderModalSection() {
         u8"Xác nhận xóa sân",
         u8"Bạn có chắc chắn muốn xóa sân bóng mini này khỏi cơ sở dữ liệu không?\nHành động này mang tính phá hủy và không thể khôi phục lại.",
         []() {
-            Widgets::ToastThanhCong(u8"Đã xóa sân bóng mini thành công khỏi hệ thống!");
         },
         u8"Xác nhận xóa",
         u8"Hủy bỏ",

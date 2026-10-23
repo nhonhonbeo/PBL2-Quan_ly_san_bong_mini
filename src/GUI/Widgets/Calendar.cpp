@@ -304,7 +304,7 @@ bool Calendar(
                 if (isHovered) {
                     ImGui::BeginTooltip();
                     ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
-                    ImGui::Text(u8"📅 Sự kiện ngày %02d/%02d/%d:", d, state.thang, state.nam);
+                    ImGui::Text(u8"Sự kiện ngày %02d/%02d/%d:", d, state.thang, state.nam);
                     ImGui::PopStyleColor();
                     ImGui::Separator();
                     for (const auto* ev : eventsToday) {

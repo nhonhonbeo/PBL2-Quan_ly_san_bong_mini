@@ -1,7 +1,7 @@
 #ifndef NGUOITHUE_H
 #define NGUOITHUE_H
-#include<string>
-#include "User.h"
+#include <string>
+#include "Account/User.h"
 
 class Customer : public User{
 private:
@@ -26,5 +26,12 @@ public:
     void increase_cancel_count();
 
     bool reg_customer() const;
+
+    const std::string& getUserId() const;
+    int getBookingCount() const;
+    int getCancelCount() const;
+    void recordBooking();
+    void recordCancellation();
+    void setStatistics(int bookingCount, int cancelCount);
 };
 #endif

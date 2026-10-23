@@ -10,7 +10,7 @@ struct Colors {
     // Màu chủ đạo & thương hiệu sân bóng
     static constexpr ImVec4 GrassGreen = ImVec4(0.106f, 0.541f, 0.353f, 1.0f); // #1B8A5A - Xanh cỏ chính
     static constexpr ImVec4 DarkGreen  = ImVec4(0.059f, 0.361f, 0.235f, 1.0f); // #0F5C3C - Xanh đậm
-    static constexpr ImVec4 LightBg    = ImVec4(0.957f, 0.969f, 0.961f, 1.0f); // #F4F7F5 - Nền sáng
+    static constexpr ImVec4 LightBg    = ImVec4(0.886f, 0.910f, 0.941f, 1.0f); // #E2E8F0 - Nền sáng
     static constexpr ImVec4 WhiteCard  = ImVec4(1.000f, 1.000f, 1.000f, 1.0f); // #FFFFFF - Thẻ trắng
     static constexpr ImVec4 DarkText   = ImVec4(0.122f, 0.161f, 0.216f, 1.0f); // #1F2937 - Chữ đậm
     static constexpr ImVec4 GoldAccent = ImVec4(0.961f, 0.702f, 0.004f, 1.0f); // #F5B301 - Vàng nhấn
@@ -19,6 +19,7 @@ struct Colors {
 
     // Màu bổ trợ cho đường viền, hiệu ứng hover và thông báo
     static constexpr ImVec4 BorderLight = ImVec4(0.898f, 0.906f, 0.922f, 1.0f); // #E5E7EB - Viền nhẹ
+    static constexpr ImVec4 InputBorder = ImVec4(0.580f, 0.627f, 0.694f, 1.0f); // LÝ DO CHỌN: Tăng tương phản viền ô nhập trên nền trắng.
     static constexpr ImVec4 GrayHover   = ImVec4(0.941f, 0.949f, 0.961f, 1.0f); // #F0F2F5 - Nền hover thẻ/dòng
     static constexpr ImVec4 MutedText   = ImVec4(0.420f, 0.447f, 0.502f, 1.0f); // #6B7280 - Chữ phụ/mờ
     static constexpr ImVec4 BlueInfo    = ImVec4(0.008f, 0.518f, 0.780f, 1.0f); // #0284C7 - Xanh dương thông tin

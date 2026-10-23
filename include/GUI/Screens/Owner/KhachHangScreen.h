@@ -65,7 +65,9 @@ private:
     std::string sdtCanGoChan_;
 
     // Tab 4: Đánh giá & Điểm trung bình sân
+    std::vector<GUI::App::SanBongInfo> danhSachSan_;
     std::vector<GUI::App::DanhGiaInfo> danhSachDanhGia_;
+    int locSanIndex_ = 0;
     int locSoSao_ = 0; // 0: Tất cả, 1..5 sao
     float diemTBToanCoSo_ = 5.0f;
     std::map<std::string, float> diemTBTungSan_;

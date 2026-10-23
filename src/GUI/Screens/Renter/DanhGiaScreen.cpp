@@ -1,5 +1,6 @@
 #include "GUI/Screens/Renter/DanhGiaScreen.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -32,7 +33,8 @@ void DanhGiaScreen::reloadViewModel() {
     User* curUser = GUI::App::Session::getInstance().getUser();
     std::string sdt = curUser ? curUser->get_phone_number() : "0909876543";
 
-    // 1. Chỉ liệt kê các sân bóng mà người thuê này đã từng đặt xong
+    // 1. Nạp toàn bộ sân và giữ danh sách hoàn tất để áp dụng điều kiện gửi đánh giá.
+    danhSachSan_ = facade.getDanhSachSanBong();
     danhSachSanDaThue_ = facade.getDanhSachSanDaThueXong(sdt);
 
     // 2. Nạp danh sách các đánh giá đã gửi của tôi
@@ -52,9 +54,9 @@ void DanhGiaScreen::renderFormDanhGia() {
         : u8"Chỉnh sửa nội dung đánh giá của bạn";
 
     Widgets::Card("card_renter_write_review", cardTitle, [this]() {
-        if (danhSachSanDaThue_.empty()) {
+        if (danhSachSan_.empty()) {
             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-            ImGui::TextWrapped(u8"Bạn chỉ có thể gửi đánh giá cho những sân bóng mà bạn đã hoàn tất đặt và thi đấu.");
+            ImGui::TextWrapped(u8"Hiện chưa có sân bóng nào trong hệ thống.");
             ImGui::PopStyleColor();
             return;
         }
@@ -66,13 +68,23 @@ void DanhGiaScreen::renderFormDanhGia() {
         ImGui::Separator();
         ImGui::Spacing();
 
-        // 1. Chọn sân bóng đã hoàn thành thi đấu
+        // 1. Chọn từ danh sách sân đầy đủ; quyền gửi vẫn giới hạn ở sân đã hoàn tất thi đấu.
         std::vector<std::string> dsTenSan;
-        for (const auto& s : danhSachSanDaThue_) {
+        for (const auto& s : danhSachSan_) {
             dsTenSan.push_back(s.maSan + " - " + s.tenSan + " (" + std::to_string(s.loaiSan) + u8" người)");
         }
-        if (formIndexSan_ >= static_cast<int>(dsTenSan.size())) formIndexSan_ = 0;
+        if (formIndexSan_ >= static_cast<int>(dsTenSan.size())) {
+            formIndexSan_ = 0;
+        }
         Widgets::Combo(u8"Sân bóng bạn đã trải nghiệm (*)", "##r_review_pitch", formIndexSan_, dsTenSan);
+        const std::string& maSanChon = danhSachSan_[static_cast<size_t>(formIndexSan_)].maSan;
+        bool duDieuKienDanhGia = std::any_of(
+            danhSachSanDaThue_.begin(),
+            danhSachSanDaThue_.end(),
+            [&maSanChon](const GUI::App::SanBongInfo& san) {
+                return san.maSan == maSanChon;
+            }
+        );
         ImGui::Spacing();
 
         // 2. Chấm số sao bằng StarRating (chỉnh được)
@@ -89,8 +101,19 @@ void DanhGiaScreen::renderFormDanhGia() {
         ImGui::TextUnformatted(u8"Nhận xét chi tiết (*):");
         char buf[1024];
         std::snprintf(buf, sizeof(buf), "%s", formNoiDung_.c_str());
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, GUI::Theme::Colors::WhiteCard);
+        ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::InputBorder);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.5f);
         if (ImGui::InputTextMultiline("##r_review_text", buf, sizeof(buf), ImVec2(-1.0f, 90.0f))) {
             formNoiDung_ = buf;
+        }
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor(2);
+
+        if (!duDieuKienDanhGia) {
+            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
+            ImGui::TextUnformatted(u8"Chỉ có thể đánh giá sân đã hoàn tất thi đấu.");
+            ImGui::PopStyleColor();
         }
 
         ImGui::Spacing();
@@ -100,56 +123,46 @@ void DanhGiaScreen::renderFormDanhGia() {
 
         // Nút Gửi / Cập nhật
         if (formDanhGiaIdDangSua_.empty()) {
+            ImGui::BeginDisabled(!duDieuKienDanhGia || formNoiDung_.empty());
             if (Widgets::NutChinh(u8"Gửi đánh giá & Nhận xét", ImVec2(240.0f, 36.0f))) {
-                if (formNoiDung_.empty()) {
-                    Widgets::ToastLoi(u8"Vui lòng nhập nội dung nhận xét!");
-                    return;
-                }
-
                 User* curUser = GUI::App::Session::getInstance().getUser();
                 std::string sdt = curUser ? curUser->get_phone_number() : "0909876543";
                 std::string ten = curUser ? curUser->get_name() : u8"Người thuê";
-                std::string maSan = danhSachSanDaThue_[formIndexSan_].maSan;
+                std::string maSan = maSanChon;
 
                 auto kq = GUI::App::Facade::getInstance().guiHoacSuaDanhGia(
                     sdt, ten, maSan, formSoSao_, formNoiDung_, ""
                 );
 
                 if (kq.ok) {
-                    Widgets::ToastThanhCong(u8"Cảm ơn bạn đã gửi đánh giá cho sân " + maSan + "!");
                     formNoiDung_.clear();
                     formSoSao_ = 5;
                     reloadViewModel();
                 } else {
-                    Widgets::ToastLoi(kq.loi);
                 }
             }
+            ImGui::EndDisabled();
         } else {
+            ImGui::BeginDisabled(!duDieuKienDanhGia || formNoiDung_.empty());
             if (Widgets::NutChinh(u8"Lưu cập nhật đánh giá", ImVec2(200.0f, 36.0f))) {
-                if (formNoiDung_.empty()) {
-                    Widgets::ToastLoi(u8"Nội dung nhận xét không được để trống!");
-                    return;
-                }
-
                 User* curUser = GUI::App::Session::getInstance().getUser();
                 std::string sdt = curUser ? curUser->get_phone_number() : "0909876543";
                 std::string ten = curUser ? curUser->get_name() : u8"Người thuê";
-                std::string maSan = danhSachSanDaThue_[formIndexSan_].maSan;
+                std::string maSan = maSanChon;
 
                 auto kq = GUI::App::Facade::getInstance().guiHoacSuaDanhGia(
                     sdt, ten, maSan, formSoSao_, formNoiDung_, formDanhGiaIdDangSua_
                 );
 
                 if (kq.ok) {
-                    Widgets::ToastThanhCong(u8"Đã cập nhật đánh giá thành công!");
                     formDanhGiaIdDangSua_.clear();
                     formNoiDung_.clear();
                     formSoSao_ = 5;
                     reloadViewModel();
                 } else {
-                    Widgets::ToastLoi(kq.loi);
                 }
             }
+            ImGui::EndDisabled();
 
             ImGui::SameLine(0.0f, 12.0f);
 
@@ -190,13 +203,12 @@ void DanhGiaScreen::renderDanhSachDanhGiaCuaToi() {
                 formSoSao_ = dg.soSao;
                 formNoiDung_ = dg.noiDung;
 
-                for (size_t k = 0; k < danhSachSanDaThue_.size(); ++k) {
-                    if (danhSachSanDaThue_[k].maSan == dg.maSan) {
+                for (size_t k = 0; k < danhSachSan_.size(); ++k) {
+                    if (danhSachSan_[k].maSan == dg.maSan) {
                         formIndexSan_ = static_cast<int>(k);
                         break;
                     }
                 }
-                Widgets::ToastThongTin(u8"Đã nạp đánh giá để chỉnh sửa!");
             }
 
             ImGui::Spacing();

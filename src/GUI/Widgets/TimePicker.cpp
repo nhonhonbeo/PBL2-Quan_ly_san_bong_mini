@@ -1,5 +1,6 @@
 #include "GUI/Widgets/TimePicker.h"
 
+#include <algorithm>
 #include <iomanip>
 #include <sstream>
 #include <imgui.h>
@@ -57,9 +58,18 @@ bool TimePicker(
 
     float nutGioWidth = 76.0f;
     float availWidth = ImGui::GetContentRegionAvail().x;
-    ImGui::SetNextItemWidth(availWidth - nutGioWidth - ImGui::GetStyle().ItemSpacing.x);
-
-    bool changed = InputText("##time_txt", "##time_txt_id", timeStr, nullptr, u8"HH:mm (ví dụ 17:30)");
+    float timeInputWidth = std::max(
+        1.0f,
+        availWidth - nutGioWidth - ImGui::GetStyle().ItemSpacing.x
+    );
+    bool changed = InputText(
+        nullptr,
+        "##time_txt_id",
+        timeStr,
+        nullptr,
+        u8"HH:mm (ví dụ 17:30)",
+        timeInputWidth
+    );
 
     if (coLoi) {
         ImGui::PopStyleVar();
@@ -71,7 +81,7 @@ bool TimePicker(
     // Nút mở popup chọn giờ
     ImGui::PushStyleColor(ImGuiCol_Button, GUI::Theme::Colors::WhiteCard);
     ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::GrassGreen);
-    ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::BorderLight);
+    ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::InputBorder);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
     if (ImGui::Button(u8"Giờ", ImVec2(nutGioWidth, 0.0f))) {
         ImGui::OpenPopup("##TimePickerPopup");

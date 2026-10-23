@@ -3,7 +3,6 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
-
 #include <imgui.h>
 
 namespace {
@@ -21,10 +20,30 @@ const char* findFontFile() {
         }
     }
 
+    static const char* parentCandidates[] = {
+        "../assets/fonts/Roboto-Regular.ttf",
+        "../assets/fonts/NotoSans-Regular.ttf",
+        "../assets/fonts/BeVietnamPro-Regular.ttf"
+    };
+    for (const char* path : parentCandidates) {
+        if (std::filesystem::exists(path)) return path;
+    }
+
     const std::filesystem::path fontDirectory{"assets/fonts"};
     if (std::filesystem::is_directory(fontDirectory)) {
         for (const std::filesystem::directory_entry& entry :
              std::filesystem::directory_iterator(fontDirectory)) {
+            const std::filesystem::path extension = entry.path().extension();
+            if (entry.is_regular_file() && (extension == ".ttf" || extension == ".otf")) {
+                static const std::string discoveredPath = entry.path().string();
+                return discoveredPath.c_str();
+            }
+        }
+    }
+    const std::filesystem::path parentFontDirectory{"../assets/fonts"};
+    if (std::filesystem::is_directory(parentFontDirectory)) {
+        for (const std::filesystem::directory_entry& entry :
+             std::filesystem::directory_iterator(parentFontDirectory)) {
             const std::filesystem::path extension = entry.path().extension();
             if (entry.is_regular_file() && (extension == ".ttf" || extension == ".otf")) {
                 static const std::string discoveredPath = entry.path().string();
@@ -54,11 +73,16 @@ Fonts loadFonts() {
 
     // LÝ DO CHỌN: io.Fonts->GetGlyphRangesVietnamese() cung cấp dải Unicode đầy đủ
     // bao gồm toàn bộ ký tự Latinh mở rộng và dấu thanh tiếng Việt (Ắ, Ằ, Ể, Ố, Ự...).
-    const ImWchar* vietnamese = io.Fonts->GetGlyphRangesVietnamese();
+    // LÝ DO CHỌN: Bổ sung glyph toán học cần thiết mà không nạp dải ký tự thừa.
+    ImFontGlyphRangesBuilder glyphBuilder;
+    glyphBuilder.AddRanges(io.Fonts->GetGlyphRangesVietnamese());
+    glyphBuilder.AddChar(0x2265);
+    ImVector<ImWchar> glyphRanges;
+    glyphBuilder.BuildRanges(&glyphRanges);
     Fonts fonts;
-    fonts.regular = io.Fonts->AddFontFromFileTTF(fontPath, 18.0F, nullptr, vietnamese);
-    fonts.heading = io.Fonts->AddFontFromFileTTF(fontPath, 28.0F, nullptr, vietnamese);
-    fonts.small = io.Fonts->AddFontFromFileTTF(fontPath, 14.0F, nullptr, vietnamese);
+    fonts.regular = io.Fonts->AddFontFromFileTTF(fontPath, 18.0F, nullptr, glyphRanges.Data);
+    fonts.heading = io.Fonts->AddFontFromFileTTF(fontPath, 28.0F, nullptr, glyphRanges.Data);
+    fonts.small = io.Fonts->AddFontFromFileTTF(fontPath, 14.0F, nullptr, glyphRanges.Data);
 
     if (fonts.regular == nullptr || fonts.heading == nullptr || fonts.small == nullptr) {
         std::cerr << "Không thể nạp font '" << fontPath

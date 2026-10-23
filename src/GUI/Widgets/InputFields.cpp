@@ -84,7 +84,8 @@ bool InputText(
     const char* id,
     std::string& buffer,
     const char* loi,
-    const char* placeholder
+    const char* placeholder,
+    float width
 ) {
     ImGui::PushID(id);
     HienThiNhan(label);
@@ -95,7 +96,7 @@ bool InputText(
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.5f);
     }
 
-    ImGui::SetNextItemWidth(-1.0f);
+    ImGui::SetNextItemWidth(width);
     bool changed = InputTextStdString("##input", placeholder, &buffer);
 
     if (coLoi) {
@@ -172,8 +173,26 @@ bool InputInt(
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.5f);
     }
 
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const std::string currentValue = std::to_string(giaTri);
+    const float stepButtonsWidth =
+        2.0f * (ImGui::GetFrameHeight() + style.ItemInnerSpacing.x);
+    const float inputTextWidth = std::max(
+        1.0f,
+        ImGui::GetContentRegionAvail().x - stepButtonsWidth
+    );
+    const float centeredPadding = std::max(
+        style.FramePadding.x,
+        (inputTextWidth - ImGui::CalcTextSize(currentValue.c_str()).x) * 0.5f
+    );
+    // LÝ DO CHỌN: Đệm ngang động căn giữa giá trị số mà vẫn giữ nguyên vùng nhập của ImGui.
+    ImGui::PushStyleVar(
+        ImGuiStyleVar_FramePadding,
+        ImVec2(centeredPadding, style.FramePadding.y)
+    );
     ImGui::SetNextItemWidth(-1.0f);
     bool changed = ImGui::InputInt("##int_input", &giaTri, step, stepFast);
+    ImGui::PopStyleVar();
 
     if (coLoi) {
         ImGui::PopStyleVar();

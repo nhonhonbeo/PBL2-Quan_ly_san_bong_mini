@@ -29,6 +29,7 @@ private:
     void renderContentArea();
 
     int selectedTab_ = 0;
+    bool yeuCauDangXuat_ = false;
 
     // Các màn hình con chuyên trách
     std::unique_ptr<DatSanScreen> datSanScreen_;

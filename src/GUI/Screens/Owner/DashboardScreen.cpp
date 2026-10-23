@@ -44,11 +44,15 @@ void DashboardScreen::onExit() {
 }
 
 void DashboardScreen::render() {
+    ImGui::Dummy(ImVec2(0.0f, 8.0f));
+    ImGui::Indent(8.0f);
     renderStatCards();
     ImGui::Spacing();
     renderRevenueChart();
     ImGui::Spacing();
     renderUpcomingBookings();
+    ImGui::Unindent(8.0f);
+    ImGui::Dummy(ImVec2(0.0f, 8.0f));
 }
 
 void DashboardScreen::renderStatCards() {
@@ -100,7 +104,7 @@ void DashboardScreen::renderStatCards() {
     // Thẻ 1: Tổng số sân
     veTheKPI(
         "kpi_tong_san",
-        "[⚽]",
+        "",
         u8"Tổng số sân bóng",
         (std::to_string(tongSoSan_) + u8" sân").c_str(),
         u8"Đang sẵn sàng phục vụ",
@@ -111,7 +115,7 @@ void DashboardScreen::renderStatCards() {
     // Thẻ 2: Lượt đặt hôm nay
     veTheKPI(
         "kpi_luot_dat",
-        "[📅]",
+        "",
         u8"Lượt đặt hôm nay",
         (std::to_string(luotDatHomNay_) + u8" lượt").c_str(),
         u8"Tỷ lệ lấp đầy đạt 83%",
@@ -123,7 +127,7 @@ void DashboardScreen::renderStatCards() {
     std::string dtStr = dinhDangTien(doanhThuThang_) + u8" đ";
     veTheKPI(
         "kpi_doanh_thu",
-        "[💰]",
+        "",
         u8"Doanh thu tháng này",
         dtStr.c_str(),
         u8"+12.5% so với tháng trước",
@@ -134,7 +138,7 @@ void DashboardScreen::renderStatCards() {
     // Thẻ 4: Khách hàng mới
     veTheKPI(
         "kpi_khach_moi",
-        "[👥]",
+        "",
         u8"Khách hàng mới",
         (std::to_string(soKhachMoi_) + u8" khách").c_str(),
         u8"Đã tạo tài khoản trong 30 ngày",

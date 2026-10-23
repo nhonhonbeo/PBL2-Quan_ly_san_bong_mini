@@ -13,7 +13,9 @@ bool InputText(
     const char* id,
     std::string& buffer,
     const char* loi = nullptr,
-    const char* placeholder = nullptr
+    const char* placeholder = nullptr,
+    // LÝ DO CHỌN: Cho phép DatePicker và TimePicker đặt ô nhập vừa với nút bên cạnh.
+    float width = -1.0f
 );
 
 // Ô nhập mật khẩu với nút chuyển đổi hiện/ẩn mật khẩu

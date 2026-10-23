@@ -18,6 +18,9 @@
 //    đảm bảo dữ liệu được lưu trữ bền vững giữa các phiên làm việc.
 class FileManager {
 public:
+    // LÝ DO CHỌN: Chuẩn hóa trường text ngay tại ranh giới lưu trữ để một giá trị
+    // người dùng không thể phá vỡ định dạng bản ghi phân tách bằng ký tự '|'.
+    static std::string join(const std::string& value);
     // --- API đọc/ghi dòng tổng quát (Dùng chung cho các Repository) ---
     bool readAllLines(const std::string& path, LinkedList<std::string>& out,
                       std::string& error) const;

@@ -34,6 +34,7 @@ private:
     void renderModalXoaSan();
     void renderModalSuaSan();
     void renderModalXoaKhungGio();
+    void renderModalThemNhanh();
 
     // ==========================================
     // DỮ LIỆU VIEWMODEL (Nạp ở onEnter & sau thao tác)
@@ -49,6 +50,9 @@ private:
     int loaiSanDangSua_ = 5;
     int giaThueDangSua_ = 250000;
     std::string maSanCanXoa_;
+    int loaiSanThemNhanh_ = 5;
+    int soLuongSanThemNhanh_ = 1;
+    std::string loiThemNhanh_;
 
     // Tab b: Khung giờ
     std::string gioMoCua_ = "06:00";

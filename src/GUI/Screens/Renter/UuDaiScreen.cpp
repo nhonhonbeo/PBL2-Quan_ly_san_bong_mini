@@ -74,7 +74,7 @@ void UuDaiScreen::renderThongKeUuDai() {
         ImGui::PopStyleColor();
         ImGui::Spacing();
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
-        ImGui::Text(u8"⚽ %d lần", soLanDat_);
+        ImGui::Text(u8"%d lần đặt sân", soLanDat_);
         ImGui::PopStyleColor();
 
         ImGui::NextColumn();
@@ -122,12 +122,12 @@ void UuDaiScreen::renderThongKeUuDai() {
             std::snprintf(barText, sizeof(barText), u8"%d / %d lượt (Còn %d lượt đặt nữa)",
                           soLanDat_, mocKeTiep_, soLuotConLai_);
 
-            Widgets::ProgressBar(tienDoKeTiep_, barText, ImVec2(-1.0f, 22.0f), GUI::Theme::Colors::GrassGreen);
+            Widgets::ProgressBar(tienDoKeTiep_, barText, ImVec2(-1.0f, 30.0f), GUI::Theme::Colors::GrassGreen);
         } else {
             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::GrassGreen);
-            ImGui::TextUnformatted(u8"🎉 Chúc mừng! Bạn đã đạt hạng thành viên cao nhất (VIP Vàng) của cụm sân.");
+            ImGui::TextUnformatted(u8"Chúc mừng! Bạn đã đạt hạng thành viên cao nhất (VIP Vàng) của cụm sân.");
             ImGui::PopStyleColor();
-            Widgets::ProgressBar(1.0f, u8"100% Hoàn thành", ImVec2(-1.0f, 22.0f), GUI::Theme::Colors::GoldAccent);
+            Widgets::ProgressBar(1.0f, u8"100% Hoàn thành", ImVec2(-1.0f, 30.0f), GUI::Theme::Colors::GoldAccent);
         }
     });
 }
@@ -165,7 +165,7 @@ void UuDaiScreen::renderBangCacMoc() {
                 ImGui::TableSetColumnIndex(3);
                 if (soLanDat_ >= n.soLanToiThieu) {
                     if (mucUuDaiHienTai_ == n.phanTramGiam) {
-                        Widgets::Badge(u8"✓ Đang áp dụng", GUI::Theme::Colors::GoldAccent, GUI::Theme::Colors::WhiteCard);
+                        Widgets::Badge(u8"Đang áp dụng", GUI::Theme::Colors::GoldAccent, GUI::Theme::Colors::WhiteCard);
                     } else {
                         Widgets::Badge(u8"Đã mở khóa", GUI::Theme::Colors::GrayHover, GUI::Theme::Colors::DarkText);
                     }

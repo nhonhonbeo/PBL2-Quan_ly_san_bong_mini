@@ -1,5 +1,7 @@
 #include "Repository/CustomerRepository.h"
 
+#include "Account/Customer.h"
+
 namespace {
 
 bool reportTodo(std::string& error, const char* responsibility) {
@@ -14,7 +16,7 @@ CustomerRepository::CustomerRepository(FileManager& fileManager)
     : file_manager_(fileManager) {}
 
 bool CustomerRepository::findCustomerByUserId(const std::string& userId,
-                                              CustomerProfile& out,
+                                              Customer& out,
                                               std::string& error) const {
     (void)userId;
     (void)out;
@@ -23,7 +25,7 @@ bool CustomerRepository::findCustomerByUserId(const std::string& userId,
     return reportTodo(error, "tìm hồ sơ khách theo user_id");
 }
 
-bool CustomerRepository::saveCustomer(const CustomerProfile& customer,
+bool CustomerRepository::saveCustomer(const Customer& customer,
                                       std::string& error) {
     (void)customer;
     // TODO: Serialize CustomerProfile vào customers.txt. Repository không xét
@@ -31,7 +33,7 @@ bool CustomerRepository::saveCustomer(const CustomerProfile& customer,
     return reportTodo(error, "lưu hồ sơ khách");
 }
 
-bool CustomerRepository::updateCustomer(const CustomerProfile& customer,
+bool CustomerRepository::updateCustomer(const Customer& customer,
                                         std::string& error) {
     (void)customer;
     // TODO: Cập nhật record CustomerProfile đã tồn tại trong customers.txt.

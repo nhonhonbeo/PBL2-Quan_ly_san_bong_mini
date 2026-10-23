@@ -86,7 +86,7 @@ void CreateFieldWizardScreen::renderProgressBar() {
         u8"Bước 4 / 4: Xác nhận thông tin & Hoàn tất"
     };
 
-    Widgets::ProgressBar(ratio, stepLabels[currentStep_], ImVec2(-1.0f, 24.0f));
+    Widgets::ProgressBar(ratio, stepLabels[currentStep_], ImVec2(-1.0f, 30.0f));
 }
 
 void CreateFieldWizardScreen::renderStep1LoaiSan() {
@@ -98,6 +98,8 @@ void CreateFieldWizardScreen::renderStep1LoaiSan() {
     float availW = ImGui::GetContentRegionAvail().x;
     float cardSpacing = 16.0f;
     float cardW = (availW - cardSpacing * 2.0f) / 3.0f;
+    float startX = ImGui::GetCursorPosX();
+    float startY = ImGui::GetCursorPosY();
 
     auto veTheLoai = [this, cardW](int loai, const char* tieuDe, const char* kichThuoc, const char* co, const char* giaDeXuat) {
         bool isSelected = (loaiSan_ == loai);
@@ -143,12 +145,16 @@ void CreateFieldWizardScreen::renderStep1LoaiSan() {
         ImGui::SetCursorScreenPos(ImVec2(p1.x, p0.y));
     };
 
-    // 3 thẻ loại sân
-    veTheLoai(5,  u8"⚽ Sân 5 người (Mini)", u8"20m x 40m",  u8"Cỏ nhân tạo 50mm",  u8"200k - 350k/h");
-    ImGui::SameLine(0.0f, cardSpacing);
-    veTheLoai(7,  u8"⚽ Sân 7 người (Trung)", u8"30m x 50m",  u8"Khuôn viên ngoài trời", u8"350k - 550k/h");
-    ImGui::SameLine(0.0f, cardSpacing);
-    veTheLoai(11, u8"⚽ Sân 11 người (Lớn)",  u8"60m x 100m", u8"Mặt cỏ thi đấu",     u8"700k - 1.2tr/h");
+    // LÝ DO CHỌN: Cố định cùng tọa độ Y để các thẻ không bị đẩy lệch bởi nội dung từng thẻ.
+    const int loaiSan[] = {5, 7, 11};
+    const char* tieuDe[] = {u8"Sân 5 người (Mini)", u8"Sân 7 người (Trung)", u8"Sân 11 người (Lớn)"};
+    const char* kichThuoc[] = {u8"20m x 40m", u8"30m x 50m", u8"60m x 100m"};
+    const char* matSan[] = {u8"Cỏ nhân tạo 50mm", u8"Khuôn viên ngoài trời", u8"Mặt cỏ thi đấu"};
+    const char* giaDeXuat[] = {u8"200k - 350k/h", u8"350k - 550k/h", u8"700k - 1.2tr/h"};
+    for (int i = 0; i < 3; ++i) {
+        ImGui::SetCursorPos(ImVec2(startX + i * (cardW + cardSpacing), startY));
+        veTheLoai(loaiSan[i], tieuDe[i], kichThuoc[i], matSan[i], giaDeXuat[i]);
+    }
 
     ImGui::Dummy(ImVec2(availW, 145.0f));
 }
@@ -188,7 +194,7 @@ void CreateFieldWizardScreen::renderStep2SoLuong() {
     ImGui::Spacing();
 
     ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-    ImGui::TextWrapped(u8"💡 Hệ thống sẽ tự động sinh mã số định danh liên tiếp bắt đầu bằng tiền tố 'S%d-xx' (ví dụ: S%d-01, S%d-02...) để đảm bảo tính duy nhất.", loaiSan_, loaiSan_, loaiSan_);
+    ImGui::TextWrapped(u8"Hệ thống sẽ tự động sinh mã số định danh liên tiếp bắt đầu bằng tiền tố 'S%d-xx' (ví dụ: S%d-01, S%d-02...) để đảm bảo tính duy nhất.", loaiSan_, loaiSan_, loaiSan_);
     ImGui::PopStyleColor();
 }
 
@@ -203,8 +209,8 @@ void CreateFieldWizardScreen::renderStep3QuyDinh() {
     std::strncpy(quyDinhBuf, quyDinh_.c_str(), sizeof(quyDinhBuf) - 1);
 
     ImGui::PushStyleColor(ImGuiCol_FrameBg, GUI::Theme::Colors::WhiteCard);
-    ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::BorderLight);
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+    ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::InputBorder);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.5f);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
 
     if (ImGui::InputTextMultiline("##quy_dinh_multiline", quyDinhBuf, sizeof(quyDinhBuf), ImVec2(-1.0f, 150.0f))) {
@@ -242,6 +248,7 @@ void CreateFieldWizardScreen::renderStep4XacNhan() {
 
 void CreateFieldWizardScreen::renderNavigationButtons() {
     float btnW = 120.0f;
+    float confirmW = currentStep_ == 4 ? 180.0f : btnW;
 
     // Nút Hủy
     if (Widgets::NutPhu(u8"Hủy bỏ", ImVec2(btnW, 36.0f))) {
@@ -250,9 +257,10 @@ void CreateFieldWizardScreen::renderNavigationButtons() {
         }
     }
 
-    ImGui::SameLine();
-    float availW = ImGui::GetContentRegionAvail().x;
-    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + availW - btnW * 2.0f - 10.0f);
+    float rowStartX = ImGui::GetCursorPosX();
+    float rightEdgeX = rowStartX + ImGui::GetContentRegionAvail().x;
+    float rightGroupWidth = btnW + confirmW + ImGui::GetStyle().ItemSpacing.x;
+    ImGui::SetCursorPosX(std::max(rowStartX, rightEdgeX - rightGroupWidth));
 
     // Nút Quay lại
     if (currentStep_ <= 1) {
@@ -275,17 +283,16 @@ void CreateFieldWizardScreen::renderNavigationButtons() {
             currentStep_++;
         }
     } else {
-        if (Widgets::NutChinh(u8"Xác nhận tạo sân", ImVec2(btnW + 20.0f, 36.0f))) {
+        if (Widgets::NutChinh(u8"Xác nhận tạo sân", ImVec2(confirmW, 36.0f))) {
             // Thực hiện tạo sân qua Facade
             auto kq = GUI::App::Facade::getInstance().taoNhieuSan(loaiSan_, soLuong_, quyDinh_, danhSachMaSanVuaTao_);
             if (kq.ok) {
-                Widgets::ToastThanhCong(u8"Đã tạo thành công " + std::to_string(soLuong_) + u8" sân bóng mới!");
                 moPopupKetQua_ = true;
                 Widgets::MoModalXacNhan(u8"Kết quả khởi tạo sân bóng");
             } else {
-                Widgets::ToastLoi(kq.loi);
             }
         }
+        ImGui::Dummy(ImVec2(0.0f, 4.0f));
     }
 }
 

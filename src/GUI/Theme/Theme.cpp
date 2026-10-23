@@ -21,8 +21,9 @@ void apply() {
     // 2. KHOẢNG CÁCH VÀ ĐỆM (Padding & Spacing)
     // ==========================================
     // LÝ DO CHỌN: Padding rộng giúp các phần tử dễ nhìn, không bị chật chội
-    style.WindowPadding     = ImVec2(16.0f, 16.0f);
+    style.WindowPadding     = ImVec2(22.0f, 20.0f);
     style.FramePadding      = ImVec2(12.0f, 8.0f);
+    style.ButtonTextAlign   = ImVec2(0.5f, 0.5f);
     style.CellPadding       = ImVec2(10.0f, 8.0f);
     style.ItemSpacing       = ImVec2(10.0f, 10.0f);
     style.ItemInnerSpacing  = ImVec2(8.0f, 6.0f);
@@ -51,10 +52,15 @@ void apply() {
     colors[ImGuiCol_WindowBg]              = Colors::LightBg;
     colors[ImGuiCol_ChildBg]               = Colors::WhiteCard;
     colors[ImGuiCol_PopupBg]               = Colors::WhiteCard;
-    colors[ImGuiCol_Border]                = Colors::BorderLight;
+    colors[ImGuiCol_Border]                = Colors::InputBorder;
     colors[ImGuiCol_BorderShadow]          = ImVec4(0.0f, 0.0f, 0.0f, 0.04f);
 
-    // Khung nhập liệu (Input, Combobox, Checkbox)
+    // LÝ DO CHỌN: Tab chưa chọn tối màu, tab đang chọn xanh thương hiệu; chữ trắng dễ đọc ở cả hai trạng thái.
+    colors[ImGuiCol_Tab]                   = Colors::DarkGreen;
+    colors[ImGuiCol_TabHovered]            = Colors::GrassGreen;
+    colors[ImGuiCol_TabActive]             = Colors::GrassGreen;
+    colors[ImGuiCol_TabUnfocused]          = Colors::DarkGreen;
+    colors[ImGuiCol_TabUnfocusedActive]    = Colors::GrassGreen;
     colors[ImGuiCol_FrameBg]               = Colors::WhiteCard;
     colors[ImGuiCol_FrameBgHovered]        = ImVec4(0.96f, 0.98f, 0.96f, 1.0f);
     colors[ImGuiCol_FrameBgActive]         = ImVec4(0.92f, 0.96f, 0.93f, 1.0f);
@@ -95,12 +101,6 @@ void apply() {
     colors[ImGuiCol_ResizeGrip]            = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
     colors[ImGuiCol_ResizeGripHovered]     = Colors::GrassGreen;
     colors[ImGuiCol_ResizeGripActive]      = Colors::DarkGreen;
-    colors[ImGuiCol_Tab]                   = ImVec4(0.92f, 0.94f, 0.93f, 1.0f);
-    colors[ImGuiCol_TabHovered]            = ImVec4(0.106f, 0.541f, 0.353f, 0.25f);
-    colors[ImGuiCol_TabActive]             = Colors::GrassGreen;
-    colors[ImGuiCol_TabUnfocused]          = ImVec4(0.95f, 0.95f, 0.95f, 1.0f);
-    colors[ImGuiCol_TabUnfocusedActive]    = ImVec4(0.88f, 0.90f, 0.89f, 1.0f);
-
     // Bảng dữ liệu (Table)
     // LÝ DO CHỌN: Tô màu nền hàng xen kẽ và viền bảng nhẹ giúp dễ đọc bảng dữ liệu lớn
     colors[ImGuiCol_TableHeaderBg]         = ImVec4(0.92f, 0.95f, 0.93f, 1.0f);

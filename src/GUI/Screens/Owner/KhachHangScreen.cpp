@@ -99,6 +99,7 @@ void KhachHangScreen::reloadViewModel() {
     // 5. Nạp danh sách đánh giá nhận xét
     // LÝ DO CHỌN: LinkedList quản lý danh sách đánh giá nhận xét,
     // các đánh giá mới nhất được chèn vào đầu danh sách với độ phức tạp O(1).
+    danhSachSan_ = facade.getDanhSachSanBong();
     danhSachDanhGia_ = facade.getDanhSachDanhGia();
     diemTBToanCoSo_ = facade.getDiemTrungBinhToanCoSo();
     diemTBTungSan_ = facade.getDiemTrungBinhTungSan();
@@ -106,22 +107,34 @@ void KhachHangScreen::reloadViewModel() {
 
 void KhachHangScreen::render() {
     if (ImGui::BeginTabBar("##KhachHangTabBar", ImGuiTabBarFlags_None)) {
-        if (ImGui::BeginTabItem(u8"1. Danh bạ khách hàng")) {
+        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
+        bool showContacts = ImGui::BeginTabItem(u8"1. Danh bạ khách hàng");
+        ImGui::PopStyleColor();
+        if (showContacts) {
             renderTabDanhBa();
             ImGui::EndTabItem();
         }
 
-        if (ImGui::BeginTabItem(u8"2. Ngưỡng ưu đãi & Khách VIP")) {
+        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
+        bool showDiscounts = ImGui::BeginTabItem(u8"2. Ngưỡng ưu đãi & Khách VIP");
+        ImGui::PopStyleColor();
+        if (showDiscounts) {
             renderTabUuDai();
             ImGui::EndTabItem();
         }
 
-        if (ImGui::BeginTabItem(u8"3. Danh sách đen & Đề xuất")) {
+        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
+        bool showBlacklist = ImGui::BeginTabItem(u8"3. Danh sách đen & Đề xuất");
+        ImGui::PopStyleColor();
+        if (showBlacklist) {
             renderTabDanhSachDen();
             ImGui::EndTabItem();
         }
 
-        if (ImGui::BeginTabItem(u8"4. Đánh giá nhận xét")) {
+        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
+        bool showReviews = ImGui::BeginTabItem(u8"4. Đánh giá nhận xét");
+        ImGui::PopStyleColor();
+        if (showReviews) {
             renderTabDanhGia();
             ImGui::EndTabItem();
         }
@@ -186,7 +199,6 @@ void KhachHangScreen::renderTabDanhBa() {
                 // Click dòng -> chọn khách hàng và nạp chi tiết
                 sdtDangChon_ = clickedRow.id;
                 reloadViewModel();
-                Widgets::ToastThongTin(u8"Đã chọn khách hàng: " + clickedRow.oDuLieu[1]);
             }
         );
     });
@@ -225,7 +237,7 @@ void KhachHangScreen::renderPanelChiTietKhachHang() {
         ImGui::PopStyleColor();
 
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::GrassGreen);
-        ImGui::Text(u8"📞 %s", khachDangChon_.sdt.c_str());
+        ImGui::Text(u8"Số điện thoại: %s", khachDangChon_.sdt.c_str());
         ImGui::PopStyleColor();
         ImGui::Spacing();
 
@@ -358,10 +370,8 @@ void KhachHangScreen::renderTabUuDai() {
                 if (Widgets::NutPhu(btnSaveId.c_str(), ImVec2(80.0f, 26.0f))) {
                     auto kq = GUI::App::Facade::getInstance().capNhatNguongUuDai(n.id, n.soLanToiThieu, n.phanTramGiam);
                     if (kq.ok) {
-                        Widgets::ToastThanhCong(u8"Đã cập nhật ngưỡng " + n.tenHang);
                         reloadViewModel();
                     } else {
-                        Widgets::ToastLoi(kq.loi);
                     }
                 }
             }
@@ -372,7 +382,7 @@ void KhachHangScreen::renderTabUuDai() {
         ImGui::Spacing();
         ImGui::Spacing();
 
-        if (Widgets::NutChinh(u8"⭐ Áp dụng ưu đãi cho toàn bộ khách hàng", ImVec2(340.0f, 38.0f))) {
+        if (Widgets::NutChinh(u8"Áp dụng ưu đãi cho toàn bộ khách hàng", ImVec2(340.0f, 38.0f))) {
             Widgets::MoModalXacNhan(u8"Xác nhận áp dụng ưu đãi");
         }
     });
@@ -459,7 +469,7 @@ void KhachHangScreen::renderTabDanhSachDen() {
                 ImGui::TableSetupColumn(u8"Số lần hủy", ImGuiTableColumnFlags_WidthFixed, 100.0f);
                 ImGui::TableSetupColumn(u8"Ngày chặn", ImGuiTableColumnFlags_WidthFixed, 110.0f);
                 ImGui::TableSetupColumn(u8"Lý do", ImGuiTableColumnFlags_WidthStretch);
-                ImGui::TableSetupColumn(u8"Hành động", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+                ImGui::TableSetupColumn(u8"Hành động", ImGuiTableColumnFlags_WidthFixed, 150.0f);
                 ImGui::TableHeadersRow();
 
                 for (const auto& kh : danhSachDen_) {
@@ -529,7 +539,7 @@ void KhachHangScreen::renderTabDanhSachDen() {
                 ImGui::TableSetupColumn(u8"Số điện thoại", ImGuiTableColumnFlags_WidthFixed, 130.0f);
                 ImGui::TableSetupColumn(u8"Số lần đã đặt", ImGuiTableColumnFlags_WidthFixed, 110.0f);
                 ImGui::TableSetupColumn(u8"Số lần đã hủy", ImGuiTableColumnFlags_WidthFixed, 110.0f);
-                ImGui::TableSetupColumn(u8"Hành động", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+                ImGui::TableSetupColumn(u8"Hành động", ImGuiTableColumnFlags_WidthFixed, 180.0f);
                 ImGui::TableHeadersRow();
 
                 for (const auto& kh : danhSachDeXuatChan_) {
@@ -619,7 +629,7 @@ void KhachHangScreen::renderTabDanhGia() {
             char barLabel[32];
             std::snprintf(barLabel, sizeof(barLabel), "%.1f / 5.0", item.second);
 
-            Widgets::ProgressBar(ratio, barLabel, ImVec2(rightW - 100.0f, 18.0f), GUI::Theme::Colors::GoldAccent);
+            Widgets::ProgressBar(ratio, barLabel, ImVec2(rightW - 100.0f, 30.0f), GUI::Theme::Colors::GoldAccent);
             ImGui::Spacing();
         }
 
@@ -636,11 +646,11 @@ void KhachHangScreen::renderTabDanhGia() {
         ImGui::SameLine();
         const char* filterLabels[] = {
             u8"Tất cả số sao",
-            u8"⭐ 5 sao",
-            u8"⭐ 4 sao",
-            u8"⭐ 3 sao",
-            u8"⭐ 2 sao",
-            u8"⭐ 1 sao"
+            u8"5 sao",
+            u8"4 sao",
+            u8"3 sao",
+            u8"2 sao",
+            u8"1 sao"
         };
         ImGui::SetNextItemWidth(180.0f);
         if (ImGui::BeginCombo("##combo_filter_stars", filterLabels[locSoSao_])) {
@@ -648,6 +658,28 @@ void KhachHangScreen::renderTabDanhGia() {
                 bool isSelected = (locSoSao_ == i);
                 if (ImGui::Selectable(filterLabels[i], isSelected)) {
                     locSoSao_ = i;
+                }
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::SameLine(0.0f, 20.0f);
+        ImGui::TextUnformatted(u8"Lọc theo sân:");
+        ImGui::SameLine();
+        std::string selectedFieldLabel = locSanIndex_ == 0
+            ? u8"Tất cả sân"
+            : danhSachSan_[static_cast<size_t>(locSanIndex_ - 1)].maSan + " - " +
+                  danhSachSan_[static_cast<size_t>(locSanIndex_ - 1)].tenSan;
+        ImGui::SetNextItemWidth(280.0f);
+        if (ImGui::BeginCombo("##combo_filter_field", selectedFieldLabel.c_str())) {
+            if (ImGui::Selectable(u8"Tất cả sân", locSanIndex_ == 0)) {
+                locSanIndex_ = 0;
+            }
+            for (size_t i = 0; i < danhSachSan_.size(); ++i) {
+                const auto& san = danhSachSan_[i];
+                std::string fieldLabel = san.maSan + " - " + san.tenSan;
+                bool isSelected = locSanIndex_ == static_cast<int>(i + 1);
+                if (ImGui::Selectable(fieldLabel.c_str(), isSelected)) {
+                    locSanIndex_ = static_cast<int>(i + 1);
                 }
             }
             ImGui::EndCombo();
@@ -660,6 +692,10 @@ void KhachHangScreen::renderTabDanhGia() {
         // Danh sách đánh giá
         bool coDanhGia = false;
         for (const auto& dg : danhSachDanhGia_) {
+            if (locSanIndex_ > 0 &&
+                dg.maSan != danhSachSan_[static_cast<size_t>(locSanIndex_ - 1)].maSan) {
+                continue;
+            }
             // Lọc số sao: nếu locSoSao_ > 0 thì so sánh (6 - locSoSao_)
             if (locSoSao_ > 0) {
                 int expectedStar = (locSoSao_ == 1) ? 5 : ((locSoSao_ == 2) ? 4 : ((locSoSao_ == 3) ? 3 : ((locSoSao_ == 4) ? 2 : 1)));
@@ -719,10 +755,8 @@ void KhachHangScreen::renderModalXacNhanChan() {
             // LÝ DO CHỌN: LinkedList quản lý danh sách đen, chèn khách hàng bị chặn với O(1)
             auto kq = GUI::App::Facade::getInstance().themVaoDanhSachDen(sdtCanChan_, lyDoCanChan_);
             if (kq.ok) {
-                Widgets::ToastThanhCong(u8"Đã đưa SĐT " + sdtCanChan_ + u8" vào danh sách đen!");
                 reloadViewModel();
             } else {
-                Widgets::ToastLoi(kq.loi);
             }
         },
         u8"Xác nhận chặn",
@@ -742,10 +776,8 @@ void KhachHangScreen::renderModalXacNhanGoChan() {
             // LÝ DO CHỌN: LinkedList gỡ bỏ phần tử khách hàng khỏi danh sách đen với O(1)
             auto kq = GUI::App::Facade::getInstance().goKhoiDanhSachDen(sdtCanGoChan_);
             if (kq.ok) {
-                Widgets::ToastThanhCong(u8"Đã gỡ SĐT " + sdtCanGoChan_ + u8" khỏi danh sách đen!");
                 reloadViewModel();
             } else {
-                Widgets::ToastLoi(kq.loi);
             }
         },
         u8"Gỡ chặn",
@@ -761,10 +793,8 @@ void KhachHangScreen::renderModalApDungUuDai() {
         [this]() {
             auto kq = GUI::App::Facade::getInstance().apDungUuDaiChoKhach();
             if (kq.ok) {
-                Widgets::ToastThanhCong(u8"Đã cập nhật mức ưu đãi VIP cho toàn bộ khách hàng!");
                 reloadViewModel();
             } else {
-                Widgets::ToastLoi(kq.loi);
             }
         },
         u8"Đồng ý áp dụng",

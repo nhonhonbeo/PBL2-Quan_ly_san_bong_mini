@@ -123,16 +123,13 @@ void ProfileScreen::renderFormThongTin() {
             loiSDT_ = Widgets::FormValidator::kiemTraSDT(formSDT_);
 
             if (!loiHoTen_.empty() || !loiSDT_.empty()) {
-                Widgets::ToastLoi(u8"Vui lòng kiểm tra lại các trường thông tin!");
                 return;
             }
 
             auto kq = GUI::App::Facade::getInstance().capNhatThongTinUser(formSDT_, formHoTen_);
             if (kq.ok) {
-                Widgets::ToastThanhCong(u8"Đã cập nhật thông tin cá nhân thành công!");
                 reloadViewModel();
             } else {
-                Widgets::ToastLoi(kq.loi);
             }
         }
     });
@@ -181,7 +178,7 @@ void ProfileScreen::renderFormDoiMatKhau() {
         ImGui::Separator();
         ImGui::Spacing();
 
-        if (Widgets::NutPhu(u8"Xác nhận đổi mật khẩu", ImVec2(220.0f, 36.0f))) {
+        if (Widgets::NutChinh(u8"Xác nhận đổi mật khẩu", ImVec2(220.0f, 36.0f))) {
             // Kiểm tra tính hợp lệ bằng FormValidator
             loiMatKhauCu_ = Widgets::FormValidator::kiemTraKhongDeTrong(formMatKhauCu_, u8"Mật khẩu hiện tại");
             loiMatKhauMoi_ = Widgets::FormValidator::kiemTraMatKhau(formMatKhauMoi_, 6);
@@ -195,7 +192,6 @@ void ProfileScreen::renderFormDoiMatKhau() {
             }
 
             if (!loiMatKhauCu_.empty() || !loiMatKhauMoi_.empty() || !loiNhapLai_.empty()) {
-                Widgets::ToastLoi(u8"Vui lòng kiểm tra lại thông tin đổi mật khẩu!");
                 return;
             }
 
@@ -204,12 +200,10 @@ void ProfileScreen::renderFormDoiMatKhau() {
 
             auto kq = GUI::App::Facade::getInstance().doiMatKhauUser(sdt, formMatKhauCu_, formMatKhauMoi_);
             if (kq.ok) {
-                Widgets::ToastThanhCong(u8"Đổi mật khẩu thành công!");
                 formMatKhauCu_.clear();
                 formMatKhauMoi_.clear();
                 formNhapLaiMatKhau_.clear();
             } else {
-                Widgets::ToastLoi(kq.loi);
             }
         }
     });

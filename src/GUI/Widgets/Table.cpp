@@ -35,7 +35,8 @@ bool Table(
     const std::vector<TableRow>& danhSachDong,
     TableState& state,
     const std::function<void(const TableRow&, int cot)>& customRenderCell,
-    const std::function<void(const TableRow&)>& onDongClicked
+    const std::function<void(const TableRow&)>& onDongClicked,
+    ImGuiTableFlags extraFlags
 ) {
     if (cacCot.empty()) {
         return false;
@@ -49,33 +50,16 @@ bool Table(
     // ==========================================
     float availWidth = ImGui::GetContentRegionAvail().x;
     float searchWidth = 240.0f;
-    float pageSizeWidth = 140.0f;
 
     // Ô tìm kiếm
-    ImGui::SetNextItemWidth(searchWidth);
-    InputText(nullptr, "##table_search", state.tuKhoaTimKiem, nullptr, u8"Tìm kiếm...");
-
-    ImGui::SameLine();
-    ImGui::SetCursorPosX(availWidth - pageSizeWidth);
-
-    // Hộp chọn số dòng mỗi trang (10 / 20 / 50)
-    const char* pageSizeLabels[] = {u8"10 dòng/trang", u8"20 dòng/trang", u8"50 dòng/trang"};
-    int pageSizeValues[] = {10, 20, 50};
-    int currentSizeIdx = 0;
-    if (state.soDongMoiTrang == 20) currentSizeIdx = 1;
-    else if (state.soDongMoiTrang == 50) currentSizeIdx = 2;
-
-    ImGui::SetNextItemWidth(pageSizeWidth);
-    if (ImGui::BeginCombo("##page_size", pageSizeLabels[currentSizeIdx])) {
-        for (int i = 0; i < 3; ++i) {
-            bool isSelected = (currentSizeIdx == i);
-            if (ImGui::Selectable(pageSizeLabels[i], isSelected)) {
-                state.soDongMoiTrang = pageSizeValues[i];
-                state.trangHienTai = 1;
-            }
-        }
-        ImGui::EndCombo();
-    }
+    InputText(
+        nullptr,
+        "##table_search",
+        state.tuKhoaTimKiem,
+        nullptr,
+        u8"Tìm kiếm...",
+        std::min(searchWidth, availWidth)
+    );
 
     ImGui::Spacing();
 
@@ -146,7 +130,8 @@ bool Table(
                             ImGuiTableFlags_Resizable |
                             ImGuiTableFlags_Reorderable |
                             ImGuiTableFlags_Sortable |
-                            ImGuiTableFlags_SizingStretchProp;
+                            ImGuiTableFlags_SizingStretchProp |
+                            extraFlags;
 
     if (ImGui::BeginTable("##main_table", static_cast<int>(cacCot.size()), flags)) {
         // Thiết lập header các cột

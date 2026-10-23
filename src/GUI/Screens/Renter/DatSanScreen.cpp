@@ -1,5 +1,6 @@
 #include "GUI/Screens/Renter/DatSanScreen.h"
 
+#include <algorithm>
 #include <chrono>
 #include <ctime>
 #include <iomanip>
@@ -97,7 +98,12 @@ void DatSanScreen::reloadViewModel() {
     // 2. Lọc danh sách sân theo loại sân đã chọn
     danhSachSanTheoLoai_.clear();
     auto allSan = facade.getDanhSachSanBong();
+    giaThapNhatTheoLoai_.clear();
     for (const auto& s : allSan) {
+        auto priceIt = giaThapNhatTheoLoai_.find(s.loaiSan);
+        if (priceIt == giaThapNhatTheoLoai_.end() || s.giaThueGio < priceIt->second) {
+            giaThapNhatTheoLoai_[s.loaiSan] = s.giaThueGio;
+        }
         if (s.loaiSan == loaiSanChon_) {
             danhSachSanTheoLoai_.push_back(s);
         }
@@ -126,7 +132,7 @@ void DatSanScreen::render() {
     }
 
     // 2. Thanh tiến trình các bước
-    if (buocHienTai_ <= 4) {
+    if (buocHienTai_ <= 3) {
         renderThanhTienTrinh();
         ImGui::Spacing();
         ImGui::Spacing();
@@ -138,16 +144,13 @@ void DatSanScreen::render() {
             renderBuoc1ChonLoaiSan();
             break;
         case 2:
-            renderBuoc2ChonNgay();
+            renderBuoc2ChonNgayVaKhungGio();
             break;
         case 3:
-            renderBuoc3ChonSlot();
+            renderBuoc3XacNhan();
             break;
         case 4:
-            renderBuoc4XacNhan();
-            break;
-        case 5:
-            renderBuoc5PhieuDatSan();
+            renderPhieuDatSan();
             break;
         default:
             break;
@@ -155,22 +158,21 @@ void DatSanScreen::render() {
 }
 
 void DatSanScreen::renderThanhTienTrinh() {
-    float fraction = static_cast<float>(buocHienTai_) / 4.0f;
+    float fraction = static_cast<float>(buocHienTai_) / 3.0f;
     char buf[64];
-    std::snprintf(buf, sizeof(buf), u8"Bước %d / 4", buocHienTai_);
+    std::snprintf(buf, sizeof(buf), u8"Bước %d / 3", buocHienTai_);
 
-    Widgets::ProgressBar(fraction, buf, ImVec2(-1.0f, 14.0f), GUI::Theme::Colors::GrassGreen);
+    Widgets::ProgressBar(fraction, buf, ImVec2(-1.0f, 30.0f), GUI::Theme::Colors::GrassGreen);
     ImGui::Spacing();
 
     const char* buocNames[] = {
         u8"1. Chọn loại sân",
-        u8"2. Chọn ngày thi đấu",
-        u8"3. Chọn khung giờ trống",
-        u8"4. Xác nhận đặt sân"
+        u8"2. Chọn ngày và khung giờ",
+        u8"3. Xác nhận đặt sân"
     };
 
-    ImGui::Columns(4, nullptr, false);
-    for (int i = 0; i < 4; ++i) {
+    ImGui::Columns(3, nullptr, false);
+    for (int i = 0; i < 3; ++i) {
         bool isCurrent = (buocHienTai_ == i + 1);
         bool isDone = (buocHienTai_ > i + 1);
 
@@ -187,7 +189,7 @@ void DatSanScreen::renderThanhTienTrinh() {
 void DatSanScreen::renderCanhBaoDanhSachDen() {
     Widgets::Card("card_renter_blacklist_alert", u8"CẢNH BÁO TÀI KHOẢN BỊ KHÓA ĐẶT SÂN", []() {
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::RedDanger);
-        ImGui::TextUnformatted(u8"⚠️ TÀI KHOẢN CỦA BẠN ĐANG NẰM TRONG DANH SÁCH ĐEN (BLACKLIST)");
+        ImGui::TextUnformatted(u8"TÀI KHOẢN CỦA BẠN ĐANG NẰM TRONG DANH SÁCH ĐEN (BLACKLIST)");
         ImGui::PopStyleColor();
 
         ImGui::Spacing();
@@ -197,7 +199,7 @@ void DatSanScreen::renderCanhBaoDanhSachDen() {
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
         ImGui::TextWrapped(u8"Do bạn đã hủy lịch đặt sân quá số lần quy định của cơ sở, quyền đặt giữ chỗ trực tuyến đã tạm thời bị khóa nhằm đảm bảo quyền lợi cho các đội bóng khác.");
         ImGui::Spacing();
-        ImGui::TextWrapped(u8"👉 Vui lòng liên hệ trực tiếp với Chủ sân qua số điện thoại HOTLINE để được hỗ trợ kiểm tra và gỡ bỏ trạng thái khóa.");
+        ImGui::TextWrapped(u8"Vui lòng liên hệ trực tiếp với Chủ sân qua số điện thoại HOTLINE để được hỗ trợ kiểm tra và gỡ bỏ trạng thái khóa.");
         ImGui::PopStyleColor();
 
         ImGui::Spacing();
@@ -215,18 +217,16 @@ void DatSanScreen::renderBuoc1ChonLoaiSan() {
         ImGui::Spacing();
         ImGui::Spacing();
 
-        float cardW = (ImGui::GetContentRegionAvail().x - 32.0f) / 3.0f;
-        if (cardW < 220.0f) cardW = 220.0f;
+        float cardW = std::max(0.0f, (ImGui::GetContentRegionAvail().x - 32.0f) / 3.0f);
 
         struct LoaiSanItem {
             int loai;
             const char* title;
             const char* desc;
-            const char* price;
         } dsLoai[] = {
-            {5,  u8"Sân 5 người",  u8"Mini 5v5 tiêu chuẩn\nMặt cỏ êm ái, thoát nước tốt", u8"Từ 200.000đ / h"},
-            {7,  u8"Sân 7 người",  u8"Bán chuyên 7v7 rộng rãi\nKhung thành và đèn cao cấp", u8"Từ 350.000đ / h"},
-            {11, u8"Sân 11 người", u8"Thi đấu 11v11 quy chuẩn\nPhù hợp giải đấu nội bộ",   u8"Từ 800.000đ / h"}
+            {5,  u8"Sân 5 người",  u8"Mini 5v5 tiêu chuẩn"},
+            {7,  u8"Sân 7 người",  u8"Bán chuyên 7v7 rộng rãi"},
+            {11, u8"Sân 11 người", u8"Thi đấu 11v11 quy chuẩn"}
         };
 
         for (int i = 0; i < 3; ++i) {
@@ -241,7 +241,12 @@ void DatSanScreen::renderBuoc1ChonLoaiSan() {
             ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, isSelected ? 2.0f : 1.0f);
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.0f, 16.0f));
 
-            if (ImGui::BeginChild(childId.c_str(), ImVec2(cardW, 200.0f), true)) {
+            if (ImGui::BeginChild(
+                    childId.c_str(),
+                    ImVec2(cardW, 172.0f),
+                    true,
+                    ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse
+                )) {
                 // Tiêu đề loại sân
                 ImGui::PushStyleColor(ImGuiCol_Text, isSelected ? GUI::Theme::Colors::GrassGreen : GUI::Theme::Colors::DarkText);
                 ImGui::TextUnformatted(dsLoai[i].title);
@@ -259,17 +264,19 @@ void DatSanScreen::renderBuoc1ChonLoaiSan() {
 
                 ImGui::Spacing();
                 ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::GrassGreen);
-                ImGui::Text(u8"💰 %s", dsLoai[i].price);
+                auto minPrice = giaThapNhatTheoLoai_.find(dsLoai[i].loai);
+                if (minPrice != giaThapNhatTheoLoai_.end()) {
+                    ImGui::Text(u8"Từ %s / giờ", dinhDangTien(minPrice->second).c_str());
+                } else {
+                    ImGui::TextUnformatted(u8"Chưa có sân thuộc loại này");
+                }
                 ImGui::PopStyleColor();
 
-                ImGui::Spacing();
-                ImGui::Spacing();
-
                 if (isSelected) {
-                    Widgets::Badge(u8"✓ Đang chọn", GUI::Theme::Colors::GrassGreen, GUI::Theme::Colors::WhiteCard);
+                    Widgets::Badge(u8"Đang chọn", GUI::Theme::Colors::GrassGreen, GUI::Theme::Colors::WhiteCard);
                 } else {
                     std::string btnSelectId = u8"Chọn loại này##" + std::to_string(dsLoai[i].loai);
-                    if (Widgets::NutPhu(btnSelectId.c_str(), ImVec2(-1.0f, 32.0f))) {
+                    if (Widgets::NutPhu(btnSelectId.c_str(), ImVec2(-1.0f, 28.0f))) {
                         loaiSanChon_ = dsLoai[i].loai;
                         maSanChon_.clear();
                         khungGioChon_.clear();
@@ -288,68 +295,20 @@ void DatSanScreen::renderBuoc1ChonLoaiSan() {
         ImGui::Separator();
         ImGui::Spacing();
 
-        if (Widgets::NutChinh(u8"Tiếp tục sang Chọn ngày thi đấu →", ImVec2(280.0f, 38.0f))) {
+        if (Widgets::NutChinh(u8"Tiếp tục chọn ngày và khung giờ →", ImVec2(290.0f, 38.0f))) {
             buocHienTai_ = 2;
             reloadViewModel();
         }
     });
 }
 
-void DatSanScreen::renderBuoc2ChonNgay() {
-    Widgets::Card("card_step2_select_date", u8"Bước 2: Lựa chọn ngày thi đấu", [this]() {
+void DatSanScreen::renderBuoc2ChonNgayVaKhungGio() {
+    std::string cardTitle = u8"Bước 2: Chọn ngày và khung giờ sân " +
+                            std::to_string(loaiSanChon_) + u8" người";
+
+    Widgets::Card("card_step2_date_slotgrid", cardTitle.c_str(), [this]() {
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-        ImGui::TextWrapped(u8"Chọn ngày thi đấu bạn mong muốn. Lưu ý hệ thống không chấp nhận đặt lịch cho những ngày trong quá khứ.");
-        ImGui::PopStyleColor();
-        ImGui::Spacing();
-        ImGui::Spacing();
-
-        ImGui::SetNextItemWidth(260.0f);
-        Widgets::DatePicker(u8"Ngày thi đấu (dd/MM/yyyy) (*)", "##dp_renter_date", ngayChon_);
-
-        ImGui::Spacing();
-
-        // Kiểm tra không cho chọn ngày quá khứ
-        std::string todayStr = layNgayHomNayStr();
-        bool laNgayQuaKhu = (parseNgaySangSo(ngayChon_) < parseNgaySangSo(todayStr));
-
-        if (laNgayQuaKhu) {
-            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::RedDanger);
-            ImGui::TextUnformatted(u8"✕ Ngày được chọn đã ở trong quá khứ! Vui lòng chọn từ ngày hôm nay trở đi.");
-            ImGui::PopStyleColor();
-        } else {
-            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::GrassGreen);
-            ImGui::Text(u8"✓ Ngày hợp lệ: %s", ngayChon_.c_str());
-            ImGui::PopStyleColor();
-        }
-
-        ImGui::Spacing();
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        // Nút Quay lại
-        if (Widgets::NutPhu(u8"← Quay lại", ImVec2(120.0f, 36.0f))) {
-            buocHienTai_ = 1;
-        }
-
-        ImGui::SameLine(0.0f, 16.0f);
-
-        // Nút Tiếp tục (vô hiệu hóa nếu là ngày quá khứ)
-        if (!laNgayQuaKhu) {
-            if (Widgets::NutChinh(u8"Tiếp tục sang Chọn khung giờ trống →", ImVec2(300.0f, 36.0f))) {
-                buocHienTai_ = 3;
-                reloadViewModel();
-            }
-        }
-    });
-}
-
-void DatSanScreen::renderBuoc3ChonSlot() {
-    std::string cardTitle = u8"Bước 3: Chọn khung giờ trống trên lưới sân " + std::to_string(loaiSanChon_) + u8" người (Ngày: " + ngayChon_ + ")";
-
-    Widgets::Card("card_step3_slotgrid", cardTitle.c_str(), [this]() {
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-        ImGui::TextWrapped(u8"Bấm trực tiếp vào ô khung giờ còn trống (màu trắng) để chọn giữ chỗ. Các ô màu xám đã có người đặt trước sẽ bị khóa.");
+        ImGui::TextWrapped(u8"Chọn ngày trên lịch trong bảng, sau đó bấm một ô còn trống để chọn khung giờ.");
         ImGui::PopStyleColor();
         ImGui::Spacing();
 
@@ -384,25 +343,34 @@ void DatSanScreen::renderBuoc3ChonSlot() {
             maSanChon_,
             khungGioChon_,
             [this](const std::string& maSan, const std::string& khungGio) {
+                if (parseNgaySangSo(ngayChon_) < parseNgaySangSo(layNgayHomNayStr())) {
+                    return;
+                }
                 auto it = slotDataMap_.find({maSan, khungGio});
                 if (it != slotDataMap_.end() && it->second.status == Widgets::SlotStatus::DaDat) {
-                    Widgets::ToastLoi(u8"Ô này đã có người đặt trước!");
                     return;
                 }
                 if (it != slotDataMap_.end() && it->second.status == Widgets::SlotStatus::BaoTri) {
-                    Widgets::ToastLoi(u8"Sân đang bảo trì trong khung giờ này!");
                     return;
                 }
 
                 maSanChon_ = maSan;
                 khungGioChon_ = khungGio;
                 reloadViewModel();
-                Widgets::ToastThongTin(u8"Đã chọn: Sân " + maSan + " (" + khungGio + ")");
             }
         );
 
         if (coDoiNgay) {
+            maSanChon_.clear();
+            khungGioChon_.clear();
             reloadViewModel();
+        }
+
+        bool ngayHopLe = parseNgaySangSo(ngayChon_) >= parseNgaySangSo(layNgayHomNayStr());
+        if (!ngayHopLe) {
+            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::RedDanger);
+            ImGui::TextUnformatted(u8"Ngày đã chọn ở trong quá khứ; hãy chọn từ hôm nay trở đi.");
+            ImGui::PopStyleColor();
         }
 
         ImGui::Spacing();
@@ -412,7 +380,7 @@ void DatSanScreen::renderBuoc3ChonSlot() {
         // Hiển thị tóm tắt ô đang chọn
         if (!maSanChon_.empty() && !khungGioChon_.empty()) {
             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
-            ImGui::Text(u8"📌 Đang chọn: Sân %s | Khung giờ: %s | Giá dự kiến: %s",
+            ImGui::Text(u8"Đang chọn: Sân %s | Khung giờ: %s | Giá dự kiến: %s",
                         maSanChon_.c_str(), khungGioChon_.c_str(), dinhDangTien(giaGoc_).c_str());
             ImGui::PopStyleColor();
         } else {
@@ -425,23 +393,23 @@ void DatSanScreen::renderBuoc3ChonSlot() {
         ImGui::Spacing();
 
         // Nút điều hướng
-        if (Widgets::NutPhu(u8"← Quay lại Chọn ngày", ImVec2(180.0f, 36.0f))) {
-            buocHienTai_ = 2;
+        if (Widgets::NutPhu(u8"← Quay lại chọn loại sân", ImVec2(210.0f, 36.0f))) {
+            buocHienTai_ = 1;
         }
 
         ImGui::SameLine(0.0f, 16.0f);
 
-        if (!maSanChon_.empty() && !khungGioChon_.empty()) {
-            if (Widgets::NutChinh(u8"Tiếp tục sang Xác nhận đơn đặt →", ImVec2(280.0f, 36.0f))) {
-                buocHienTai_ = 4;
+        if (ngayHopLe && !maSanChon_.empty() && !khungGioChon_.empty()) {
+            if (Widgets::NutChinh(u8"Tiếp tục xác nhận đơn đặt →", ImVec2(260.0f, 36.0f))) {
+                buocHienTai_ = 3;
                 reloadViewModel();
             }
         }
     });
 }
 
-void DatSanScreen::renderBuoc4XacNhan() {
-    Widgets::Card("card_step4_confirm", u8"Bước 4: Xác nhận thông tin và thanh toán giữ chỗ", [this]() {
+void DatSanScreen::renderBuoc3XacNhan() {
+    Widgets::Card("card_step3_confirm", u8"Bước 3: Xác nhận thông tin và thanh toán giữ chỗ", [this]() {
         User* curUser = GUI::App::Session::getInstance().getUser();
         std::string tenKhach = curUser ? curUser->get_name() : u8"Trần Văn Thuê";
         std::string sdtKhach = curUser ? curUser->get_phone_number() : "0909876543";
@@ -496,12 +464,12 @@ void DatSanScreen::renderBuoc4XacNhan() {
 
         // Nút điều hướng
         if (Widgets::NutPhu(u8"← Quay lại Chọn giờ", ImVec2(180.0f, 38.0f))) {
-            buocHienTai_ = 3;
+            buocHienTai_ = 2;
         }
 
         ImGui::SameLine(0.0f, 16.0f);
 
-        if (Widgets::NutChinh(u8"✓ Xác nhận & Hoàn tất đặt sân", ImVec2(260.0f, 38.0f))) {
+        if (Widgets::NutChinh(u8"Xác nhận & Hoàn tất đặt sân", ImVec2(260.0f, 38.0f))) {
             auto& facade = GUI::App::Facade::getInstance();
             auto kq = facade.datSanMoi(
                 maSanChon_,
@@ -515,17 +483,15 @@ void DatSanScreen::renderBuoc4XacNhan() {
             );
 
             if (kq.ok) {
-                Widgets::ToastThanhCong(u8"Đặt sân thành công! Mã đơn: " + maDonDaDat_);
-                buocHienTai_ = 5; // Chuyển sang phiếu đặt sân
+                buocHienTai_ = 4; // Chuyển sang phiếu đặt sân
             } else {
-                Widgets::ToastLoi(kq.loi);
             }
         }
     });
 }
 
-void DatSanScreen::renderBuoc5PhieuDatSan() {
-    Widgets::Card("card_step5_ticket", u8"PHIẾU XÁC NHẬN ĐẶT SÂN BÓNG ĐIỆN TỬ", [this]() {
+void DatSanScreen::renderPhieuDatSan() {
+    Widgets::Card("card_step4_ticket", u8"PHIẾU XÁC NHẬN ĐẶT SÂN BÓNG ĐIỆN TỬ", [this]() {
         User* curUser = GUI::App::Session::getInstance().getUser();
         std::string tenKhach = curUser ? curUser->get_name() : u8"Trần Văn Thuê";
         std::string sdtKhach = curUser ? curUser->get_phone_number() : "0909876543";
@@ -535,7 +501,7 @@ void DatSanScreen::renderBuoc5PhieuDatSan() {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(20.0f, 20.0f));
 
         if (ImGui::BeginChild("##ticket_box", ImVec2(0.0f, 240.0f), true)) {
-            Widgets::Badge(u8"✓ ĐẶT SÂN THÀNH CÔNG", GUI::Theme::Colors::GrassGreen, GUI::Theme::Colors::WhiteCard);
+            Widgets::Badge(u8"ĐẶT SÂN THÀNH CÔNG", GUI::Theme::Colors::GrassGreen, GUI::Theme::Colors::WhiteCard);
             ImGui::SameLine(0.0f, 12.0f);
             Widgets::BadgeVIP(u8"Thanh toán tại sân");
 
@@ -576,7 +542,7 @@ void DatSanScreen::renderBuoc5PhieuDatSan() {
         ImGui::Spacing();
 
         // Các nút hành động sau khi đặt
-        if (Widgets::NutChinh(u8"📅 Xem lịch của tôi", ImVec2(200.0f, 38.0f))) {
+        if (Widgets::NutChinh(u8"Xem lịch của tôi", ImVec2(200.0f, 38.0f))) {
             if (onXemLichCuaToi_) {
                 onXemLichCuaToi_();
             }

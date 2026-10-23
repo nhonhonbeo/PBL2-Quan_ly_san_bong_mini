@@ -64,6 +64,13 @@ void RenterShellScreen::render() {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 
     if (ImGui::Begin("##RenterShellRoot", nullptr, flags)) {
+        // LÝ DO CHỌN: Kích hoạt mở modal đăng xuất ngay tại cửa sổ gốc RenterShellRoot
+        // để ImGui::BeginPopupModal có cùng ID stack với OpenPopup, đảm bảo modal luôn hiển thị.
+        if (yeuCauDangXuat_) {
+            Widgets::MoModalXacNhan(u8"Xác nhận đăng xuất");
+            yeuCauDangXuat_ = false;
+        }
+
         // 1. Sidebar menu trái
         renderSidebar();
 
@@ -74,7 +81,7 @@ void RenterShellScreen::render() {
         if (ImGui::BeginChild("##RenterRightContent", ImVec2(0.0f, 0.0f), false)) {
             renderTopBar();
 
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(20.0f, 16.0f));
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(22.0f, 20.0f));
             if (ImGui::BeginChild("##RenterScrollContent", ImVec2(0.0f, 0.0f), false)) {
                 renderContentArea();
             }
@@ -107,12 +114,12 @@ void RenterShellScreen::render() {
 
 void RenterShellScreen::renderSidebar() {
     std::vector<Widgets::SidebarItem> menuItems = {
-        {"0", "[⚽]", u8"Đặt sân trực tuyến"},
-        {"1", "[📅]", u8"Lịch đặt của tôi"},
-        {"2", "[🏆]", u8"Đăng ký tạo giải"},
-        {"3", "[🎁]", u8"Ưu đãi thành viên"},
-        {"4", "[⭐]", u8"Đánh giá sân bóng"},
-        {"5", "[👤]", u8"Thông tin cá nhân"}
+        {"0", "", u8"Đặt sân trực tuyến"},
+        {"1", "", u8"Lịch đặt của tôi"},
+        {"2", "", u8"Đăng ký tạo giải"},
+        {"3", "", u8"Ưu đãi thành viên"},
+        {"4", "", u8"Đánh giá sân bóng"},
+        {"5", "", u8"Thông tin cá nhân"}
     };
 
     int prevTab = selectedTab_;
@@ -120,8 +127,8 @@ void RenterShellScreen::renderSidebar() {
         menuItems,
         selectedTab_,
         240.0f,
-        []() {
-            Widgets::MoModalXacNhan(u8"Xác nhận đăng xuất");
+        [this]() {
+            yeuCauDangXuat_ = true;
         }
     );
 

@@ -77,7 +77,7 @@ void LichDatScreen::onEnter() {
         {u8"Khung giờ", 140.0f, ImGuiTableColumnFlags_WidthFixed},
         {u8"Giá tiền", 120.0f, ImGuiTableColumnFlags_WidthFixed},
         {u8"Trạng thái", 140.0f, ImGuiTableColumnFlags_WidthFixed},
-        {u8"Hành động", 120.0f, ImGuiTableColumnFlags_WidthFixed}
+        {u8"Hành động", 112.0f, ImGuiTableColumnFlags_WidthFixed}
     };
 
     locTrangThai_ = 0;
@@ -163,23 +163,24 @@ void LichDatScreen::renderBoLoc() {
 
     const char* boLocLabels[] = {
         u8"Tất cả đơn",
-        u8"⏳ Lịch sắp tới",
-        u8"✓ Lịch đã qua",
-        u8"✕ Đã hủy"
+        u8"Lịch sắp tới",
+        u8"Lịch đã qua",
+        u8"Đã hủy"
     };
 
     for (int i = 0; i < 4; ++i) {
         if (i > 0) ImGui::SameLine(0.0f, 8.0f);
 
         bool isSelected = (locTrangThai_ == i);
+        std::string btnFilterId = std::string(boLocLabels[i]) + "##filter";
         if (isSelected) {
-            Widgets::Badge(boLocLabels[i], GUI::Theme::Colors::GrassGreen, GUI::Theme::Colors::WhiteCard);
-        } else {
-            std::string btnFilterId = std::string(boLocLabels[i]) + "##filter";
-            if (Widgets::NutPhu(btnFilterId.c_str(), ImVec2(0.0f, 26.0f))) {
+            if (Widgets::NutChinh(btnFilterId.c_str(), ImVec2(0.0f, 32.0f))) {
                 locTrangThai_ = i;
                 reloadViewModel();
             }
+        } else if (Widgets::NutPhu(btnFilterId.c_str(), ImVec2(0.0f, 32.0f))) {
+            locTrangThai_ = i;
+            reloadViewModel();
         }
     }
 }
@@ -245,10 +246,8 @@ void LichDatScreen::renderModalXacNhanHuy() {
 
             auto kq = GUI::App::Facade::getInstance().huyDonDat(maDonCanHuy_, sdt);
             if (kq.ok) {
-                Widgets::ToastThongTin(u8"Đã hủy đơn đặt sân " + maDonCanHuy_ + u8" thành công!");
                 reloadViewModel();
             } else {
-                Widgets::ToastLoi(kq.loi);
             }
         },
         u8"Xác nhận hủy sân",

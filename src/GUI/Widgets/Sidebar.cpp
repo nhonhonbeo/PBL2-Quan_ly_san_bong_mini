@@ -19,13 +19,15 @@ bool Sidebar(
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(14.0f, 18.0f));
 
-    if (ImGui::BeginChild("##SidebarChild", ImVec2(chieuRong, 0.0f), true, ImGuiWindowFlags_NoScrollbar)) {
+    ImGuiWindowFlags sidebarFlags = ImGuiWindowFlags_NoScrollbar |
+                                    ImGuiWindowFlags_NoScrollWithMouse;
+    if (ImGui::BeginChild("##SidebarChild", ImVec2(chieuRong, 0.0f), true, sidebarFlags)) {
         // ==========================================
         // 1. LOGO & TÊN THƯƠNG HIỆU
         // ==========================================
         ImGui::Spacing();
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::GrassGreen);
-        ImGui::TextUnformatted(u8"⚽ SÂN BÓNG MINI");
+        ImGui::TextUnformatted(u8"SÂN BÓNG MINI");
         ImGui::PopStyleColor();
 
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
@@ -87,7 +89,7 @@ bool Sidebar(
         float logoutPosY = windowHeight - logoutBtnHeight - bottomPadding;
 
         if (logoutPosY > ImGui::GetCursorPosY() + 20.0f) {
-            ImGui::SetCursorPosY(logoutPosY);
+            ImGui::SetCursorPosY(logoutPosY - 24.0f);
         }
 
         ImGui::PushStyleColor(ImGuiCol_Separator, GUI::Theme::Colors::BorderLight);
@@ -95,7 +97,7 @@ bool Sidebar(
         ImGui::PopStyleColor();
         ImGui::Spacing();
 
-        if (NutNguyHiem(u8"Đăng xuất", ImVec2(ImGui::GetContentRegionAvail().x, logoutBtnHeight))) {
+        if (NutNguyHiem(u8"Đăng xuất##sidebar_logout_btn", ImVec2(ImGui::GetContentRegionAvail().x, logoutBtnHeight))) {
             if (onDangXuat) {
                 onDangXuat();
             }

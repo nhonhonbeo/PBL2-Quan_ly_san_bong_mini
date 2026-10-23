@@ -18,13 +18,13 @@ void ProgressBar(
     if (width <= 0.0f) {
         width = ImGui::GetContentRegionAvail().x;
     }
-    float height = kichThuoc.y;
+    float height = kichThuoc.y > 0.0f ? kichThuoc.y : 30.0f;
 
     ImVec2 p0 = ImGui::GetCursorScreenPos();
     ImVec2 p1 = ImVec2(p0.x + width, p0.y + height);
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
-    float rounding = height * 0.4f;
+    constexpr float rounding = 0.0f;
 
     // 1. Nền rãnh thanh tiến trình
     ImU32 bgCol = GUI::Theme::Colors::toU32(ImVec4(0.92f, 0.94f, 0.93f, 1.0f));
@@ -47,7 +47,8 @@ void ProgressBar(
     }
 
     ImVec2 txtSize = ImGui::CalcTextSize(buffer);
-    ImVec2 txtPos(p0.x + (width - txtSize.x) * 0.5f, p0.y + (height - txtSize.y) * 0.5f);
+    float textOffsetX = std::max(0.0f, (width - txtSize.x) * 0.5f);
+    ImVec2 txtPos(p0.x + textOffsetX, p0.y + (height - txtSize.y) * 0.5f);
 
     // Chữ màu trắng nếu thanh đã đầy qua vị trí chữ, hoặc chữ màu đậm nếu nằm ngoài
     ImU32 txtCol = (clampedRatio > 0.55f)

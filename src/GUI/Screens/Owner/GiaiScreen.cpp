@@ -74,7 +74,7 @@ void GiaiScreen::onEnter() {
         {u8"Bắt đầu", 110.0f, ImGuiTableColumnFlags_WidthFixed},
         {u8"Kết thúc", 110.0f, ImGuiTableColumnFlags_WidthFixed},
         {u8"Trạng thái", 130.0f, ImGuiTableColumnFlags_WidthFixed},
-        {u8"Thao tác", 130.0f, ImGuiTableColumnFlags_WidthFixed}
+        {u8"Thao tác", 190.0f, ImGuiTableColumnFlags_WidthFixed}
     };
 
     calendarState_.thang = 10;
@@ -160,24 +160,36 @@ void GiaiScreen::reloadViewModel() {
 
 void GiaiScreen::render() {
     if (ImGui::BeginTabBar("##GiaiTabBar", ImGuiTabBarFlags_None)) {
-        if (ImGui::BeginTabItem(u8"1. Danh sách giải đấu")) {
+        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
+        bool showTournamentList = ImGui::BeginTabItem(u8"1. Danh sách giải đấu");
+        ImGui::PopStyleColor();
+        if (showTournamentList) {
             renderTabDanhSachGiai();
             ImGui::EndTabItem();
         }
 
         // Tab có hiển thị số lượng yêu cầu chờ duyệt
         std::string tabDuyetTitle = u8"2. Yêu cầu chờ duyệt (" + std::to_string(danhSachChoDuyet_.size()) + u8")";
-        if (ImGui::BeginTabItem(tabDuyetTitle.c_str())) {
+        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
+        bool showPending = ImGui::BeginTabItem(tabDuyetTitle.c_str());
+        ImGui::PopStyleColor();
+        if (showPending) {
             renderTabYeuCauChoDuyet();
             ImGui::EndTabItem();
         }
 
-        if (ImGui::BeginTabItem(u8"3. Thêm giải thủ công")) {
+        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
+        bool showManualEntry = ImGui::BeginTabItem(u8"3. Thêm giải thủ công");
+        ImGui::PopStyleColor();
+        if (showManualEntry) {
             renderTabThemGiaiThuCong();
             ImGui::EndTabItem();
         }
 
-        if (ImGui::BeginTabItem(u8"4. Lịch sự kiện giải đấu")) {
+        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
+        bool showEventSchedule = ImGui::BeginTabItem(u8"4. Lịch sự kiện giải đấu");
+        ImGui::PopStyleColor();
+        if (showEventSchedule) {
             renderTabLichSuKien();
             ImGui::EndTabItem();
         }
@@ -250,7 +262,7 @@ void GiaiScreen::renderTabYeuCauChoDuyet() {
     Widgets::Card("card_pending_tournaments", u8"Danh sách yêu cầu đăng ký giải đấu chờ duyệt", [this]() {
         if (danhSachChoDuyet_.empty()) {
             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::GrassGreen);
-            ImGui::TextUnformatted(u8"✓ Hiện tại không có yêu cầu tổ chức giải đấu nào đang chờ duyệt.");
+            ImGui::TextUnformatted(u8"Hiện tại không có yêu cầu tổ chức giải đấu nào đang chờ duyệt.");
             ImGui::PopStyleColor();
             return;
         }
@@ -288,8 +300,8 @@ void GiaiScreen::renderTabYeuCauChoDuyet() {
                 ImGui::Spacing();
 
                 // Nút Duyệt và Nút Từ chối
-                std::string btnApproveId = u8"✓ Duyệt giải đấu##" + g.maGiai;
-                std::string btnRejectId = u8"✕ Từ chối##" + g.maGiai;
+                std::string btnApproveId = u8"Duyệt giải đấu##" + g.maGiai;
+                std::string btnRejectId = u8"Từ chối##" + g.maGiai;
 
                 if (Widgets::NutChinh(btnApproveId.c_str(), ImVec2(160.0f, 32.0f))) {
                     maGiaiCanDuyet_ = g.maGiai;
@@ -301,7 +313,7 @@ void GiaiScreen::renderTabYeuCauChoDuyet() {
                 if (Widgets::NutNguyHiem(btnRejectId.c_str(), ImVec2(120.0f, 32.0f))) {
                     maGiaiCanTuChoi_ = g.maGiai;
                     lyDoTuChoi_.clear();
-                    ImGui::OpenPopup(u8"Nhập lý do từ chối yêu cầu");
+                    Widgets::MoModalXacNhan(u8"Nhập lý do từ chối yêu cầu");
                 }
 
                 ImGui::Columns(1);
@@ -394,7 +406,6 @@ void GiaiScreen::renderTabThemGiaiThuCong() {
         if (Widgets::NutChinh(u8"+ Xác nhận tạo giải đấu", ImVec2(-1.0f, 40.0f))) {
             // Kiểm tra tính hợp lệ của Form
             if (formTenGiai_.empty()) {
-                Widgets::ToastLoi(u8"Vui lòng nhập tên giải đấu!");
                 return;
             }
 
@@ -406,7 +417,6 @@ void GiaiScreen::renderTabThemGiaiThuCong() {
             } else {
                 std::string loiSDT = Widgets::FormValidator::kiemTraSDT(formSDTKhachMoi_);
                 if (formTenKhachMoi_.empty() || !loiSDT.empty()) {
-                    Widgets::ToastLoi(u8"Vui lòng nhập tên và SĐT khách hàng hợp lệ (10 chữ số)!");
                     return;
                 }
                 gMoi.tenKhachDat = formTenKhachMoi_;
@@ -426,13 +436,11 @@ void GiaiScreen::renderTabThemGiaiThuCong() {
             // Gọi Facade kiểm tra trùng lịch và thêm giải
             auto kq = GUI::App::Facade::getInstance().taoGiaiDauThuCong(gMoi);
             if (kq.ok) {
-                Widgets::ToastThanhCong(u8"Đã tạo giải đấu thành công!");
                 formTenGiai_.clear();
                 formMoTa_.clear();
                 reloadViewModel();
             } else {
                 // Hiển thị Toast đỏ nội dung lỗi do nghiệp vụ trả về
-                Widgets::ToastLoi(kq.loi);
             }
         }
 
@@ -501,7 +509,7 @@ void GiaiScreen::renderTabLichSuKien() {
             ImGui::BeginGroup();
 
             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
-            ImGui::Text(u8"⚽ %s (%s)", g.tenGiai.c_str(), g.maGiai.c_str());
+            ImGui::Text(u8"%s (%s)", g.tenGiai.c_str(), g.maGiai.c_str());
             ImGui::PopStyleColor();
 
             ImGui::Spacing();
@@ -548,7 +556,7 @@ void GiaiScreen::renderTabLichSuKien() {
 
 void GiaiScreen::renderModalXacNhanDuyet() {
     std::string noiDung = u8"Bạn có chắc chắn muốn phê duyệt giải đấu mã " + maGiaiCanDuyet_ +
-                          u8"?\nHệ thống sẽ kiểm tra trùng lịch sân bóng trước khi xác nhận.";
+                          u8"Hệ thống sẽ kiểm tra trùng lịch sân bóng trước khi xác nhận.";
 
     Widgets::ModalXacNhan(
         u8"Xác nhận phê duyệt giải đấu",
@@ -557,11 +565,9 @@ void GiaiScreen::renderModalXacNhanDuyet() {
             // Khi duyệt gọi Facade kiểm tra trùng lịch sân bóng
             auto kq = GUI::App::Facade::getInstance().duyetGiaiDau(maGiaiCanDuyet_);
             if (kq.ok) {
-                Widgets::ToastThanhCong(u8"Đã phê duyệt giải đấu " + maGiaiCanDuyet_ + u8" thành công!");
                 reloadViewModel();
             } else {
                 // Hiện Toast đỏ nội dung lỗi do nghiệp vụ trả về
-                Widgets::ToastLoi(kq.loi);
             }
         },
         u8"Phê duyệt",
@@ -571,6 +577,8 @@ void GiaiScreen::renderModalXacNhanDuyet() {
 }
 
 void GiaiScreen::renderModalTuChoi() {
+    Widgets::KiemTraVaMoModal(u8"Nhập lý do từ chối yêu cầu");
+
     if (ImGui::BeginPopupModal(u8"Nhập lý do từ chối yêu cầu", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
         ImGui::Text(u8"Vui lòng nhập lý do từ chối giải đấu mã %s:", maGiaiCanTuChoi_.c_str());
@@ -590,10 +598,8 @@ void GiaiScreen::renderModalTuChoi() {
         if (Widgets::NutNguyHiem(u8"Xác nhận từ chối", ImVec2(160.0f, 32.0f))) {
             auto kq = GUI::App::Facade::getInstance().tuChoiGiaiDau(maGiaiCanTuChoi_, lyDoTuChoi_);
             if (kq.ok) {
-                Widgets::ToastThongTin(u8"Đã từ chối yêu cầu giải đấu " + maGiaiCanTuChoi_);
                 reloadViewModel();
             } else {
-                Widgets::ToastLoi(kq.loi);
             }
             ImGui::CloseCurrentPopup();
         }
@@ -651,11 +657,9 @@ void GiaiScreen::renderModalSuaGiai() {
         if (Widgets::NutChinh(u8"Lưu thay đổi", ImVec2(130.0f, 32.0f))) {
             auto kq = GUI::App::Facade::getInstance().suaGiaiDau(giaiDangSua_);
             if (kq.ok) {
-                Widgets::ToastThanhCong(u8"Đã cập nhật thông tin giải đấu " + giaiDangSua_.maGiai);
                 reloadViewModel();
                 ImGui::CloseCurrentPopup();
             } else {
-                Widgets::ToastLoi(kq.loi);
             }
         }
 
@@ -671,7 +675,7 @@ void GiaiScreen::renderModalSuaGiai() {
 
 void GiaiScreen::renderModalHuyGiai() {
     std::string noiDung = u8"Bạn có chắc chắn muốn hủy bỏ giải đấu " + maGiaiCanHuy_ +
-                          u8"?\nThao tác này sẽ giải phóng toàn bộ khung giờ của sân bóng.";
+                          u8"Thao tác này sẽ giải phóng toàn bộ khung giờ của sân bóng.";
 
     Widgets::ModalXacNhan(
         u8"Xác nhận hủy giải đấu",
@@ -679,10 +683,8 @@ void GiaiScreen::renderModalHuyGiai() {
         [this]() {
             auto kq = GUI::App::Facade::getInstance().huyGiaiDau(maGiaiCanHuy_);
             if (kq.ok) {
-                Widgets::ToastThongTin(u8"Đã hủy giải đấu " + maGiaiCanHuy_ + u8" thành công!");
                 reloadViewModel();
             } else {
-                Widgets::ToastLoi(kq.loi);
             }
         },
         u8"Xác nhận hủy",
