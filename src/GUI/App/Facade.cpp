@@ -12,8 +12,11 @@
 #include "GUI/Screens/Renter/RenterShellScreen.h"
 #include "Storage/FileManager.h"
 #include "Core/LinkedList.h"
+#include "Core/DateTime.h"
 
 namespace GUI::App {
+
+namespace { int parseNgaySangSo(const std::string& str); }
 
 Facade::Facade() {
     napDuLieu();
@@ -205,6 +208,38 @@ void Facade::luuDuLieu() {
     }
     std::string error;
     manager.writeAllLines("data/bookings.txt", bookings, error);
+    LinkedList<std::string> tournaments;
+    for (const GiaiDauInfo& tournament : danhSachGiaiDau_) {
+        tournaments.push_back(FileManager::join(tournament.maGiai) + "|" +
+                              FileManager::join(tournament.tenGiai) + "|" +
+                              FileManager::join(tournament.tenKhachDat) + "|" +
+                              FileManager::join(tournament.sdtKhach) + "|" +
+                              FileManager::join(tournament.ngayBatDau) + "|" +
+                              FileManager::join(tournament.ngayKetThuc) + "|" +
+                              FileManager::join(tournament.maSan) + "|" +
+                              FileManager::join(tournament.khungGio) + "|" +
+                              FileManager::join(tournament.moTa) + "|" +
+                              FileManager::join(tournament.ghiChuTuChoi) + "|" +
+                              std::to_string(static_cast<int>(tournament.trangThai)));
+    }
+    manager.writeAllLines("data/tournaments.txt", tournaments, error);
+    LinkedList<std::string> reviews;
+    for (const DanhGiaInfo& review : danhSachDanhGia_) {
+        reviews.push_back(FileManager::join(review.id) + "|" + FileManager::join(review.tenKhach) + "|" +
+                          FileManager::join(review.sdt) + "|" + FileManager::join(review.maSan) + "|" +
+                          std::to_string(review.soSao) + "|" + FileManager::join(review.ngayGui) + "|" +
+                          FileManager::join(review.noiDung));
+    }
+    manager.writeAllLines("data/reviews.txt", reviews, error);
+    LinkedList<std::string> blacklist;
+    for (const KhachHangInfo& customer : danhSachKhachHang_) {
+        if (customer.biChan) {
+            blacklist.push_back(FileManager::join(customer.sdt) + "|" +
+                                FileManager::join(customer.lyDoChan) + "|" +
+                                FileManager::join(customer.ngayChan) + "|1");
+        }
+    }
+    manager.writeAllLines("data/blacklist.txt", blacklist, error);
 }
 
 bool Facade::kiemTraSDTDaTonTai(const std::string& sdt) const {
@@ -431,6 +466,7 @@ KetQua Facade::taoNhieuSan(
         outMaSan.push_back(maBuf);
     }
 
+    luuDuLieu();
     return {true, ""};
 }
 
@@ -446,6 +482,7 @@ KetQua Facade::suaSanBong(const std::string& maSan, const std::string& tenSan, i
     san->tenSan = tenSan;
     san->loaiSan = loaiSan;
     san->giaThueGio = giaThue;
+    luuDuLieu();
     return {true, ""};
 }
 
@@ -455,17 +492,33 @@ KetQua Facade::toggleBaoTriSan(const std::string& maSan) {
         return {false, u8"Không tìm thấy sân bóng với mã: " + maSan};
     }
 
+    if (!san->dangBaoTri) {
+        for (const DonDatSanInfo& booking : danhSachDonDat_) {
+            if (booking.maSan == maSan && booking.trangThai != u8"Đã hủy" &&
+                parseNgaySangSo(booking.ngay) >= parseNgaySangSo(DateTime::today())) {
+                return {false, u8"Không thể chuyển bảo trì vì sân còn lịch đặt sắp tới."};
+            }
+        }
+    }
     san->dangBaoTri = !san->dangBaoTri;
+    luuDuLieu();
     return {true, ""};
 }
 
 KetQua Facade::xoaSanBong(const std::string& maSan) {
+    for (const DonDatSanInfo& booking : danhSachDonDat_) {
+        if (booking.maSan == maSan && booking.trangThai != u8"Đã hủy" &&
+            parseNgaySangSo(booking.ngay) >= parseNgaySangSo(DateTime::today())) {
+            return {false, u8"Không thể xóa sân vì còn đơn sắp tới."};
+        }
+    }
     auto it = std::remove_if(danhSachSan_.begin(), danhSachSan_.end(), [&](const SanBongInfo& s) {
         return s.maSan == maSan;
     });
 
     if (it != danhSachSan_.end()) {
         danhSachSan_.erase(it, danhSachSan_.end());
+        luuDuLieu();
         return {true, ""};
     }
     return {false, u8"Không tìm thấy sân bóng cần xóa."};
@@ -625,7 +678,7 @@ std::map<std::pair<std::string, std::string>, Widgets::SlotInfo> Facade::getTinh
             info.tenKhachHang = don.tenKhachHang;
             info.sdt = don.sdt;
             info.giaTien = don.giaTien;
-            info.ghiChu = don.trangThai;
+            info.ghiChu = don.maDon;
             maTran[{don.maSan, don.khungGio}] = info;
         }
     }
@@ -889,6 +942,7 @@ KetQua Facade::duyetGiaiDau(const std::string& maGiai) {
     }
 
     target->trangThai = TrangThaiGiaiDau::DaDuyet;
+    luuDuLieu();
     return {true, ""};
 }
 
@@ -1024,6 +1078,14 @@ KetQua Facade::datSanMoi(
     int giaGiam,
     std::string& outMaDon
 ) {
+    auto chuanHoaNgay = [](const std::string& value) {
+        if (value.size() == 10U && value[2] == '/' && value[5] == '/') return value.substr(6, 4) + "-" + value.substr(3, 2) + "-" + value.substr(0, 2);
+        return value;
+    };
+    const std::string bookingDate = chuanHoaNgay(ngay);
+    if (!DateTime::isValidDate(bookingDate) || DateTime::isPastDate(bookingDate)) return {false, u8"Không thể đặt sân vào ngày trong quá khứ."};
+    if (bookingDate == DateTime::today() && khungGio.size() >= 5U && DateTime::compareTime(khungGio.substr(0, 5), DateTime::nowTime()) <= 0) return {false, u8"Khung giờ đã qua hoặc đang diễn ra hôm nay."};
+    if (giaGoc <= 0 || giaGiam < 0 || giaGiam > giaGoc) return {false, u8"Giá thuê hoặc ưu đãi không hợp lệ."};
     if (laKhachHangBiChan(sdtKhach)) {
         return {false, u8"Tài khoản của bạn đang bị khóa do vi phạm. Vui lòng liên hệ chủ sân!"};
     }
@@ -1057,14 +1119,14 @@ KetQua Facade::datSanMoi(
     // Cập nhật số lần đặt cho khách
     auto it = mapIndexKhachSDT_.find(sdtKhach);
     if (it != mapIndexKhachSDT_.end() && it->second < danhSachKhachHang_.size()) {
-        danhSachKhachHang_[it->second].soLanDat++;
+        // Lượt đặt chỉ được cộng khi chủ sân xác nhận đã đá xong.
     }
 
     // Cập nhật Customer object trong session nếu có
     User* curUser = Session::getInstance().getUser();
     auto customer = dynamic_cast<::Customer*>(curUser);
     if (customer && customer->get_phone_number() == sdtKhach) {
-        customer->increase_booking_count();
+        // Thống kê Customer được cập nhật khi đơn hoàn thành.
     }
 
     luuDuLieu();
@@ -1103,6 +1165,35 @@ KetQua Facade::huyDonDat(const std::string& maDon, const std::string& sdtKhach) 
     return {false, u8"Không tìm thấy đơn đặt sân cần hủy."};
 }
 
+KetQua Facade::xacNhanDaHoanThanhDon(const std::string& maDon) {
+    for (DonDatSanInfo& don : danhSachDonDat_) {
+        if (don.maDon != maDon) continue;
+        if (don.trangThai == u8"Đã hủy") return {false, u8"Không thể xác nhận đơn đã hủy."};
+        if (don.trangThai == u8"Đã hoàn thành") return {false, u8"Đơn này đã được xác nhận hoàn thành."};
+        don.trangThai = u8"Đã hoàn thành";
+        auto it = mapIndexKhachSDT_.find(don.sdt);
+        if (it != mapIndexKhachSDT_.end() && it->second < danhSachKhachHang_.size()) {
+            KhachHangInfo& customer = danhSachKhachHang_[it->second];
+            ++customer.soLanDat;
+            customer.mucUuDaiPhanTram = 0;
+            for (const NguongUuDai& threshold : danhSachNguongUuDai_) {
+                if (customer.soLanDat >= threshold.soLanToiThieu)
+                    customer.mucUuDaiPhanTram = threshold.phanTramGiam;
+            }
+        }
+        for (const auto& user : danhSachUser_) {
+            if (user && user->get_phone_number() == don.sdt) {
+                auto customer = std::dynamic_pointer_cast<Customer>(user);
+                if (customer) customer->recordBooking();
+                break;
+            }
+        }
+        luuDuLieu();
+        return {true, ""};
+    }
+    return {false, u8"Không tìm thấy đơn đặt sân."};
+}
+
 std::vector<GiaiDauInfo> Facade::getGiaiDauCuaUser(const std::string& sdt) const {
     std::vector<GiaiDauInfo> ds;
     for (const auto& g : danhSachGiaiDau_) {
@@ -1114,6 +1205,22 @@ std::vector<GiaiDauInfo> Facade::getGiaiDauCuaUser(const std::string& sdt) const
 }
 
 KetQua Facade::guiYeuCauTaoGiai(const GiaiDauInfo& giaiMoi) {
+    if (laKhachHangBiChan(giaiMoi.sdtKhach)) {
+        return {false, u8"Tài khoản đang bị khóa nên không thể gửi yêu cầu tạo giải."};
+    }
+    auto chuanHoaNgay = [](const std::string& value) {
+        if (value.size() == 10U && value[2] == '/' && value[5] == '/')
+            return value.substr(6, 4) + "-" + value.substr(3, 2) + "-" + value.substr(0, 2);
+        return value;
+    };
+    const std::string start = chuanHoaNgay(giaiMoi.ngayBatDau);
+    const std::string end = chuanHoaNgay(giaiMoi.ngayKetThuc);
+    if (!DateTime::isValidDate(start) || DateTime::isPastDate(start)) {
+        return {false, u8"Ngày bắt đầu giải không hợp lệ hoặc đã qua."};
+    }
+    if (!DateTime::isValidDate(end) || DateTime::compareDate(end, start) < 0) {
+        return {false, u8"Ngày kết thúc phải bằng hoặc sau ngày bắt đầu."};
+    }
     GiaiDauInfo g = giaiMoi;
     if (g.maGiai.empty()) {
         char buf[32];
@@ -1122,6 +1229,7 @@ KetQua Facade::guiYeuCauTaoGiai(const GiaiDauInfo& giaiMoi) {
     }
     g.trangThai = TrangThaiGiaiDau::ChoDuyet;
     danhSachGiaiDau_.push_back(g);
+    luuDuLieu();
     return {true, ""};
 }
 
@@ -1161,6 +1269,7 @@ KetQua Facade::guiHoacSuaDanhGia(
             if (dg.id == danhGiaId) {
                 dg.soSao = soSao;
                 dg.noiDung = noiDung;
+                luuDuLieu();
                 return {true, ""};
             }
         }
@@ -1178,20 +1287,40 @@ KetQua Facade::guiHoacSuaDanhGia(
     dgMoi.ngayGui = "17/10/2026";
 
     danhSachDanhGia_.insert(danhSachDanhGia_.begin(), dgMoi);
+    luuDuLieu();
     return {true, ""};
 }
 
 KetQua Facade::capNhatThongTinUser(const std::string& sdt, const std::string& hoTenMoi) {
+    return capNhatThongTinUser(sdt, hoTenMoi, sdt);
+}
+
+KetQua Facade::capNhatThongTinUser(const std::string& sdtCu, const std::string& hoTenMoi,
+                                   const std::string& sdtMoi) {
+    if (sdtMoi.empty()) return {false, u8"Số điện thoại không được để trống."};
+    if (sdtCu != sdtMoi && kiemTraSDTDaTonTai(sdtMoi)) {
+        return {false, u8"Số điện thoại mới đã được dùng bởi tài khoản khác."};
+    }
     for (auto& u : danhSachUser_) {
-        if (u && u->get_phone_number() == sdt) {
+        if (u && u->get_phone_number() == sdtCu) {
             u->rename(hoTenMoi);
+            u->update_phone_number(sdtMoi);
             break;
         }
     }
 
-    auto it = mapIndexKhachSDT_.find(sdt);
+    auto it = mapIndexKhachSDT_.find(sdtCu);
     if (it != mapIndexKhachSDT_.end() && it->second < danhSachKhachHang_.size()) {
         danhSachKhachHang_[it->second].hoTen = hoTenMoi;
+        danhSachKhachHang_[it->second].sdt = sdtMoi;
+        mapIndexKhachSDT_.erase(it);
+        mapIndexKhachSDT_[sdtMoi] = it->second;
+    }
+
+    auto passwordIt = mapMatKhau_.find(sdtCu);
+    if (passwordIt != mapMatKhau_.end() && sdtCu != sdtMoi) {
+        mapMatKhau_[sdtMoi] = passwordIt->second;
+        mapMatKhau_.erase(passwordIt);
     }
 
     luuDuLieu();

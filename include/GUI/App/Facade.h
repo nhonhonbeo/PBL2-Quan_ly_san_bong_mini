@@ -272,9 +272,14 @@ public:
         int giaGiam,
         std::string& outMaDon
     );
+    KetQua datNhieuCaMoi(const std::string& maSan, const std::string& sdtKhach,
+                         const std::string& tenKhach, const std::string& ngay,
+                         const LinkedList<std::string>& khungGio, int loaiSan,
+                         std::string& outMaDon);
 
     // Hủy đơn đặt sân của khách
     KetQua huyDonDat(const std::string& maDon, const std::string& sdtKhach);
+    KetQua xacNhanDaHoanThanhDon(const std::string& maDon);
 
     // Giải đấu do người thuê gửi yêu cầu
     std::vector<GiaiDauInfo> getGiaiDauCuaUser(const std::string& sdt) const;
@@ -293,6 +298,8 @@ public:
 
     // Cập nhật thông tin cá nhân & Đổi mật khẩu
     KetQua capNhatThongTinUser(const std::string& sdt, const std::string& hoTenMoi);
+    KetQua capNhatThongTinUser(const std::string& sdtCu, const std::string& hoTenMoi,
+                               const std::string& sdtMoi);
     KetQua doiMatKhauUser(const std::string& sdt, const std::string& matKhauCu, const std::string& matKhauMoi);
 
     // ==========================================

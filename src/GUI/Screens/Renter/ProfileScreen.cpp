@@ -38,6 +38,7 @@ void ProfileScreen::reloadViewModel() {
 
     formHoTen_ = curUser ? curUser->get_name() : u8"Trần Văn Thuê";
     formSDT_ = curUser ? curUser->get_phone_number() : "0909876543";
+    sdtBanDau_ = formSDT_;
 
     soLanDat_ = facade.getSoLanDatCuaKhach(formSDT_);
     soLanHuy_ = facade.getSoLanHuyCuaKhach(formSDT_);
@@ -126,7 +127,7 @@ void ProfileScreen::renderFormThongTin() {
                 return;
             }
 
-            auto kq = GUI::App::Facade::getInstance().capNhatThongTinUser(formSDT_, formHoTen_);
+            auto kq = GUI::App::Facade::getInstance().capNhatThongTinUser(sdtBanDau_, formHoTen_, formSDT_);
             if (kq.ok) {
                 reloadViewModel();
             } else {

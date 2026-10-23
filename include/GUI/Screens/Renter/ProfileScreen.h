@@ -26,6 +26,7 @@ private:
     // Dữ liệu cá nhân
     std::string formHoTen_;
     std::string formSDT_;
+    std::string sdtBanDau_;
     int soLanDat_ = 0;
     int soLanHuy_ = 0;
     std::string hangThanhVien_;

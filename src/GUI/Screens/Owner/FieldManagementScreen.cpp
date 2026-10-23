@@ -360,7 +360,17 @@ void FieldManagementScreen::renderTabTinhTrangTheoNgay() {
             dsMaSanSlot_,
             dsKhungGioSlot_,
             maTranSlot_,
-            false // Chế độ Chủ sân chỉ xem tình trạng
+            true,
+            "",
+            "",
+            [this](const std::string& maSan, const std::string& khungGio) {
+                const auto slot = maTranSlot_.find({maSan, khungGio});
+                if (slot == maTranSlot_.end()) return;
+                if (slot->second.status == Widgets::SlotStatus::DaDat) {
+                    const auto result = GUI::App::Facade::getInstance().xacNhanDaHoanThanhDon(slot->second.ghiChu);
+                    if (result.ok) reloadViewModel();
+                }
+            }
         );
 
         if (coDoiNgay) {
