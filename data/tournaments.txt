@@ -1,0 +1,6 @@
+GD-01|Cúp Tứ Hùng Doanh Nghiệp IT 2026|Lê Hoàng Anh|0981122334|15/10/2026|20/10/2026|S7-01|17:30 - 21:00|Giải đấu phong trào tranh cúp vô địch giữa 4 công ty phần mềm, gồm vòng bảng và trận chung kết.||2
+GD-02|Giải Bóng Đá Sinh Viên Bách Khoa Mở Rộng|Trần Văn Thuê|0909876543|22/10/2026|28/10/2026|S5-01|18:00 - 21:00|Giải bóng đá sinh viên liên khoa, tranh cúp truyền thống thường niên.||0
+GD-03|Hội Thao Khối Ngân Hàng - Cúp Mùa Thu|CLB Brothers|0913344556|25/10/2026|30/10/2026|S5-01|19:00 - 21:30|Giải đấu giao hữu thường niên giữa các chi nhánh ngân hàng trên địa bàn.||0
+GD-04|Giải Vô Địch Sân 11 - Cúp Mùa Hè 2026|FC Bách Khoa|0977889900|01/10/2026|10/10/2026|S11-01|16:00 - 19:00|Giải bóng đá 11 người dành cho các cựu sinh viên và các câu lạc bộ bóng đá bán chuyên.||3
+GD-05|Siêu Cúp Giao Hữu Mùa Đông 2026|Nguyễn Tuấn Tú|0905544332|05/11/2026|12/11/2026|S5-02|17:30 - 20:30|Trận tranh siêu cúp giữa nhà vô địch giải mùa hè và nhà vô địch giải mùa thu.||1
+GD-06|IT nít|Phan Tá Nhân|0222222222|24/10/2026|25/10/2026|S7-01|18:00 - 21:00|Số đội: 8 đội. hello mấy cưng||0

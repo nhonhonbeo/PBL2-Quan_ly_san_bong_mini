@@ -285,7 +285,7 @@ void FieldManagementScreen::renderTabGiaThueMaTran() {
         auto& facade = GUI::App::Facade::getInstance();
         ImGuiTableFlags flags = ImGuiTableFlags_Borders |
                                 ImGuiTableFlags_RowBg |
-                                ImGuiTableFlags_SizingStretchProp;
+                                ImGuiTableFlags_SizingStretchSame;
 
         if (ImGui::BeginTable("##tbl_pricing_matrix", 4, flags)) {
             ImGui::TableSetupColumn(u8"Khung giờ", ImGuiTableColumnFlags_WidthFixed, 150.0f);

@@ -9,6 +9,7 @@
 #include "Account/Customer.h"
 #include "Account/Owner.h"
 #include "Account/User.h"
+#include "Core/LinkedList.h"
 #include "GUI/App/ScreenManager.h"
 #include "GUI/Widgets/SlotGrid.h"
 
