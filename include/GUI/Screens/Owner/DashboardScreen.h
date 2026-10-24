@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string>
-#include <vector>
 #include "GUI/App/Facade.h"
 #include "GUI/App/Screen.h"
 
@@ -26,13 +25,10 @@ private:
     // ==========================================
     // DỮ LIỆU VIEWMODEL (Nạp ở onEnter)
     // ==========================================
-    int tongSoSan_ = 0;
-    int luotDatHomNay_ = 0;
-    long long doanhThuThang_ = 0;
-    int soKhachMoi_ = 0;
-
-    std::vector<std::pair<std::string, long long>> doanhThu7Ngay_;
-    std::vector<GUI::App::DonDatSanInfo> luotDatSapToi_;
+    ReportDashboardMetrics metrics_;
+    std::string loiBaoCao_;
+    LinkedList<ReportRevenueDay> doanhThu7Ngay_;
+    LinkedList<ReportBookingRecord> luotDatGanDay_;
 };
 
 }  // namespace GUI::Screens::Owner

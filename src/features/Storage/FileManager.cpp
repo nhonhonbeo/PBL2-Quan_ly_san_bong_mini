@@ -25,6 +25,38 @@ bool reportTodo(std::string& error, const char* responsibility) {
     return false;
 }
 
+void themTaiKhoanMau(std::vector<std::shared_ptr<User>>& danhSach) {
+    danhSach.push_back(std::make_shared<Owner>(
+        "US01",
+        "owner01",
+        "123456",
+        u8"Nguyễn Văn Chủ",
+        "0901234567",
+        u8"Cụm sân Sao Vàng",
+        u8"123 Nguyễn Huệ, Đà Nẵng",
+        u8"Đi giày đế TF/IC, không hút thuốc",
+        "06:00",
+        "23:00",
+        u8"Nguyễn Văn Chủ"
+    ));
+    danhSach.push_back(std::make_shared<Customer>(
+        "US02", "renter01", "123456", u8"Trần Văn Thuê", "0909876543"
+    ));
+    danhSach.push_back(std::make_shared<Owner>(
+        "US06",
+        "0777048537",
+        "toilaso1",
+        u8"Bảo Duy",
+        "0777048537",
+        u8"Sân cỏ Bóng Hồng",
+        u8"36 đường SikSeven",
+        u8"Quy định tiêu chuẩn cụm sân",
+        "06:00",
+        "23:00",
+        u8"Bảo Duy"
+    ));
+}
+
 }  // namespace
 
 std::string FileManager::join(const std::string& value) {
@@ -100,34 +132,8 @@ bool FileManager::docDanhSachUser(
     if (!std::filesystem::exists(filePath)) {
         // LÝ DO CHỌN: Tạo dữ liệu tài khoản ban đầu nếu tập tin chưa tồn tại để người dùng có thể thử nghiệm ngay
         std::filesystem::create_directories(std::filesystem::path(filePath).parent_path());
-
-        auto ownerMacDinh = std::make_shared<Owner>(
-            "US01",
-            "owner01",
-            "123456",
-            u8"Nguyễn Văn Chủ",
-            "0901234567",
-            u8"Cụm sân Sao Vàng",
-            u8"123 Nguyễn Huệ, Đà Nẵng",
-            u8"Đi giày đế TF/IC, không hút thuốc",
-            "06:00",
-            "23:00",
-            u8"Nguyễn Văn Chủ"
-        );
-
-        auto customerMacDinh = std::make_shared<Customer>(
-            "US02",
-            "renter01",
-            "123456",
-            u8"Trần Văn Thuê",
-            "0909876543"
-        );
-
-        danhSach.push_back(ownerMacDinh);
-        danhSach.push_back(customerMacDinh);
-
-        ghiDanhSachUser(danhSach, filePath);
-        return true;
+        themTaiKhoanMau(danhSach);
+        return ghiDanhSachUser(danhSach, filePath);
     }
 
     std::ifstream inFile(filePath);
@@ -136,10 +142,12 @@ bool FileManager::docDanhSachUser(
     }
 
     std::string line;
+    bool coDuLieuTaiKhoan = false;
     while (std::getline(inFile, line)) {
         if (line.empty() || line[0] == '#') {
             continue;
         }
+        coDuLieuTaiKhoan = true;
 
         std::vector<std::string> parts = tachChuoi(line, '|');
         if (parts.empty()) {
@@ -169,11 +177,20 @@ bool FileManager::docDanhSachUser(
                 parts[10], // close_time
                 parts[11]  // owner_name
             );
+            owner->setAllowedSlotDurations(
+                parts.size() <= 12 || parts[12] != "0",
+                parts.size() <= 13 || parts[13] != "0"
+            );
             danhSach.push_back(owner);
         }
     }
 
     inFile.close();
+    if (danhSach.empty() && !coDuLieuTaiKhoan) {
+        // LÝ DO CHỌN: File tồn tại nhưng rỗng cũng cần bộ dữ liệu mẫu hai cơ sở để kiểm thử luồng mới.
+        themTaiKhoanMau(danhSach);
+        return ghiDanhSachUser(danhSach, filePath);
+    }
     return true;
 }
 
@@ -214,7 +231,9 @@ bool FileManager::ghiDanhSachUser(
                     << (own ? own->get_field_rules() : "") << "|"
                     << (own ? own->get_open_time() : "06:00") << "|"
                     << (own ? own->get_close_time() : "23:00") << "|"
-                    << (own ? own->get_owner_name() : user->get_name()) << "\n";
+                    << (own ? own->get_owner_name() : user->get_name()) << "|"
+                    << (own && own->allows60MinuteSlots() ? "1" : "0") << "|"
+                    << (own && own->allows90MinuteSlots() ? "1" : "0") << "\n";
         }
     }
 

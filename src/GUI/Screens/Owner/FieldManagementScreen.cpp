@@ -4,7 +4,9 @@
 #include <cstdio>
 #include <imgui.h>
 
+#include "Core/DateTime.h"
 #include "GUI/Theme/Theme.h"
+#include "GUI/App/Session.h"
 #include "GUI/Widgets/Badge.h"
 #include "GUI/Widgets/Button.h"
 #include "GUI/Widgets/Card.h"
@@ -20,6 +22,9 @@ FieldManagementScreen::FieldManagementScreen(std::function<void()> onChuyenSangW
     : onChuyenSangWizardCallback_(std::move(onChuyenSangWizard)) {}
 
 void FieldManagementScreen::onEnter() {
+    const std::string today = DateTime::today();
+    ngayXemSlot_ = today.substr(8, 2) + "/" + today.substr(5, 2) + "/" +
+                   today.substr(0, 4);
     // Thiết lập cấu hình cột cho Bảng danh sách sân
     tableColsSan_ = {
         {u8"Mã sân", 90.0f, ImGuiTableColumnFlags_WidthFixed},
@@ -38,9 +43,28 @@ void FieldManagementScreen::onExit() {
 
 void FieldManagementScreen::reloadViewModel() {
     auto& facade = GUI::App::Facade::getInstance();
+    giaChoLuu_.clear();
+    loiGiaThue_.clear();
+    User* owner = GUI::App::Session::getInstance().getUser();
+    LinkedList<VenueFacilityRecord> facilities;
+    std::string facilityError;
+    if (owner != nullptr &&
+        facade.getDanhSachCoSo(facilities, facilityError)) {
+        for (auto* node = facilities.get_head(); node != nullptr;
+             node = node->next) {
+            if (node->data.ownerId == owner->get_user_id()) {
+                gioMoCua_ = node->data.openTime;
+                gioDongCua_ = node->data.closeTime;
+                buocThoiLuongIdx_ =
+                    node->data.allows60Minutes &&
+                    !node->data.allows90Minutes ? 0 : 1;
+                break;
+            }
+        }
+    }
 
     // 1. Nạp danh sách sân
-    danhSachSan_ = facade.getDanhSachSanBong();
+    danhSachSan_ = facade.getDanhSachSanBongCuaChuSan();
     tableRowsSan_.clear();
     dsMaSanSlot_.clear();
 
@@ -110,7 +134,6 @@ void FieldManagementScreen::render() {
     // Render các Modal xác nhận thao tác
     renderModalXoaSan();
     renderModalSuaSan();
-    renderModalXoaKhungGio();
     renderModalThemNhanh();
 }
 
@@ -153,7 +176,6 @@ void FieldManagementScreen::renderTabDanhSachSan() {
                             maSanDangSua_ = san->maSan;
                             tenSanDangSua_ = san->tenSan;
                             loaiSanDangSua_ = san->loaiSan;
-                            giaThueDangSua_ = san->giaThueGio;
                             Widgets::MoModalXacNhan(u8"Chỉnh sửa thông tin sân bóng");
                         }
                     }
@@ -167,7 +189,8 @@ void FieldManagementScreen::renderTabDanhSachSan() {
                         auto kq = GUI::App::Facade::getInstance().toggleBaoTriSan(maSan);
                         if (kq.ok) {
                             reloadViewModel();
-                        } else {
+                        } else if (!kq.loi.empty()) {
+                            Widgets::ToastLoi(kq.loi);
                         }
                     }
 
@@ -194,7 +217,7 @@ void FieldManagementScreen::renderTabKhungGio() {
         ImGui::PopStyleColor();
         ImGui::Spacing();
 
-        std::vector<std::string> dsBuoc = {u8"60 phút / trận", u8"90 phút / trận", u8"120 phút / trận"};
+        std::vector<std::string> dsBuoc = {u8"60 phút / trận", u8"90 phút / trận"};
         if (ImGui::BeginTable(
                 "##operating_hours_layout",
                 2,
@@ -212,11 +235,12 @@ void FieldManagementScreen::renderTabKhungGio() {
             ImGui::TableSetColumnIndex(1);
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + ImGui::GetTextLineHeightWithSpacing());
             if (Widgets::NutChinh(u8"Sinh khung giờ tự động", ImVec2(220.0f, 36.0f))) {
-            int buoc = (buocThoiLuongIdx_ == 0) ? 60 : ((buocThoiLuongIdx_ == 1) ? 90 : 120);
+            int buoc = (buocThoiLuongIdx_ == 0) ? 60 : 90;
             auto kq = GUI::App::Facade::getInstance().sinhKhungGioTuDong(gioMoCua_, gioDongCua_, buoc);
             if (kq.ok) {
                 reloadViewModel();
-            } else {
+            } else if (!kq.loi.empty()) {
+                Widgets::ToastLoi(kq.loi);
             }
             }
             ImGui::EndTable();
@@ -230,12 +254,11 @@ void FieldManagementScreen::renderTabKhungGio() {
         ImGui::TextUnformatted(u8"Danh sách khung giờ đang áp dụng:");
         ImGui::Spacing();
 
-        if (ImGui::BeginTable("##tbl_khung_gio", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+        if (ImGui::BeginTable("##tbl_khung_gio", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
             ImGui::TableSetupColumn(u8"Mã KG", ImGuiTableColumnFlags_WidthFixed, 80.0f);
             ImGui::TableSetupColumn(u8"Giờ bắt đầu", ImGuiTableColumnFlags_WidthFixed, 120.0f);
             ImGui::TableSetupColumn(u8"Giờ kết thúc", ImGuiTableColumnFlags_WidthFixed, 120.0f);
             ImGui::TableSetupColumn(u8"Đặc tính", ImGuiTableColumnFlags_WidthFixed, 140.0f);
-            ImGui::TableSetupColumn(u8"Thao tác", ImGuiTableColumnFlags_WidthFixed, 100.0f);
             ImGui::TableHeadersRow();
 
             for (const auto& kg : danhSachKhungGio_) {
@@ -255,13 +278,6 @@ void FieldManagementScreen::renderTabKhungGio() {
                     Widgets::Badge(u8"Giờ vàng", GUI::Theme::Colors::GoldAccent, GUI::Theme::Colors::WhiteCard);
                 } else {
                     Widgets::Badge(u8"Giờ thường", GUI::Theme::Colors::GrayHover, GUI::Theme::Colors::DarkText);
-                }
-
-                ImGui::TableSetColumnIndex(4);
-                std::string btnXoaKgId = u8"Xóa##kg_" + kg.id;
-                if (Widgets::NutNguyHiem(btnXoaKgId.c_str(), ImVec2(60.0f, 24.0f))) {
-                    idKhungGioCanXoa_ = kg.id;
-                    Widgets::MoModalXacNhan(u8"Xác nhận xóa khung giờ");
                 }
             }
 
@@ -317,7 +333,11 @@ void FieldManagementScreen::renderTabGiaThueMaTran() {
 
                     int loai = loaiSans[c];
                     int giaHienTai = facade.getGiaMaTran(kgStr, loai);
-                    int giaTam = giaHienTai;
+                    const auto priceKey = std::make_pair(kgStr, loai);
+                    auto pending = giaChoLuu_.find(priceKey);
+                    int giaTam = pending == giaChoLuu_.end()
+                        ? giaHienTai
+                        : pending->second;
 
                     std::string inputId = "##gia_" + std::to_string(r) + "_" + std::to_string(loai);
 
@@ -327,7 +347,7 @@ void FieldManagementScreen::renderTabGiaThueMaTran() {
 
                     if (Widgets::InputInt(nullptr, inputId.c_str(), giaTam, nullptr, 10000, 50000)) {
                         if (giaTam >= 50000) {
-                            facade.capNhatGiaMaTran(kgStr, loai, giaTam, apDungTatCaCungLoai_);
+                            giaChoLuu_[priceKey] = giaTam;
                         }
                     }
 
@@ -341,7 +361,34 @@ void FieldManagementScreen::renderTabGiaThueMaTran() {
         }
 
         ImGui::Spacing();
+        if (!loiGiaThue_.empty()) {
+            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::RedDanger);
+            ImGui::TextWrapped("%s", loiGiaThue_.c_str());
+            ImGui::PopStyleColor();
+        }
         if (Widgets::NutChinh(u8"Lưu cấu hình biểu giá", ImVec2(200.0f, 36.0f))) {
+            std::map<int, int> allTypePrices;
+            for (const auto& pending : giaChoLuu_) {
+                const bool applyAll = apDungTatCaCungLoai_;
+                if (applyAll && allTypePrices.find(pending.first.second) != allTypePrices.end()) {
+                    continue;
+                }
+                auto result = facade.capNhatGiaMaTran(
+                    pending.first.first, pending.first.second,
+                    pending.second, applyAll
+                );
+                if (!result.ok) {
+                    loiGiaThue_ = result.loi;
+                    break;
+                }
+                if (applyAll) {
+                    allTypePrices[pending.first.second] = pending.second;
+                }
+            }
+            if (loiGiaThue_.empty()) {
+                reloadViewModel();
+                Widgets::ToastThanhCong(u8"Đã lưu bảng giá của cơ sở.");
+            }
         }
     });
 }
@@ -368,7 +415,11 @@ void FieldManagementScreen::renderTabTinhTrangTheoNgay() {
                 if (slot == maTranSlot_.end()) return;
                 if (slot->second.status == Widgets::SlotStatus::DaDat) {
                     const auto result = GUI::App::Facade::getInstance().xacNhanDaHoanThanhDon(slot->second.ghiChu);
-                    if (result.ok) reloadViewModel();
+                    if (result.ok) {
+                        reloadViewModel();
+                    } else if (!result.loi.empty()) {
+                        Widgets::ToastLoi(result.loi);
+                    }
                 }
             }
         );
@@ -438,7 +489,8 @@ void FieldManagementScreen::renderModalXoaSan() {
             auto kq = GUI::App::Facade::getInstance().xoaSanBong(maSanCanXoa_);
             if (kq.ok) {
                 reloadViewModel();
-            } else {
+            } else if (!kq.loi.empty()) {
+                Widgets::ToastLoi(kq.loi);
             }
         },
         u8"Xóa vĩnh viễn",
@@ -463,17 +515,22 @@ void FieldManagementScreen::renderModalSuaSan() {
         Widgets::InputText(u8"Tên sân bóng:", "edit_field_name", tenSanDangSua_);
         ImGui::Spacing();
 
-        Widgets::InputInt(u8"Giá thuê niêm yết (VNĐ/h):", "edit_field_price", giaThueDangSua_, nullptr, 10000, 50000);
+        ImGui::TextWrapped(
+            u8"Giá được quản lý theo bảng giá của cơ sở tại tab Bảng giá thuê."
+        );
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
 
         if (Widgets::NutChinh(u8"Lưu thay đổi", ImVec2(130.0f, 34.0f))) {
-            auto kq = GUI::App::Facade::getInstance().suaSanBong(maSanDangSua_, tenSanDangSua_, loaiSanDangSua_, giaThueDangSua_);
+            auto kq = GUI::App::Facade::getInstance().suaSanBong(
+                maSanDangSua_, tenSanDangSua_, loaiSanDangSua_, 0
+            );
             if (kq.ok) {
                 reloadViewModel();
                 ImGui::CloseCurrentPopup();
-            } else {
+            } else if (!kq.loi.empty()) {
+                Widgets::ToastLoi(kq.loi);
             }
         }
 
@@ -484,23 +541,6 @@ void FieldManagementScreen::renderModalSuaSan() {
 
         ImGui::EndPopup();
     }
-}
-
-void FieldManagementScreen::renderModalXoaKhungGio() {
-    Widgets::ModalXacNhan(
-        u8"Xác nhận xóa khung giờ",
-        (u8"Bạn có chắc chắn muốn xóa khung giờ '" + idKhungGioCanXoa_ + u8"' không?").c_str(),
-        [this]() {
-            auto kq = GUI::App::Facade::getInstance().xoaKhungGio(idKhungGioCanXoa_);
-            if (kq.ok) {
-                reloadViewModel();
-            } else {
-            }
-        },
-        u8"Xóa",
-        u8"Hủy",
-        true
-    );
 }
 
 }  // namespace GUI::Screens::Owner

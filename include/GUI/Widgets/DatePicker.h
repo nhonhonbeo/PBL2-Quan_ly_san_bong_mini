@@ -10,7 +10,8 @@ bool DatePicker(
     const char* label,
     const char* id,
     std::string& dateStr,
-    const char* loi = nullptr
+    const char* loi = nullptr,
+    bool choPhepNgayQuaKhu = false
 );
 
 }  // namespace Widgets

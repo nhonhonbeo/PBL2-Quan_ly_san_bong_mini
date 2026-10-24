@@ -1,11 +1,11 @@
 CXX ?= g++
-CXXFLAGS ?= -std=c++17 -Wall -Wextra -Iinclude
+CXXFLAGS ?= -std=c++17 -Wall -Wextra -Iinclude -Iinclude/features
 
 BUILD_DIR := build
 GUI_TARGET := $(BUILD_DIR)/QuanLySanBong_GUI
 
 # Mọi mã nghiệp vụ, trừ hai entry point, được liên kết vào ứng dụng GUI.
-BUSINESS_SRC_DIRS := src/Core src/Account src/Field src/Booking src/Customer src/Repository src/Service src/Payment src/Tournament src/Storage
+BUSINESS_SRC_DIRS := src/Core src/features/Account src/features/Field src/features/Booking src/features/Customer src/Repository src/Service src/features/Payment src/features/Tournament src/features/Storage
 BUSINESS_SOURCES := $(foreach dir,$(BUSINESS_SRC_DIRS),$(wildcard $(dir)/*.cpp))
 GUI_SRC_DIRS := src/GUI src/GUI/App src/GUI/Theme src/GUI/Widgets src/GUI/Screens src/GUI/Screens/Auth src/GUI/Screens/Owner src/GUI/Screens/Renter
 GUI_SOURCES := src/main_gui.cpp $(foreach dir,$(GUI_SRC_DIRS),$(wildcard $(dir)/*.cpp))

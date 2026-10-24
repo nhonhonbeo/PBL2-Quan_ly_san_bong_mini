@@ -109,6 +109,52 @@ bool InputText(
     return changed;
 }
 
+bool InputTextValidated(
+    const char* label,
+    const char* id,
+    std::string& buffer,
+    const char* placeholder,
+    bool& daCham,
+    bool batBuocKiemTra,
+    InputTextValidator validator,
+    InputTextSanitizer sanitizer,
+    float width
+) {
+    ImGui::PushID(id);
+    HienThiNhan(label);
+    ImGui::SetNextItemWidth(width);
+    bool changed = InputTextStdString("##input", placeholder, &buffer);
+    const bool activated = ImGui::IsItemActivated();
+    const bool deactivated = ImGui::IsItemDeactivated();
+    daCham = daCham || activated || deactivated;
+
+    if (sanitizer != nullptr) {
+        const std::string bufferTruocChuanHoa = buffer;
+        sanitizer(buffer);
+        changed = changed || buffer != bufferTruocChuanHoa;
+    }
+
+    const std::string loi = (daCham || batBuocKiemTra) && validator != nullptr
+        ? validator(buffer)
+        : "";
+    if (!loi.empty()) {
+        const ImVec2 min = ImGui::GetItemRectMin();
+        const ImVec2 max = ImGui::GetItemRectMax();
+        ImGui::GetWindowDrawList()->AddRect(
+            min,
+            max,
+            ImGui::GetColorU32(GUI::Theme::Colors::RedDanger),
+            ImGui::GetStyle().FrameRounding,
+            0,
+            1.5f
+        );
+        HienThiLoi(loi.c_str());
+    }
+
+    ImGui::PopID();
+    return changed;
+}
+
 bool InputPassword(
     const char* label,
     const char* id,

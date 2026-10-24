@@ -1,13 +1,12 @@
 #include "GUI/Widgets/DatePicker.h"
 
-#include <chrono>
-#include <ctime>
 #include <iomanip>
 #include <algorithm>
 #include <sstream>
 #include <string>
 #include <imgui.h>
 
+#include "Core/DateTime.h"
 #include "GUI/Theme/Theme.h"
 #include "GUI/Widgets/InputFields.h"
 
@@ -40,31 +39,21 @@ int thuTrongTuan(int y, int m, int d) {
 }
 
 void layNgayHienTai(int& d, int& m, int& y) {
-    auto now = std::chrono::system_clock::now();
-    std::time_t tt = std::chrono::system_clock::to_time_t(now);
-    std::tm localTm{};
-#if defined(_WIN32)
-    localtime_s(&localTm, &tt);
-#else
-    localtime_r(&tt, &localTm);
-#endif
-    d = localTm.tm_mday;
-    m = localTm.tm_mon + 1;
-    y = localTm.tm_year + 1900;
+    const std::string today = DateTime::today();
+    y = std::stoi(today.substr(0, 4));
+    m = std::stoi(today.substr(5, 2));
+    d = std::stoi(today.substr(8, 2));
 }
 
 bool tachNgayThangNam(const std::string& str, int& d, int& m, int& y) {
-    if (str.length() == 10 && str[2] == '/' && str[5] == '/') {
-        try {
-            d = std::stoi(str.substr(0, 2));
-            m = std::stoi(str.substr(3, 2));
-            y = std::stoi(str.substr(6, 4));
-            return (m >= 1 && m <= 12 && d >= 1 && d <= soNgayTrongThang(m, y) && y >= 1900 && y <= 2100);
-        } catch (...) {
-            return false;
-        }
-    }
-    return false;
+    const std::string isoDate = DateTime::toIsoDate(str);
+    if (isoDate.empty()) return false;
+    y = std::stoi(isoDate.substr(0, 4));
+    m = std::stoi(isoDate.substr(5, 2));
+    d = std::stoi(isoDate.substr(8, 2));
+    return y >= 1900 && y <= 2100 &&
+           m >= 1 && m <= 12 && d >= 1 &&
+           d <= soNgayTrongThang(m, y);
 }
 
 std::string dinhDangNgay(int d, int m, int y) {
@@ -81,7 +70,8 @@ bool DatePicker(
     const char* label,
     const char* id,
     std::string& dateStr,
-    const char* loi
+    const char* loi,
+    bool choPhepNgayQuaKhu
 ) {
     ImGui::PushID(id);
 
@@ -92,7 +82,20 @@ bool DatePicker(
         ImGui::Spacing();
     }
 
-    bool coLoi = (loi != nullptr && loi[0] != '\0');
+    std::string loiHienTai = loi == nullptr ? std::string() : loi;
+    int inputDay = 0;
+    int inputMonth = 0;
+    int inputYear = 0;
+    const bool dateValid = tachNgayThangNam(
+        dateStr, inputDay, inputMonth, inputYear
+    );
+    if (loiHienTai.empty() && !dateValid) {
+        loiHienTai = u8"Ngày không đúng định dạng dd/MM/yyyy.";
+    } else if (loiHienTai.empty() && !choPhepNgayQuaKhu &&
+               DateTime::isPastDate(DateTime::toIsoDate(dateStr))) {
+        loiHienTai = u8"Không thể chọn ngày đã qua.";
+    }
+    const bool coLoi = !loiHienTai.empty();
     if (coLoi) {
         ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::RedDanger);
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.5f);
@@ -145,7 +148,7 @@ bool DatePicker(
 
     if (viewMonth == 0 || viewYear == 0) {
         int curD = 0, curM = 0, curY = 0;
-        if (tachNgayThangNam(dateStr, curD, curM, curY)) {
+        if (choPhepNgayQuaKhu && tachNgayThangNam(dateStr, curD, curM, curY)) {
             viewMonth = curM;
             viewYear  = curY;
         } else {
@@ -161,11 +164,17 @@ bool DatePicker(
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
 
         // Thanh điều hướng: << < [Tháng MM / YYYY] > >>
+        const bool canGoPreviousYear = choPhepNgayQuaKhu || viewYear > todayY;
+        ImGui::BeginDisabled(!canGoPreviousYear);
         if (ImGui::Button("<<")) {
             viewYear--;
             storage->SetInt(viewYearId, viewYear);
         }
+        ImGui::EndDisabled();
         ImGui::SameLine();
+        const bool canGoPreviousMonth = choPhepNgayQuaKhu ||
+            viewYear > todayY || (viewYear == todayY && viewMonth > todayM);
+        ImGui::BeginDisabled(!canGoPreviousMonth);
         if (ImGui::Button("<")) {
             viewMonth--;
             if (viewMonth < 1) {
@@ -175,6 +184,7 @@ bool DatePicker(
             storage->SetInt(viewMonthId, viewMonth);
             storage->SetInt(viewYearId, viewYear);
         }
+        ImGui::EndDisabled();
         ImGui::SameLine();
 
         std::string titleHeader = std::string(u8"Tháng ") + (viewMonth < 10 ? "0" : "") + std::to_string(viewMonth) +
@@ -259,10 +269,28 @@ bool DatePicker(
                 ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
             }
 
+            const bool dayIsPast = viewYear < todayY ||
+                (viewYear == todayY && viewMonth < todayM) ||
+                (viewYear == todayY && viewMonth == todayM &&
+                 currentDay < todayD);
+            const bool daySelectable = choPhepNgayQuaKhu || !dayIsPast;
+            if (dayIsPast && !choPhepNgayQuaKhu) {
+                ImGui::PushStyleColor(
+                    ImGuiCol_Text, GUI::Theme::Colors::MutedText
+                );
+                ImGui::PushStyleColor(
+                    ImGuiCol_Button, ImVec4(0.94f, 0.94f, 0.94f, 1.0f)
+                );
+            }
+            ImGui::BeginDisabled(!daySelectable);
             if (ImGui::Button((dayLabel + btnId).c_str(), cellSize)) {
                 dateStr = dinhDangNgay(currentDay, viewMonth, viewYear);
                 changed = true;
                 ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndDisabled();
+            if (dayIsPast && !choPhepNgayQuaKhu) {
+                ImGui::PopStyleColor(2);
             }
 
             ImGui::PopStyleColor(2);
@@ -299,7 +327,7 @@ bool DatePicker(
 
     if (coLoi) {
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::RedDanger);
-        ImGui::TextUnformatted(loi);
+        ImGui::TextUnformatted(loiHienTai.c_str());
         ImGui::PopStyleColor();
     }
 

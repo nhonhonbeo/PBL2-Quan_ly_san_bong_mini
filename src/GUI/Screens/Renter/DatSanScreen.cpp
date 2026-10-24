@@ -1,559 +1,604 @@
 #include "GUI/Screens/Renter/DatSanScreen.h"
 
-#include <algorithm>
-#include <chrono>
-#include <ctime>
-#include <iomanip>
-#include <sstream>
+#include <cstdio>
+#include <cstring>
 #include <string>
-#include <vector>
+#include <utility>
+
 #include <imgui.h>
 
+#include "Core/DateTime.h"
+#include "GUI/App/Facade.h"
 #include "GUI/App/Session.h"
 #include "GUI/Theme/Theme.h"
-#include "GUI/Widgets/Badge.h"
 #include "GUI/Widgets/Button.h"
 #include "GUI/Widgets/Card.h"
 #include "GUI/Widgets/DatePicker.h"
 #include "GUI/Widgets/ProgressBar.h"
-#include "GUI/Widgets/SlotGrid.h"
 #include "GUI/Widgets/Toast.h"
+#include "features/Account/User.h"
 
 namespace GUI::Screens::Renter {
 
 namespace {
 
-int parseNgaySangSo(const std::string& str) {
-    if (str.length() == 10) {
-        if (str[2] == '/' && str[5] == '/') {
-            try {
-                int d = std::stoi(str.substr(0, 2));
-                int m = std::stoi(str.substr(3, 2));
-                int y = std::stoi(str.substr(6, 4));
-                return y * 10000 + m * 100 + d;
-            } catch (...) {}
-        } else if (str[4] == '-' && str[7] == '-') {
-            try {
-                int y = std::stoi(str.substr(0, 4));
-                int m = std::stoi(str.substr(5, 2));
-                int d = std::stoi(str.substr(8, 2));
-                return y * 10000 + m * 100 + d;
-            } catch (...) {}
-        }
+std::string dinhDangTien(long long soTien) {
+    std::string text = std::to_string(soTien);
+    for (int index = static_cast<int>(text.size()) - 3; index > 0; index -= 3) {
+        text.insert(static_cast<std::size_t>(index), ".");
     }
-    return 0;
+    return text + u8" VNĐ";
 }
 
-std::string layNgayHomNayStr() {
-    auto now = std::chrono::system_clock::now();
-    std::time_t tt = std::chrono::system_clock::to_time_t(now);
-    std::tm localTm{};
-#if defined(_WIN32)
-    localtime_s(&localTm, &tt);
-#else
-    localtime_r(&tt, &localTm);
-#endif
-    std::ostringstream oss;
-    oss << std::setfill('0') << std::setw(2) << localTm.tm_mday << "/"
-        << std::setfill('0') << std::setw(2) << (localTm.tm_mon + 1) << "/"
-        << (localTm.tm_year + 1900);
-    return oss.str();
-}
-
-std::string dinhDangTien(int soTien) {
-    std::string s = std::to_string(soTien);
-    int n = s.length() - 3;
-    while (n > 0) {
-        s.insert(n, ".");
-        n -= 3;
+std::string ngayHienThi(const std::string& isoDate) {
+    if (DateTime::isValidDate(isoDate)) {
+        return isoDate.substr(8, 2) + "/" + isoDate.substr(5, 2) + "/" +
+               isoDate.substr(0, 4);
     }
-    return s + u8" VNĐ";
+    return isoDate;
 }
 
-}  // namespace
+}  // Kết thúc không gian tên ẩn danh
 
 DatSanScreen::DatSanScreen(std::function<void()> onXemLichCuaToi)
     : onXemLichCuaToi_(std::move(onXemLichCuaToi)) {}
 
 void DatSanScreen::onEnter() {
     buocHienTai_ = 1;
-    ngayChon_ = layNgayHomNayStr();
+    ngayChon_ = ngayHienThi(DateTime::today());
+    ownerIdChon_.clear();
     maSanChon_.clear();
     khungGioChon_.clear();
+    cacCaDangChon_.clear();
     maDonDaDat_.clear();
     reloadViewModel();
 }
 
-void DatSanScreen::onExit() {
-}
+void DatSanScreen::onExit() {}
 
 void DatSanScreen::reloadViewModel() {
-    auto& facade = GUI::App::Facade::getInstance();
-    User* curUser = GUI::App::Session::getInstance().getUser();
-    std::string sdt = curUser ? curUser->get_phone_number() : "0909876543";
+    GUI::App::Facade& facade = GUI::App::Facade::getInstance();
+    User* user = GUI::App::Session::getInstance().getUser();
+    biChanDatSan_ = user != nullptr &&
+                    facade.laKhachHangBiChan(user->get_phone_number());
+    danhSachCoSo_.clear();
+    soSanTheoCoSo_.clear();
+    giaThapNhatTheoCoSo_.clear();
+    loaiSanCoSan_.clear();
+    loiTaiTaiDuLieu_.clear();
+    if (!facade.getDanhSachCoSo(danhSachCoSo_, loiTaiTaiDuLieu_)) return;
 
-    // 1. Kiểm tra trạng thái bị chặn
-    biChanDatSan_ = facade.laKhachHangBiChan(sdt);
-
-    // 2. Lọc danh sách sân theo loại sân đã chọn
-    danhSachSanTheoLoai_.clear();
-    auto allSan = facade.getDanhSachSanBong();
-    giaThapNhatTheoLoai_.clear();
-    for (const auto& s : allSan) {
-        auto priceIt = giaThapNhatTheoLoai_.find(s.loaiSan);
-        if (priceIt == giaThapNhatTheoLoai_.end() || s.giaThueGio < priceIt->second) {
-            giaThapNhatTheoLoai_[s.loaiSan] = s.giaThueGio;
+    for (auto* facility = danhSachCoSo_.get_head();
+         facility != nullptr; facility = facility->next) {
+        LinkedList<VenueFieldRecord> fields;
+        if (!facade.getDanhSachSanTheoChuSan(
+                facility->data.ownerId, 0, false, fields,
+                loiTaiTaiDuLieu_)) {
+            return;
         }
-        if (s.loaiSan == loaiSanChon_) {
-            danhSachSanTheoLoai_.push_back(s);
+        int fieldCount = 0;
+        for (auto* field = fields.get_head(); field != nullptr;
+             field = field->next) {
+            ++fieldCount;
         }
+        soSanTheoCoSo_[facility->data.ownerId] = fieldCount;
+        long long lowestPrice = 0;
+        if (!facade.getGiaThapNhatCoSo(
+                facility->data.ownerId, lowestPrice, loiTaiTaiDuLieu_)) {
+            return;
+        }
+        giaThapNhatTheoCoSo_[facility->data.ownerId] = lowestPrice;
     }
 
-    // 3. Nạp danh sách khung giờ và tình trạng ô đặt
-    danhSachKhungGio_ = facade.getDanhSachKhungGio();
-    slotDataMap_ = facade.getTinhTrangSlotTheoNgay(ngayChon_);
+    if (!ownerIdChon_.empty()) {
+        for (auto* facility = danhSachCoSo_.get_head();
+             facility != nullptr; facility = facility->next) {
+            if (facility->data.ownerId != ownerIdChon_) continue;
+            choPhep60Phut_ = facility->data.allows60Minutes;
+            choPhep90Phut_ = facility->data.allows90Minutes;
+            break;
+        }
+        if ((thoiLuongChon_ == 60 && !choPhep60Phut_) ||
+            (thoiLuongChon_ == 90 && !choPhep90Phut_)) {
+            thoiLuongChon_ = choPhep60Phut_ ? 60 : 90;
+        }
+        if (!facade.getDanhSachSanTheoChuSan(
+                ownerIdChon_, 0, false, danhSachSan_, loiTaiTaiDuLieu_)) {
+            return;
+        }
+        loaiSanCoSan_.clear();
+        bool selectedFieldStillExists = false;
+        for (auto* field = danhSachSan_.get_head(); field != nullptr;
+             field = field->next) {
+            loaiSanCoSan_[field->data.size] = true;
+            if (field->data.fieldId == maSanChon_) {
+                selectedFieldStillExists = true;
+                tenSanChon_ = field->data.name;
+                loaiSanChon_ = field->data.size;
+                break;
+            }
+        }
+        if (!selectedFieldStillExists) {
+            maSanChon_.clear();
+            tenSanChon_.clear();
+        }
+        reloadSlots();
+    }
+    if (user != nullptr) {
+        phanTramGiam_ = facade.getMucUuDaiCuaKhach(user->get_phone_number());
+    }
+    soTienGiam_ = giaGoc_ * phanTramGiam_ / 100;
+    tongTien_ = giaGoc_ - soTienGiam_;
+}
 
-    // 4. Lấy mức ưu đãi phần trăm của khách
-    phanTramGiam_ = facade.getMucUuDaiCuaKhach(sdt);
+void DatSanScreen::reloadSlots() {
+    danhSachKhungGioTrong_.clear();
+    loiChonCa_.clear();
+    if (!DateTime::isValidDate(DateTime::toIsoDate(ngayChon_))) {
+        loiTaiTaiDuLieu_ = u8"Ngày không đúng định dạng dd/MM/yyyy.";
+        cacCaDangChon_.clear();
+        capNhatTongTien();
+        return;
+    }
+    if (DateTime::isPastDate(DateTime::toIsoDate(ngayChon_))) {
+        loiTaiTaiDuLieu_ = u8"Không thể đặt sân cho ngày đã qua.";
+        cacCaDangChon_.clear();
+        capNhatTongTien();
+        return;
+    }
+    if (maSanChon_.empty() || ngayChon_.empty()) return;
+    std::string error;
+    if (!GUI::App::Facade::getInstance().getKhungGioSan(
+            maSanChon_, ngayChon_, thoiLuongChon_,
+            danhSachKhungGioTrong_, error)) {
+        loiTaiTaiDuLieu_ = error;
+        cacCaDangChon_.clear();
+        capNhatTongTien();
+        return;
+    }
+    loiTaiTaiDuLieu_.clear();
+    const auto slotIsUnavailable = [this](const VenueSlotRecord& selected) {
+        for (auto* node = danhSachKhungGioTrong_.get_head();
+             node != nullptr; node = node->next) {
+            if (node->data.startTime == selected.startTime &&
+                node->data.available && !node->data.past) {
+                return false;
+            }
+        }
+        return true;
+    };
+    while (cacCaDangChon_.removeIf(slotIsUnavailable)) {}
+    capNhatTongTien();
+}
 
-    // 5. Tính giá nếu đã chọn sân và khung giờ
-    if (!maSanChon_.empty() && !khungGioChon_.empty()) {
-        giaGoc_ = facade.getGiaMaTran(khungGioChon_, loaiSanChon_);
-        soTienGiam_ = (giaGoc_ * phanTramGiam_) / 100;
-        tongTien_ = giaGoc_ - soTienGiam_;
+bool DatSanScreen::slotDangChon(const std::string& startTime) const {
+    for (auto* node = cacCaDangChon_.get_head();
+         node != nullptr; node = node->next) {
+        if (node->data.startTime == startTime) return true;
+    }
+    return false;
+}
+
+void DatSanScreen::capNhatTongTien() {
+    giaGoc_ = 0;
+    for (auto* node = cacCaDangChon_.get_head();
+         node != nullptr; node = node->next) {
+        giaGoc_ += node->data.priceVnd;
+    }
+    soTienGiam_ = giaGoc_ * phanTramGiam_ / 100;
+    tongTien_ = giaGoc_ - soTienGiam_;
+    khungGioChon_.clear();
+    for (auto* slot = danhSachKhungGioTrong_.get_head();
+         slot != nullptr; slot = slot->next) {
+        if (slotDangChon(slot->data.startTime)) {
+            if (!khungGioChon_.empty()) khungGioChon_ += ", ";
+            khungGioChon_ += slot->data.startTime;
+        }
+    }
+}
+
+void DatSanScreen::chonCoSo(const VenueFacilityRecord& facility) {
+    ownerIdChon_ = facility.ownerId;
+    tenCoSoChon_ = facility.name;
+    diaChiCoSoChon_ = facility.address;
+    choPhep60Phut_ = facility.allows60Minutes;
+    choPhep90Phut_ = facility.allows90Minutes;
+    thoiLuongChon_ = choPhep60Phut_ ? 60 : 90;
+    maSanChon_.clear();
+    tenSanChon_.clear();
+    khungGioChon_.clear();
+    cacCaDangChon_.clear();
+    giaGoc_ = 0;
+    loaiSanCoSan_.clear();
+    if (GUI::App::Facade::getInstance().getDanhSachSanTheoChuSan(
+            ownerIdChon_, 0, false, danhSachSan_, loiTaiTaiDuLieu_)) {
+        for (auto* field = danhSachSan_.get_head(); field != nullptr;
+             field = field->next) {
+            loaiSanCoSan_[field->data.size] = true;
+        }
+        buocHienTai_ = 2;
     }
 }
 
 void DatSanScreen::render() {
-    // 1. Nếu khách hàng bị chặn -> Hiển thị cảnh báo danh sách đen
     if (biChanDatSan_) {
         renderCanhBaoDanhSachDen();
         return;
     }
-
-    // 2. Thanh tiến trình các bước
-    if (buocHienTai_ <= 3) {
-        renderThanhTienTrinh();
-        ImGui::Spacing();
+    if (!loiTaiTaiDuLieu_.empty()) {
+        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::RedDanger);
+        ImGui::TextWrapped("%s", loiTaiTaiDuLieu_.c_str());
+        ImGui::PopStyleColor();
         ImGui::Spacing();
     }
-
-    // 3. Render nội dung theo bước hiện tại
+    if (buocHienTai_ <= 4) {
+        renderThanhTienTrinh();
+        ImGui::Spacing();
+    }
     switch (buocHienTai_) {
-        case 1:
-            renderBuoc1ChonLoaiSan();
-            break;
-        case 2:
-            renderBuoc2ChonNgayVaKhungGio();
-            break;
-        case 3:
-            renderBuoc3XacNhan();
-            break;
-        case 4:
-            renderPhieuDatSan();
-            break;
-        default:
-            break;
+        case 1: renderBuoc1ChonCoSo(); break;
+        case 2: renderBuoc2ChonSan(); break;
+        case 3: renderBuoc3ChonNgayVaKhungGio(); break;
+        case 4: renderBuoc4XacNhan(); break;
+        case 5: renderPhieuDatSan(); break;
+        default: break;
     }
 }
 
 void DatSanScreen::renderThanhTienTrinh() {
-    float fraction = static_cast<float>(buocHienTai_) / 3.0f;
-    char buf[64];
-    std::snprintf(buf, sizeof(buf), u8"Bước %d / 3", buocHienTai_);
-
-    Widgets::ProgressBar(fraction, buf, ImVec2(-1.0f, 30.0f), GUI::Theme::Colors::GrassGreen);
-    ImGui::Spacing();
-
-    const char* buocNames[] = {
-        u8"1. Chọn loại sân",
-        u8"2. Chọn ngày và khung giờ",
-        u8"3. Xác nhận đặt sân"
+    char label[48];
+    std::snprintf(label, sizeof(label), u8"Bước %d / 4", buocHienTai_);
+    Widgets::ProgressBar(
+        static_cast<float>(buocHienTai_) / 4.0f,
+        label,
+        ImVec2(-1.0f, 30.0f),
+        GUI::Theme::Colors::GrassGreen
+    );
+    ImGui::Columns(4, nullptr, false);
+    const char* steps[] = {
+        u8"1. Chọn cơ sở",
+        u8"2. Chọn loại và sân",
+        u8"3. Chọn ngày, ca",
+        u8"4. Xác nhận"
     };
-
-    ImGui::Columns(3, nullptr, false);
-    for (int i = 0; i < 3; ++i) {
-        bool isCurrent = (buocHienTai_ == i + 1);
-        bool isDone = (buocHienTai_ > i + 1);
-
-        ImVec4 textCol = isCurrent ? GUI::Theme::Colors::GrassGreen : (isDone ? GUI::Theme::Colors::DarkText : GUI::Theme::Colors::MutedText);
-        ImGui::PushStyleColor(ImGuiCol_Text, textCol);
-        ImGui::TextUnformatted(buocNames[i]);
+    for (int index = 0; index < 4; ++index) {
+        const bool current = buocHienTai_ == index + 1;
+        ImGui::PushStyleColor(
+            ImGuiCol_Text,
+            current ? GUI::Theme::Colors::GrassGreen
+                    : GUI::Theme::Colors::MutedText
+        );
+        ImGui::TextUnformatted(steps[index]);
         ImGui::PopStyleColor();
-
         ImGui::NextColumn();
     }
     ImGui::Columns(1);
 }
 
 void DatSanScreen::renderCanhBaoDanhSachDen() {
-    Widgets::Card("card_renter_blacklist_alert", u8"CẢNH BÁO TÀI KHOẢN BỊ KHÓA ĐẶT SÂN", []() {
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::RedDanger);
-        ImGui::TextUnformatted(u8"TÀI KHOẢN CỦA BẠN ĐANG NẰM TRONG DANH SÁCH ĐEN (BLACKLIST)");
-        ImGui::PopStyleColor();
+    Widgets::Card(
+        "renter_blacklist_notice",
+        u8"Tài khoản chưa thể đặt sân",
+        []() {
+            ImGui::TextWrapped(
+                u8"Tài khoản của bạn đang nằm trong danh sách hạn chế đặt sân. "
+                u8"Vui lòng liên hệ chủ sân để được hỗ trợ."
+            );
+        }
+    );
+}
 
+void DatSanScreen::renderBuoc1ChonCoSo() {
+    Widgets::Card("choose_facility", u8"Bước 1: Chọn cơ sở", [this]() {
+        char search[256]{};
+        const std::size_t count =
+            tuKhoaCoSo_.size() < sizeof(search) - 1
+                ? tuKhoaCoSo_.size()
+                : sizeof(search) - 1;
+        std::memcpy(search, tuKhoaCoSo_.data(), count);
+        if (ImGui::InputText(u8"Tìm theo tên hoặc địa chỉ", search,
+                             sizeof(search))) {
+            tuKhoaCoSo_ = search;
+        }
         ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
-        ImGui::TextWrapped(u8"Do bạn đã hủy lịch đặt sân quá số lần quy định của cơ sở, quyền đặt giữ chỗ trực tuyến đã tạm thời bị khóa nhằm đảm bảo quyền lợi cho các đội bóng khác.");
-        ImGui::Spacing();
-        ImGui::TextWrapped(u8"Vui lòng liên hệ trực tiếp với Chủ sân qua số điện thoại HOTLINE để được hỗ trợ kiểm tra và gỡ bỏ trạng thái khóa.");
-        ImGui::PopStyleColor();
-
-        ImGui::Spacing();
-        ImGui::Spacing();
-
-        Widgets::BadgeDanhSachDen(u8"Trạng thái: Bị khóa đặt sân");
+        bool found = false;
+        for (auto* node = danhSachCoSo_.get_head(); node != nullptr;
+             node = node->next) {
+            const VenueFacilityRecord& facility = node->data;
+            if (facility.name.find(tuKhoaCoSo_) == std::string::npos &&
+                facility.address.find(tuKhoaCoSo_) == std::string::npos) {
+                continue;
+            }
+            found = true;
+            ImGui::PushID(facility.ownerId.c_str());
+            const int fieldCount = soSanTheoCoSo_[facility.ownerId];
+            const long long lowestPrice = giaThapNhatTheoCoSo_[facility.ownerId];
+            ImGui::Text("%s", facility.name.c_str());
+            ImGui::TextWrapped(u8"Địa chỉ: %s", facility.address.c_str());
+            if (fieldCount == 0) {
+                ImGui::TextDisabled(u8"Chưa có sân");
+            } else {
+                ImGui::Text(
+                    u8"%d sân | Giá từ %s",
+                    fieldCount,
+                    dinhDangTien(lowestPrice).c_str()
+                );
+                if (Widgets::NutChinh(u8"Chọn cơ sở", ImVec2(160.0f, 34.0f))) {
+                    chonCoSo(facility);
+                }
+            }
+            ImGui::Separator();
+            ImGui::PopID();
+        }
+        if (!found) ImGui::TextDisabled(u8"Không tìm thấy cơ sở phù hợp.");
     });
 }
 
-void DatSanScreen::renderBuoc1ChonLoaiSan() {
-    Widgets::Card("card_step1_pitch_type", u8"Bước 1: Lựa chọn quy mô loại sân bóng", [this]() {
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-        ImGui::TextWrapped(u8"Chọn loại sân bóng mini phù hợp với số lượng cầu thủ của đội bạn:");
-        ImGui::PopStyleColor();
-        ImGui::Spacing();
-        ImGui::Spacing();
-
-        float cardW = std::max(0.0f, (ImGui::GetContentRegionAvail().x - 32.0f) / 3.0f);
-
-        struct LoaiSanItem {
-            int loai;
-            const char* title;
-            const char* desc;
-        } dsLoai[] = {
-            {5,  u8"Sân 5 người",  u8"Mini 5v5 tiêu chuẩn"},
-            {7,  u8"Sân 7 người",  u8"Bán chuyên 7v7 rộng rãi"},
-            {11, u8"Sân 11 người", u8"Thi đấu 11v11 quy chuẩn"}
-        };
-
-        for (int i = 0; i < 3; ++i) {
-            if (i > 0) ImGui::SameLine(0.0f, 16.0f);
-
-            bool isSelected = (loaiSanChon_ == dsLoai[i].loai);
-            std::string childId = "##card_type_box_" + std::to_string(dsLoai[i].loai);
-
-            ImGui::PushStyleColor(ImGuiCol_ChildBg, isSelected ? ImVec4(0.92f, 0.98f, 0.94f, 1.0f) : GUI::Theme::Colors::WhiteCard);
-            ImGui::PushStyleColor(ImGuiCol_Border, isSelected ? GUI::Theme::Colors::GrassGreen : GUI::Theme::Colors::BorderLight);
-            ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.0f);
-            ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, isSelected ? 2.0f : 1.0f);
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.0f, 16.0f));
-
-            if (ImGui::BeginChild(
-                    childId.c_str(),
-                    ImVec2(cardW, 172.0f),
-                    true,
-                    ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse
-                )) {
-                // Tiêu đề loại sân
-                ImGui::PushStyleColor(ImGuiCol_Text, isSelected ? GUI::Theme::Colors::GrassGreen : GUI::Theme::Colors::DarkText);
-                ImGui::TextUnformatted(dsLoai[i].title);
-                ImGui::PopStyleColor();
-
-                ImGui::Spacing();
-                ImGui::PushStyleColor(ImGuiCol_Separator, GUI::Theme::Colors::BorderLight);
-                ImGui::Separator();
-                ImGui::PopStyleColor();
-                ImGui::Spacing();
-
-                ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
-                ImGui::TextWrapped("%s", dsLoai[i].desc);
-                ImGui::PopStyleColor();
-
-                ImGui::Spacing();
-                ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::GrassGreen);
-                auto minPrice = giaThapNhatTheoLoai_.find(dsLoai[i].loai);
-                if (minPrice != giaThapNhatTheoLoai_.end()) {
-                    ImGui::Text(u8"Từ %s / giờ", dinhDangTien(minPrice->second).c_str());
-                } else {
-                    ImGui::TextUnformatted(u8"Chưa có sân thuộc loại này");
-                }
-                ImGui::PopStyleColor();
-
-                if (isSelected) {
-                    Widgets::Badge(u8"Đang chọn", GUI::Theme::Colors::GrassGreen, GUI::Theme::Colors::WhiteCard);
-                } else {
-                    std::string btnSelectId = u8"Chọn loại này##" + std::to_string(dsLoai[i].loai);
-                    if (Widgets::NutPhu(btnSelectId.c_str(), ImVec2(-1.0f, 28.0f))) {
-                        loaiSanChon_ = dsLoai[i].loai;
-                        maSanChon_.clear();
-                        khungGioChon_.clear();
-                        reloadViewModel();
-                    }
-                }
-            }
-            ImGui::EndChild();
-
-            ImGui::PopStyleVar(3);
-            ImGui::PopStyleColor(2);
-        }
-
-        ImGui::Spacing();
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        if (Widgets::NutChinh(u8"Tiếp tục chọn ngày và khung giờ →", ImVec2(290.0f, 38.0f))) {
-            buocHienTai_ = 2;
-            reloadViewModel();
-        }
-    });
-}
-
-void DatSanScreen::renderBuoc2ChonNgayVaKhungGio() {
-    std::string cardTitle = u8"Bước 2: Chọn ngày và khung giờ sân " +
-                            std::to_string(loaiSanChon_) + u8" người";
-
-    Widgets::Card("card_step2_date_slotgrid", cardTitle.c_str(), [this]() {
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-        ImGui::TextWrapped(u8"Chọn ngày trên lịch trong bảng, sau đó bấm một ô còn trống để chọn khung giờ.");
-        ImGui::PopStyleColor();
-        ImGui::Spacing();
-
-        // Chú thích trạng thái
-        Widgets::BadgeTrong(u8"Còn trống (Click để chọn)");
-        ImGui::SameLine();
-        Widgets::Badge(u8"Đang chọn", GUI::Theme::Colors::GoldAccent, GUI::Theme::Colors::WhiteCard);
-        ImGui::SameLine();
-        Widgets::BadgeDaDat(u8"Đã có người đặt (Khóa)");
-        ImGui::Spacing();
-        ImGui::Spacing();
-
-        // Chuẩn bị danh sách mã sân hiển thị (chỉ các sân thuộc loại sân đã chọn)
-        std::vector<std::string> dsMaSan;
-        for (const auto& s : danhSachSanTheoLoai_) {
-            dsMaSan.push_back(s.maSan);
-        }
-
-        std::vector<std::string> dsKhungGio;
-        for (const auto& kg : danhSachKhungGio_) {
-            dsKhungGio.push_back(kg.batDau + " - " + kg.ketThuc);
-        }
-
-        // Tái sử dụng SlotGrid ở chế độ chọn ô
-        bool coDoiNgay = Widgets::SlotGrid::Render(
-            "grid_renter_booking",
-            ngayChon_,
-            dsMaSan,
-            dsKhungGio,
-            slotDataMap_,
-            true, // choPhepChon = true
-            maSanChon_,
-            khungGioChon_,
-            [this](const std::string& maSan, const std::string& khungGio) {
-                if (parseNgaySangSo(ngayChon_) < parseNgaySangSo(layNgayHomNayStr())) {
-                    return;
-                }
-                auto it = slotDataMap_.find({maSan, khungGio});
-                if (it != slotDataMap_.end() && it->second.status == Widgets::SlotStatus::DaDat) {
-                    return;
-                }
-                if (it != slotDataMap_.end() && it->second.status == Widgets::SlotStatus::BaoTri) {
-                    return;
-                }
-
-                maSanChon_ = maSan;
-                khungGioChon_ = khungGio;
-                reloadViewModel();
-            }
+void DatSanScreen::renderBuoc2ChonSan() {
+    Widgets::Card("choose_field", u8"Bước 2: Chọn loại sân và sân cụ thể", [this]() {
+        ImGui::TextWrapped(
+            u8"Cơ sở: %s — %s",
+            tenCoSoChon_.c_str(),
+            diaChiCoSoChon_.c_str()
         );
-
-        if (coDoiNgay) {
-            maSanChon_.clear();
-            khungGioChon_.clear();
-            reloadViewModel();
+        ImGui::Spacing();
+        for (const int size : {5, 7, 11}) {
+            if (!loaiSanCoSan_[size]) continue;
+            ImGui::SameLine();
+            if (ImGui::RadioButton(
+                    (u8"Sân " + std::to_string(size) + u8" người").c_str(),
+                    loaiSanChon_ == size)) {
+                loaiSanChon_ = size;
+                maSanChon_.clear();
+                tenSanChon_.clear();
+            }
         }
-
-        bool ngayHopLe = parseNgaySangSo(ngayChon_) >= parseNgaySangSo(layNgayHomNayStr());
-        if (!ngayHopLe) {
-            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::RedDanger);
-            ImGui::TextUnformatted(u8"Ngày đã chọn ở trong quá khứ; hãy chọn từ hôm nay trở đi.");
-            ImGui::PopStyleColor();
+        ImGui::Spacing();
+        int shown = 0;
+        for (auto* node = danhSachSan_.get_head(); node != nullptr;
+             node = node->next) {
+            const VenueFieldRecord& field = node->data;
+            if (field.status != 0 || field.size != loaiSanChon_) continue;
+            ++shown;
+            ImGui::PushID(field.fieldId.c_str());
+            const bool selected = maSanChon_ == field.fieldId;
+            if (ImGui::Selectable(
+                    (field.name + " (" + field.fieldId + ")").c_str(),
+                    selected)) {
+                maSanChon_ = field.fieldId;
+                tenSanChon_ = field.name;
+                loaiSanChon_ = field.size;
+            }
+            ImGui::PopID();
         }
-
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        // Hiển thị tóm tắt ô đang chọn
-        if (!maSanChon_.empty() && !khungGioChon_.empty()) {
-            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
-            ImGui::Text(u8"Đang chọn: Sân %s | Khung giờ: %s | Giá dự kiến: %s",
-                        maSanChon_.c_str(), khungGioChon_.c_str(), dinhDangTien(giaGoc_).c_str());
-            ImGui::PopStyleColor();
-        } else {
-            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::RedDanger);
-            ImGui::TextUnformatted(u8"Vui lòng nhấp chuột chọn 1 ô khung giờ trống ở bảng trên để tiếp tục!");
-            ImGui::PopStyleColor();
+        if (shown == 0) ImGui::TextDisabled(u8"Loại sân này hiện chưa có sân trống.");
+        if (!maSanChon_.empty() &&
+            Widgets::NutChinh(u8"Tiếp tục chọn ngày và ca", ImVec2(250.0f, 38.0f))) {
+            buocHienTai_ = 3;
+            reloadSlots();
         }
-
-        ImGui::Spacing();
-        ImGui::Spacing();
-
-        // Nút điều hướng
-        if (Widgets::NutPhu(u8"← Quay lại chọn loại sân", ImVec2(210.0f, 36.0f))) {
+        ImGui::SameLine();
+        if (Widgets::NutPhu(u8"Quay lại cơ sở", ImVec2(170.0f, 38.0f))) {
             buocHienTai_ = 1;
         }
-
-        ImGui::SameLine(0.0f, 16.0f);
-
-        if (ngayHopLe && !maSanChon_.empty() && !khungGioChon_.empty()) {
-            if (Widgets::NutChinh(u8"Tiếp tục xác nhận đơn đặt →", ImVec2(260.0f, 36.0f))) {
-                buocHienTai_ = 3;
-                reloadViewModel();
-            }
-        }
     });
 }
 
-void DatSanScreen::renderBuoc3XacNhan() {
-    Widgets::Card("card_step3_confirm", u8"Bước 3: Xác nhận thông tin và thanh toán giữ chỗ", [this]() {
-        User* curUser = GUI::App::Session::getInstance().getUser();
-        std::string tenKhach = curUser ? curUser->get_name() : u8"Trần Văn Thuê";
-        std::string sdtKhach = curUser ? curUser->get_phone_number() : "0909876543";
-
-        ImGui::Columns(2, "cols_confirm_bill", false);
-        ImGui::SetColumnWidth(0, 420.0f);
-
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
-        ImGui::TextUnformatted(u8"TÓM TẮT ĐƠN ĐẶT SÂN:");
-        ImGui::PopStyleColor();
-        ImGui::Spacing();
-
-        ImGui::Text(u8"• Khách hàng: %s", tenKhach.c_str());
-        ImGui::Text(u8"• Số điện thoại: %s", sdtKhach.c_str());
-        ImGui::Text(u8"• Sân thi đấu: %s (Sân %d người)", maSanChon_.c_str(), loaiSanChon_);
-        ImGui::Text(u8"• Ngày thi đấu: %s", ngayChon_.c_str());
-        ImGui::Text(u8"• Khung giờ: %s", khungGioChon_.c_str());
-
-        ImGui::NextColumn();
-
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
-        ImGui::TextUnformatted(u8"CHI TIẾT THANH TOÁN:");
-        ImGui::PopStyleColor();
-        ImGui::Spacing();
-
-        ImGui::Text(u8"• Giá thuê niêm yết: %s", dinhDangTien(giaGoc_).c_str());
-
-        if (phanTramGiam_ > 0) {
-            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::GrassGreen);
-            ImGui::Text(u8"• Ưu đãi thành viên (Giảm %d%%): -%s", phanTramGiam_, dinhDangTien(soTienGiam_).c_str());
-            ImGui::PopStyleColor();
-        } else {
-            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-            ImGui::TextUnformatted(u8"• Ưu đãi áp dụng: 0 VNĐ (Khách hàng tiêu chuẩn)");
-            ImGui::PopStyleColor();
+void DatSanScreen::renderBuoc3ChonNgayVaKhungGio() {
+    Widgets::Card("choose_date_slot", u8"Bước 3: Chọn thời lượng, ngày và ca", [this]() {
+        ImGui::Text(
+            u8"%s | %s | Sân %d người",
+            tenCoSoChon_.c_str(), tenSanChon_.c_str(), loaiSanChon_
+        );
+        int duration = thoiLuongChon_;
+        if (choPhep60Phut_) {
+            ImGui::RadioButton(u8"60 phút", &duration, 60);
+        }
+        if (choPhep90Phut_) {
+            if (choPhep60Phut_) ImGui::SameLine();
+            ImGui::RadioButton(u8"90 phút", &duration, 90);
+        }
+        if (duration != thoiLuongChon_) {
+            thoiLuongChon_ = duration;
+            cacCaDangChon_.clear();
+            reloadSlots();
         }
 
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::RedDanger);
-        ImGui::Text(u8"TỔNG CỘNG THANH TOÁN: %s", dinhDangTien(tongTien_).c_str());
-        ImGui::PopStyleColor();
-
-        ImGui::Columns(1);
-
-        ImGui::Spacing();
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        // Nút điều hướng
-        if (Widgets::NutPhu(u8"← Quay lại Chọn giờ", ImVec2(180.0f, 38.0f))) {
-            buocHienTai_ = 2;
+        ImGui::SetNextItemWidth(260.0f);
+        if (Widgets::DatePicker(
+                u8"Ngày đặt sân", "##renter_booking_date", ngayChon_)) {
+            cacCaDangChon_.clear();
+            reloadSlots();
         }
-
-        ImGui::SameLine(0.0f, 16.0f);
-
-        if (Widgets::NutChinh(u8"Xác nhận & Hoàn tất đặt sân", ImVec2(260.0f, 38.0f))) {
-            auto& facade = GUI::App::Facade::getInstance();
-            auto kq = facade.datSanMoi(
-                maSanChon_,
-                sdtKhach,
-                tenKhach,
-                ngayChon_,
-                khungGioChon_,
-                giaGoc_,
-                soTienGiam_,
-                maDonDaDat_
+        ImGui::Spacing();
+        const bool validDate =
+            DateTime::isValidDate(DateTime::toIsoDate(ngayChon_));
+        const bool pastDate =
+            validDate && DateTime::isPastDate(DateTime::toIsoDate(ngayChon_));
+        if (pastDate) {
+            ImGui::TextColored(
+                GUI::Theme::Colors::RedDanger,
+                u8"Không thể đặt sân cho ngày đã qua."
             );
-
-            if (kq.ok) {
-                buocHienTai_ = 4; // Chuyển sang phiếu đặt sân
-            } else {
+        } else if (!validDate) {
+            ImGui::TextColored(
+                GUI::Theme::Colors::RedDanger,
+                u8"Vui lòng nhập ngày hợp lệ theo định dạng dd/MM/yyyy."
+            );
+        } else if (danhSachKhungGioTrong_.isEmpty()) {
+            ImGui::TextDisabled(u8"Không có khung giờ trống cho lựa chọn này.");
+        } else {
+            for (auto* node = danhSachKhungGioTrong_.get_head();
+                 node != nullptr; node = node->next) {
+                const VenueSlotRecord& slot = node->data;
+                ImGui::PushID(slot.startTime.c_str());
+                const bool selected = slotDangChon(slot.startTime);
+                std::string label =
+                    slot.startTime + " - " + slot.endTime + " | ";
+                if (!slot.bookingId.empty()) {
+                    label += u8"ĐÃ ĐẶT";
+                } else if (slot.past) {
+                    label += u8"ĐÃ QUA";
+                } else if (!slot.available) {
+                    label += u8"KHÔNG KHẢ DỤNG";
+                } else {
+                    label += selected ? u8"ĐANG CHỌN | " : "";
+                    label += dinhDangTien(slot.priceVnd);
+                }
+                if (selected) {
+                    ImGui::PushStyleColor(
+                        ImGuiCol_Button, GUI::Theme::Colors::GoldAccent
+                    );
+                }
+                ImGui::BeginDisabled(!slot.available || slot.past);
+                if (ImGui::Button(label.c_str(), ImVec2(270.0f, 38.0f))) {
+                    if (selected) {
+                        cacCaDangChon_.removeIf(
+                            [&slot](const VenueSlotRecord& current) {
+                                return current.startTime == slot.startTime;
+                            }
+                        );
+                        loiChonCa_.clear();
+                    } else {
+                        bool adjacent = cacCaDangChon_.isEmpty();
+                        std::string earliestStart;
+                        std::string latestEnd;
+                        for (auto* chosen = cacCaDangChon_.get_head();
+                             chosen != nullptr; chosen = chosen->next) {
+                            if (earliestStart.empty() ||
+                                chosen->data.startTime < earliestStart) {
+                                earliestStart = chosen->data.startTime;
+                            }
+                            if (latestEnd.empty() ||
+                                chosen->data.endTime > latestEnd) {
+                                latestEnd = chosen->data.endTime;
+                            }
+                        }
+                        adjacent = adjacent || slot.endTime == earliestStart ||
+                                   slot.startTime == latestEnd;
+                        if (adjacent) {
+                            cacCaDangChon_.push_back(slot);
+                            loiChonCa_.clear();
+                        } else {
+                            loiChonCa_ =
+                                u8"Chỉ có thể chọn thêm ca liền kề với các ca đã chọn.";
+                        }
+                    }
+                    capNhatTongTien();
+                }
+                ImGui::EndDisabled();
+                if (selected) ImGui::PopStyleColor();
+                ImGui::PopID();
+                ImGui::SameLine();
             }
         }
+        ImGui::NewLine();
+        if (!loiChonCa_.empty()) {
+            ImGui::TextColored(
+                GUI::Theme::Colors::RedDanger, "%s", loiChonCa_.c_str()
+            );
+        }
+        if (!cacCaDangChon_.isEmpty()) {
+            ImGui::Text(
+                u8"Đang chọn: %s | Tổng: %s | Ưu đãi: %d%% (-%s) | Thanh toán: %s",
+                khungGioChon_.c_str(), dinhDangTien(giaGoc_).c_str(),
+                phanTramGiam_, dinhDangTien(soTienGiam_).c_str(),
+                dinhDangTien(tongTien_).c_str()
+            );
+        }
+        ImGui::Spacing();
+        if (Widgets::NutPhu(u8"Quay lại chọn sân", ImVec2(190.0f, 36.0f))) {
+            buocHienTai_ = 2;
+        }
+        ImGui::SameLine();
+        ImGui::BeginDisabled(cacCaDangChon_.isEmpty());
+        if (Widgets::NutChinh(u8"Tiếp tục xác nhận", ImVec2(210.0f, 36.0f))) {
+            buocHienTai_ = 4;
+        }
+        ImGui::EndDisabled();
+    });
+}
+
+void DatSanScreen::renderBuoc4XacNhan() {
+    User* user = GUI::App::Session::getInstance().getUser();
+    Widgets::Card("confirm_booking", u8"Bước 4: Xác nhận đặt sân", [this, user]() {
+        if (user == nullptr) {
+            ImGui::TextWrapped(u8"Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+            return;
+        }
+        ImGui::Text(u8"Cơ sở: %s", tenCoSoChon_.c_str());
+        ImGui::Text(u8"Địa chỉ: %s", diaChiCoSoChon_.c_str());
+        ImGui::Text(u8"Sân: %s (sân %d người)", tenSanChon_.c_str(), loaiSanChon_);
+        ImGui::Text(u8"Ngày: %s | Thời lượng mỗi ca: %d phút",
+                    ngayChon_.c_str(), thoiLuongChon_);
+        ImGui::Text(u8"Các ca đã chọn: %s", khungGioChon_.c_str());
+        ImGui::Separator();
+        ImGui::Text(u8"Giá: %s", dinhDangTien(giaGoc_).c_str());
+        ImGui::Text(u8"Ưu đãi: %d%% (-%s)", phanTramGiam_,
+                    dinhDangTien(soTienGiam_).c_str());
+        ImGui::Text(u8"Tổng thanh toán: %s", dinhDangTien(tongTien_).c_str());
+        ImGui::Spacing();
+        if (Widgets::NutPhu(u8"Quay lại chọn ca", ImVec2(190.0f, 38.0f))) {
+            buocHienTai_ = 3;
+        }
+        ImGui::SameLine();
+        ImGui::BeginDisabled(cacCaDangChon_.isEmpty());
+        if (Widgets::NutChinh(u8"Xác nhận đặt sân", ImVec2(230.0f, 38.0f))) {
+            LinkedList<VenueBookingRequest> requests;
+            LinkedList<std::string> bookingIds;
+            for (auto* slot = danhSachKhungGioTrong_.get_head();
+                 slot != nullptr; slot = slot->next) {
+                if (!slotDangChon(slot->data.startTime)) continue;
+                VenueBookingRequest request;
+                request.customerId = user->get_user_id();
+                request.customerName = user->get_name();
+                request.customerPhone = user->get_phone_number();
+                request.fieldId = maSanChon_;
+                request.date = ngayChon_;
+                request.startTime = slot->data.startTime;
+                request.durationMinutes = thoiLuongChon_;
+                requests.push_back(request);
+            }
+            std::string error;
+            if (GUI::App::Facade::getInstance().datNhieuKhungGio(
+                    requests, bookingIds, error)) {
+                maDonDaDat_.clear();
+                for (auto* id = bookingIds.get_head();
+                     id != nullptr; id = id->next) {
+                    if (!maDonDaDat_.empty()) maDonDaDat_ += ", ";
+                    maDonDaDat_ += id->data;
+                }
+                buocHienTai_ = 5;
+                Widgets::ToastThanhCong(u8"Đã gửi yêu cầu đặt sân.");
+            } else {
+                loiTaiTaiDuLieu_ = error;
+            }
+        }
+        ImGui::EndDisabled();
     });
 }
 
 void DatSanScreen::renderPhieuDatSan() {
-    Widgets::Card("card_step4_ticket", u8"PHIẾU XÁC NHẬN ĐẶT SÂN BÓNG ĐIỆN TỬ", [this]() {
-        User* curUser = GUI::App::Session::getInstance().getUser();
-        std::string tenKhach = curUser ? curUser->get_name() : u8"Trần Văn Thuê";
-        std::string sdtKhach = curUser ? curUser->get_phone_number() : "0909876543";
-
-        // Khung phiếu đặt sân mô phỏng vé điện tử
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, GUI::Theme::Colors::LightBg);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(20.0f, 20.0f));
-
-        if (ImGui::BeginChild("##ticket_box", ImVec2(0.0f, 240.0f), true)) {
-            Widgets::Badge(u8"ĐẶT SÂN THÀNH CÔNG", GUI::Theme::Colors::GrassGreen, GUI::Theme::Colors::WhiteCard);
-            ImGui::SameLine(0.0f, 12.0f);
-            Widgets::BadgeVIP(u8"Thanh toán tại sân");
-
-            ImGui::Spacing();
-            ImGui::Spacing();
-
-            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
-            ImGui::Text(u8"MÃ ĐƠN ĐẶT SÂN:  %s", maDonDaDat_.c_str());
-            ImGui::PopStyleColor();
-
-            ImGui::Separator();
-            ImGui::Spacing();
-
-            ImGui::Columns(2, nullptr, false);
-            ImGui::Text(u8"• Người đặt: %s", tenKhach.c_str());
-            ImGui::Text(u8"• Số điện thoại: %s", sdtKhach.c_str());
-            ImGui::Text(u8"• Loại sân: Sân %d người", loaiSanChon_);
-
-            ImGui::NextColumn();
-            ImGui::Text(u8"• Sân thi đấu: %s", maSanChon_.c_str());
-            ImGui::Text(u8"• Ngày đá: %s", ngayChon_.c_str());
-            ImGui::Text(u8"• Khung giờ: %s", khungGioChon_.c_str());
-            ImGui::Columns(1);
-
-            ImGui::Spacing();
-            ImGui::Separator();
-            ImGui::Spacing();
-
-            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::GrassGreen);
-            ImGui::Text(u8"TỔNG TIỀN THANH TOÁN: %s", dinhDangTien(tongTien_).c_str());
-            ImGui::PopStyleColor();
-        }
-        ImGui::EndChild();
-        ImGui::PopStyleVar();
-        ImGui::PopStyleColor();
-
+    Widgets::Card("booking_receipt", u8"Yêu cầu đặt sân đã được ghi nhận", [this]() {
+        ImGui::Text(u8"Mã đơn: %s", maDonDaDat_.c_str());
+        ImGui::Text(u8"Cơ sở: %s", tenCoSoChon_.c_str());
+        ImGui::Text(u8"Sân: %s | %s", tenSanChon_.c_str(), maSanChon_.c_str());
+        ImGui::Text(u8"Ngày: %s | Ca: %s | %d phút",
+                    ngayChon_.c_str(), khungGioChon_.c_str(), thoiLuongChon_);
+        ImGui::Text(u8"Tổng tiền: %s", dinhDangTien(tongTien_).c_str());
         ImGui::Spacing();
-        ImGui::Spacing();
-
-        // Các nút hành động sau khi đặt
-        if (Widgets::NutChinh(u8"Xem lịch của tôi", ImVec2(200.0f, 38.0f))) {
-            if (onXemLichCuaToi_) {
-                onXemLichCuaToi_();
-            }
+        if (Widgets::NutChinh(u8"Xem lịch đặt của tôi", ImVec2(220.0f, 38.0f)) &&
+            onXemLichCuaToi_) {
+            onXemLichCuaToi_();
         }
-
-        ImGui::SameLine(0.0f, 16.0f);
-
-        if (Widgets::NutPhu(u8"+ Đặt thêm sân khác", ImVec2(180.0f, 38.0f))) {
+        ImGui::SameLine();
+        if (Widgets::NutPhu(u8"Đặt sân khác", ImVec2(160.0f, 38.0f))) {
             buocHienTai_ = 1;
+            ownerIdChon_.clear();
             maSanChon_.clear();
             khungGioChon_.clear();
+            cacCaDangChon_.clear();
+            maDonDaDat_.clear();
             reloadViewModel();
         }
     });

@@ -1,7 +1,7 @@
-OWNER|US01|owner01|123456|Nguyễn Văn Chủ|0901234567|Cụm sân Sao Vàng|123 Nguyễn Huệ, Đà Nẵng|Đi giày TF/IC, không hút thuốc|06:00|23:00|Nguyễn Văn Chủ
+OWNER|US01|owner01|123456|Nguyễn Văn Chủ|0901234567|Cụm sân Sao Vàng|123 Nguyễn Huệ, Đà Nẵng|Đi giày TF/IC, không hút thuốc|06:00|23:00|Nguyễn Văn Chủ|1|1
 CUSTOMER|US02|renter01|123456|Trần Văn Thuê|0909876543|0|0
 CUSTOMER|US03|0111111111|123456|aaaa|0111111111|0|0
 CUSTOMER|US04|0111111122|123456|aaaaa|0111111122|0|0
 CUSTOMER|US05|0931952909|123456|Phan Ta Nhan|0931952909|0|0
-OWNER|US06|0777048537|toilaso1|Bảo Duy|0777048537|Sân cỏ Bóng Hồng|36 đường SikSeven|Quy định tiêu chuẩn cụm sân|06:00|23:00|Bảo Duy
+OWNER|US06|0777048537|toilaso1|Bảo Duy|0777048537|Sân cỏ Bóng Hồng|36 đường SikSeven|Quy định tiêu chuẩn cụm sân|06:00|23:00|Bảo Duy|1|1
 CUSTOMER|US07|0222222222|23092007|Phan Tá Nhân|0222222222|0|0

@@ -52,7 +52,7 @@ void KhachHangScreen::reloadViewModel() {
     auto& facade = GUI::App::Facade::getInstance();
 
     // 1. Nạp danh bạ khách hàng
-    danhSachKhach_ = facade.getDanhSachKhachHang();
+    danhSachKhach_ = facade.getDanhSachKhachHangCuaChuSan();
     tableRowsDanhBa_.clear();
 
     for (size_t i = 0; i < danhSachKhach_.size(); ++i) {
@@ -74,14 +74,21 @@ void KhachHangScreen::reloadViewModel() {
     }
 
     // 2. Nạp chi tiết khách hàng đang chọn (nếu có)
-    // LÝ DO CHỌN: HashTable tra cứu theo SĐT với thời gian O(1) trung bình,
-    // nạp ngay thông tin khách hàng vào ViewModel mà không cần duyệt tuyến tính toàn bộ danh bạ.
+    // LÝ DO CHỌN: Nạp chi tiết từ danh sách đã lọc theo chủ sân, không tra cứu dữ liệu toàn cục.
     if (!sdtDangChon_.empty()) {
-        auto khPtr = facade.timKhachHangTheoSDT(sdtDangChon_);
-        if (khPtr) {
-            khachDangChon_ = *khPtr;
-            lichSuDatCuaKhach_ = facade.getLichSuDatCuaKhach(sdtDangChon_);
-            danhGiaCuaKhach_ = facade.getDanhGiaCuaKhach(sdtDangChon_);
+        auto khach = std::find_if(
+            danhSachKhach_.begin(),
+            danhSachKhach_.end(),
+            [this](const GUI::App::KhachHangInfo& item) {
+                return item.sdt == sdtDangChon_;
+            }
+        );
+        if (khach != danhSachKhach_.end()) {
+            khachDangChon_ = *khach;
+            lichSuDatCuaKhach_ =
+                facade.getLichSuDatCuaKhachCuaChuSan(sdtDangChon_);
+            danhGiaCuaKhach_ =
+                facade.getDanhGiaCuaKhachCuaChuSan(sdtDangChon_);
         } else {
             sdtDangChon_.clear();
         }
@@ -99,7 +106,7 @@ void KhachHangScreen::reloadViewModel() {
     // 5. Nạp danh sách đánh giá nhận xét
     // LÝ DO CHỌN: LinkedList quản lý danh sách đánh giá nhận xét,
     // các đánh giá mới nhất được chèn vào đầu danh sách với độ phức tạp O(1).
-    danhSachSan_ = facade.getDanhSachSanBong();
+    danhSachSan_ = facade.getDanhSachSanBongCuaChuSan();
     danhSachDanhGia_ = facade.getDanhSachDanhGia();
     diemTBToanCoSo_ = facade.getDiemTrungBinhToanCoSo();
     diemTBTungSan_ = facade.getDiemTrungBinhTungSan();

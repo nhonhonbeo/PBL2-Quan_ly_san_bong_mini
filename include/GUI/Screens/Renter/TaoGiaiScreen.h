@@ -32,6 +32,8 @@ private:
     int formSoDoi_ = 8;
     int formLoaiSanIndex_ = 0; // 0: Sân 5, 1: Sân 7, 2: Sân 11
     std::string formGhiChu_;
+    bool formTenGiaiDaCham_ = false;
+    bool daGuiYeuCau_ = false;
 
     // Dữ liệu Bảng theo dõi
     std::vector<GUI::App::GiaiDauInfo> danhSachGiaiCuaToi_;

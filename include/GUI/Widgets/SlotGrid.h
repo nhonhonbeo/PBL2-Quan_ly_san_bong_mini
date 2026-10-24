@@ -12,6 +12,7 @@ enum class SlotStatus {
     Trong,     // Xanh cỏ (#1B8A5A)
     DaDat,     // Đỏ (#DC3545)
     BaoTri,    // Xám (#9CA3AF)
+    DaQua,     // LÝ DO CHỌN: Tách ca đã qua khỏi ca đã đặt để không thể chọn nhầm.
     DangChon   // Vàng nhấn (#F5B301)
 };
 

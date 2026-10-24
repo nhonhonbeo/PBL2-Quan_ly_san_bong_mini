@@ -9,37 +9,20 @@
 #include <imgui.h>
 
 #include "GUI/App/Session.h"
+#include "Core/DateTime.h"
 #include "GUI/Theme/Theme.h"
 #include "GUI/Widgets/Badge.h"
 #include "GUI/Widgets/Button.h"
 #include "GUI/Widgets/Card.h"
 #include "GUI/Widgets/ComboRadio.h"
 #include "GUI/Widgets/DatePicker.h"
+#include "GUI/Widgets/FormValidator.h"
 #include "GUI/Widgets/InputFields.h"
 #include "GUI/Widgets/Toast.h"
 
 namespace GUI::Screens::Renter {
 
 namespace {
-
-int ngayDangSo(const std::string& ngay) {
-    if (ngay.size() != 10 || ngay[2] != '/' || ngay[5] != '/') {
-        return 0;
-    }
-    try {
-        int day = std::stoi(ngay.substr(0, 2));
-        int month = std::stoi(ngay.substr(3, 2));
-        int year = std::stoi(ngay.substr(6, 4));
-        if (day < 1 || day > 31 || month < 1 || month > 12 || year < 1) {
-            return 0;
-        }
-        return year * 10000 + month * 100 + day;
-    } catch (const std::invalid_argument&) {
-        return 0;
-    } catch (const std::out_of_range&) {
-        return 0;
-    }
-}
 
 std::string ngayHienTai(int soNgayCongThem = 0) {
     std::time_t now = std::time(nullptr);
@@ -74,6 +57,8 @@ const char* tenTrangThaiGiai(GUI::App::TrangThaiGiaiDau tt) {
 
 void TaoGiaiScreen::onEnter() {
     formTenGiai_.clear();
+    formTenGiaiDaCham_ = false;
+    daGuiYeuCau_ = false;
     formNgayBatDau_ = ngayHienTai();
     formNgayKetThuc_ = ngayHienTai(1);
     formSoDoi_ = 8;
@@ -138,7 +123,16 @@ void TaoGiaiScreen::renderFormTaoGiai() {
         ImGui::SetColumnWidth(0, 480.0f);
 
         // 1. Tên giải đấu
-        Widgets::InputText(u8"Tên giải đấu dự kiến (*)", "##r_t_name", formTenGiai_, u8"Ví dụ: Giải Vô Địch Khối Doanh Nghiệp Trẻ");
+        Widgets::InputTextValidated(
+            u8"Tên giải đấu dự kiến (*)",
+            "##r_t_name",
+            formTenGiai_,
+            u8"Ví dụ: Giải Vô Địch Khối Doanh Nghiệp Trẻ",
+            formTenGiaiDaCham_,
+            daGuiYeuCau_,
+            Widgets::FormValidator::kiemTraTenGiaiDau,
+            Widgets::FormValidator::chuanHoaTenGiaiDau
+        );
         ImGui::Spacing();
 
         // 2. Ngày bắt đầu và kết thúc bằng DatePicker
@@ -146,11 +140,12 @@ void TaoGiaiScreen::renderFormTaoGiai() {
         ImGui::Spacing();
 
         Widgets::DatePicker(u8"Ngày kết thúc giải (*)", "##r_dp_end", formNgayKetThuc_);
-        int today = ngayDangSo(ngayHienTai());
-        int startDate = ngayDangSo(formNgayBatDau_);
-        int endDate = ngayDangSo(formNgayKetThuc_);
-        bool startDateValid = startDate != 0 && today != 0 && startDate >= today;
-        bool endDateValid = endDate != 0 && startDate != 0 && endDate >= startDate;
+        const std::string startIso = DateTime::toIsoDate(formNgayBatDau_);
+        const std::string endIso = DateTime::toIsoDate(formNgayKetThuc_);
+        const bool startDateValid = !startIso.empty() &&
+                                    !DateTime::isPastDate(startIso);
+        const bool endDateValid = !endIso.empty() && !startIso.empty() &&
+                                  DateTime::compareDate(endIso, startIso) >= 0;
         if (!startDateValid) {
             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::RedDanger);
             ImGui::TextUnformatted(u8"Ngày bắt đầu không được ở trong quá khứ.");
@@ -199,7 +194,8 @@ void TaoGiaiScreen::renderFormTaoGiai() {
 
         ImGui::BeginDisabled(!startDateValid || !endDateValid);
         if (Widgets::NutChinh(u8"Gửi yêu cầu tổ chức giải đấu tới Chủ sân", ImVec2(340.0f, 38.0f))) {
-            if (formTenGiai_.empty()) {
+            daGuiYeuCau_ = true;
+            if (!Widgets::FormValidator::kiemTraTenGiaiDau(formTenGiai_).empty()) {
                 return;
             }
 
@@ -222,6 +218,8 @@ void TaoGiaiScreen::renderFormTaoGiai() {
             auto kq = GUI::App::Facade::getInstance().guiYeuCauTaoGiai(gMoi);
             if (kq.ok) {
                 formTenGiai_.clear();
+                formTenGiaiDaCham_ = false;
+                daGuiYeuCau_ = false;
                 formGhiChu_.clear();
                 reloadViewModel();
             } else {

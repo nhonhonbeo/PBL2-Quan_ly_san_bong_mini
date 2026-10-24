@@ -41,6 +41,16 @@ int soNgayTrongThang(int thang, int nam) {
     }
 }
 
+size_t demKyTuUtf8(const std::string& str) {
+    size_t soKyTu = 0;
+    for (unsigned char kyTu : str) {
+        if ((kyTu & 0xC0) != 0x80) {
+            ++soKyTu;
+        }
+    }
+    return soKyTu;
+}
+
 }  // namespace
 
 std::string FormValidator::kiemTraKhongDeTrong(const std::string& giaTri, const std::string& tenTruong) {
@@ -48,6 +58,45 @@ std::string FormValidator::kiemTraKhongDeTrong(const std::string& giaTri, const 
         return tenTruong + u8" không được để trống.";
     }
     return "";
+}
+
+std::string FormValidator::kiemTraTenGiaiDau(const std::string& tenGiai) {
+    if (catKhoangTrang(tenGiai).empty()) {
+        return u8"Tên giải đấu không được để trống.";
+    }
+    if (tenGiai.find('|') != std::string::npos) {
+        return u8"Tên giải đấu không được chứa ký tự '|'.";
+    }
+
+    const size_t soKyTu = demKyTuUtf8(tenGiai);
+    if (soKyTu < 3) {
+        return u8"Tên giải đấu phải có ít nhất 3 ký tự.";
+    }
+    if (soKyTu > 60) {
+        return u8"Tên giải đấu không được dài quá 60 ký tự.";
+    }
+    return "";
+}
+
+void FormValidator::chuanHoaTenGiaiDau(std::string& tenGiai) {
+    for (char& kyTu : tenGiai) {
+        if (kyTu == '|') {
+            kyTu = '-';
+        }
+    }
+
+    size_t soKyTu = 0;
+    size_t viTriCat = tenGiai.size();
+    for (size_t i = 0; i < tenGiai.size(); ++i) {
+        if ((static_cast<unsigned char>(tenGiai[i]) & 0xC0) != 0x80) {
+            if (soKyTu == 60) {
+                viTriCat = i;
+                break;
+            }
+            ++soKyTu;
+        }
+    }
+    tenGiai.resize(viTriCat);
 }
 
 std::string FormValidator::kiemTraSDT(const std::string& sdt) {

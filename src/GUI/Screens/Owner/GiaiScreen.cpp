@@ -6,6 +6,7 @@
 #include <vector>
 #include <imgui.h>
 
+#include "Core/DateTime.h"
 #include "GUI/Theme/Theme.h"
 #include "GUI/Widgets/Badge.h"
 #include "GUI/Widgets/Button.h"
@@ -20,6 +21,12 @@
 namespace GUI::Screens::Owner {
 
 namespace {
+
+std::string ngayHienThi(const std::string& isoDate) {
+    if (!DateTime::isValidDate(isoDate)) return isoDate;
+    return isoDate.substr(8, 2) + "/" + isoDate.substr(5, 2) + "/" +
+           isoDate.substr(0, 4);
+}
 
 // Chuyển chuỗi ngày "DD/MM/YYYY" hoặc "YYYY-MM-DD" thành số nguyên YYYYMMDD để so sánh khoảng thời gian
 int parseNgaySangSo(const std::string& str) {
@@ -66,6 +73,8 @@ const char* tenTrangThai(GUI::App::TrangThaiGiaiDau tt) {
 }  // namespace
 
 void GiaiScreen::onEnter() {
+    formTenGiaiDaCham_ = false;
+    daGuiYeuCau_ = false;
     tableColsGiai_ = {
         {u8"Mã giải", 90.0f, ImGuiTableColumnFlags_WidthFixed},
         {u8"Tên giải đấu", 220.0f, ImGuiTableColumnFlags_None},
@@ -83,8 +92,8 @@ void GiaiScreen::onEnter() {
     calendarState_.daKhoiTao = true;
 
     // Khởi tạo ngày mặc định cho Form thêm giải
-    formNgayBatDau_ = "25/10/2026";
-    formNgayKetThuc_ = "30/10/2026";
+    formNgayBatDau_ = ngayHienThi(DateTime::today());
+    formNgayKetThuc_ = formNgayBatDau_;
 
     reloadViewModel();
 }
@@ -119,8 +128,8 @@ void GiaiScreen::reloadViewModel() {
     }
 
     // 3. Nạp danh sách cho Form Combos
-    danhSachKhachHang_ = facade.getDanhSachKhachHang();
-    danhSachSan_ = facade.getDanhSachSanBong();
+    danhSachKhachHang_ = facade.getDanhSachKhachHangCuaChuSan();
+    danhSachSan_ = facade.getDanhSachSanBongCuaChuSan();
     danhSachKhungGio_ = facade.getDanhSachKhungGio();
 
     // 4. Nạp danh sách sự kiện trên Lịch Calendar
@@ -337,7 +346,16 @@ void GiaiScreen::renderTabThemGiaiThuCong() {
         ImGui::SetColumnWidth(0, 480.0f);
 
         // 1. Tên giải đấu
-        Widgets::InputText(u8"Tên giải đấu (*)", "##form_t_name", formTenGiai_, u8"Ví dụ: Cúp Tứ Hùng Doanh Nghiệp IT 2026");
+        Widgets::InputTextValidated(
+            u8"Tên giải đấu (*)",
+            "##form_t_name",
+            formTenGiai_,
+            u8"Ví dụ: Cúp Tứ Hùng Doanh Nghiệp IT 2026",
+            formTenGiaiDaCham_,
+            daGuiYeuCau_,
+            Widgets::FormValidator::kiemTraTenGiaiDau,
+            Widgets::FormValidator::chuanHoaTenGiaiDau
+        );
         ImGui::Spacing();
 
         // 2. Chọn khách hàng
@@ -357,7 +375,7 @@ void GiaiScreen::renderTabThemGiaiThuCong() {
                 Widgets::Combo(u8"Khách hàng đại diện", "##form_t_cust_combo", formIndexKhach_, dsTenKhach);
             }
         } else {
-            Widgets::InputText(u8"Họ và tên khách (*)", "##form_t_cust_name", formTenKhachMoi_, u8"Nguyễn Văn A");
+            Widgets::InputText(u8"Họ và tên khách (*)", "##form_t_cust_name", formTenKhachMoi_, nullptr, u8"Nguyễn Văn A");
             Widgets::InputPhone(u8"Số điện thoại (*)", "##form_t_cust_phone", formSDTKhachMoi_);
         }
         ImGui::Spacing();
@@ -389,6 +407,24 @@ void GiaiScreen::renderTabThemGiaiThuCong() {
         ImGui::Spacing();
 
         Widgets::DatePicker(u8"Ngày kết thúc giải (*)", "##dp_t_end", formNgayKetThuc_);
+        const std::string startIso = DateTime::toIsoDate(formNgayBatDau_);
+        const std::string endIso = DateTime::toIsoDate(formNgayKetThuc_);
+        const bool startDateValid = !startIso.empty() &&
+                                    !DateTime::isPastDate(startIso);
+        const bool endDateValid = !endIso.empty() && !startIso.empty() &&
+                                  DateTime::compareDate(endIso, startIso) >= 0;
+        if (!startDateValid) {
+            ImGui::TextColored(
+                GUI::Theme::Colors::RedDanger,
+                u8"Ngày bắt đầu không được ở trong quá khứ."
+            );
+        }
+        if (!endDateValid) {
+            ImGui::TextColored(
+                GUI::Theme::Colors::RedDanger,
+                u8"Ngày kết thúc phải bằng hoặc sau ngày bắt đầu."
+            );
+        }
         ImGui::Spacing();
 
         ImGui::TextUnformatted(u8"Điều lệ / Quy chế giải đấu:");
@@ -403,9 +439,11 @@ void GiaiScreen::renderTabThemGiaiThuCong() {
         ImGui::Spacing();
 
         // Nút Lưu tạo giải đấu
+        ImGui::BeginDisabled(!startDateValid || !endDateValid);
         if (Widgets::NutChinh(u8"+ Xác nhận tạo giải đấu", ImVec2(-1.0f, 40.0f))) {
+            daGuiYeuCau_ = true;
             // Kiểm tra tính hợp lệ của Form
-            if (formTenGiai_.empty()) {
+            if (!Widgets::FormValidator::kiemTraTenGiaiDau(formTenGiai_).empty()) {
                 return;
             }
 
@@ -437,12 +475,15 @@ void GiaiScreen::renderTabThemGiaiThuCong() {
             auto kq = GUI::App::Facade::getInstance().taoGiaiDauThuCong(gMoi);
             if (kq.ok) {
                 formTenGiai_.clear();
+                formTenGiaiDaCham_ = false;
+                daGuiYeuCau_ = false;
                 formMoTa_.clear();
                 reloadViewModel();
             } else {
                 // Hiển thị Toast đỏ nội dung lỗi do nghiệp vụ trả về
             }
         }
+        ImGui::EndDisabled();
 
         ImGui::Columns(1);
     });
@@ -638,8 +679,14 @@ void GiaiScreen::renderModalSuaGiai() {
         ImGui::Spacing();
 
         // Ngày bắt đầu / kết thúc
-        Widgets::DatePicker(u8"Ngày bắt đầu", "##edit_dp_start", giaiDangSua_.ngayBatDau);
-        Widgets::DatePicker(u8"Ngày kết thúc", "##edit_dp_end", giaiDangSua_.ngayKetThuc);
+        Widgets::DatePicker(
+            u8"Ngày bắt đầu", "##edit_dp_start",
+            giaiDangSua_.ngayBatDau, nullptr, true
+        );
+        Widgets::DatePicker(
+            u8"Ngày kết thúc", "##edit_dp_end",
+            giaiDangSua_.ngayKetThuc, nullptr, true
+        );
         ImGui::Spacing();
 
         // Sân bóng
