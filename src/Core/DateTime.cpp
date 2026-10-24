@@ -54,12 +54,27 @@ std::string DateTime::nowTime() {
     return output.str();
 }
 
+std::string DateTime::toIsoDate(const std::string& value) {
+    if (isValidDate(value)) return value;
+    if (value.size() == 10U && value[2] == '/' && value[5] == '/') {
+        const std::string normalized =
+            value.substr(6, 4) + "-" + value.substr(3, 2) + "-" +
+            value.substr(0, 2);
+        return isValidDate(normalized) ? normalized : std::string();
+    }
+    return {};
+}
+
 bool DateTime::isValidDate(const std::string& value) { int y = 0, m = 0, d = 0; return parseDate(value, y, m, d); }
 bool DateTime::isValidTime(const std::string& value) { int h = 0, m = 0; return parseTime(value, h, m); }
 
 int DateTime::compareDate(const std::string& left, const std::string& right) {
-    if (!isValidDate(left) || !isValidDate(right)) return 0;
-    return left == right ? 0 : (left < right ? -1 : 1);
+    const std::string normalizedLeft = toIsoDate(left);
+    const std::string normalizedRight = toIsoDate(right);
+    if (normalizedLeft.empty() || normalizedRight.empty()) return 0;
+    return normalizedLeft == normalizedRight
+        ? 0
+        : (normalizedLeft < normalizedRight ? -1 : 1);
 }
 
 int DateTime::compareTime(const std::string& left, const std::string& right) {
@@ -67,4 +82,15 @@ int DateTime::compareTime(const std::string& left, const std::string& right) {
     return left == right ? 0 : (left < right ? -1 : 1);
 }
 
-bool DateTime::isPastDate(const std::string& value) { return isValidDate(value) && compareDate(value, today()) < 0; }
+bool DateTime::isPastDate(const std::string& value) {
+    return !toIsoDate(value).empty() && compareDate(value, today()) < 0;
+}
+
+bool DateTime::isPastSlot(const std::string& date,
+                          const std::string& startTime) {
+    const std::string normalizedDate = toIsoDate(date);
+    if (normalizedDate.empty() || !isValidTime(startTime)) return false;
+    const int dateOrder = compareDate(normalizedDate, today());
+    return dateOrder < 0 ||
+           (dateOrder == 0 && compareTime(startTime, nowTime()) <= 0);
+}

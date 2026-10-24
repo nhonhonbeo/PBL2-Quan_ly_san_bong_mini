@@ -2,7 +2,6 @@
 #define OWNER_H
 #include<string>
 #include "User.h"
-using namespace std;
 
 class Owner: public User{
 private: 
@@ -15,6 +14,8 @@ private:
     //time
     std::string open_time;
     std::string close_time;
+    bool allows_60_minute_slots;
+    bool allows_90_minute_slots;
     
     //personal information
     std::string owner_name;
@@ -51,6 +52,10 @@ public:
 
     std::string get_close_time() const;
     void set_close_time(const std::string& new_close_time);
+
+    bool allows60MinuteSlots() const;
+    bool allows90MinuteSlots() const;
+    void setAllowedSlotDurations(bool allows60, bool allows90);
 
     std::string get_owner_name() const;
     void set_owner_name(const std::string& new_owner_name);

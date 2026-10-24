@@ -11,6 +11,10 @@ public:
     // Kiểm tra chuỗi không được rỗng hoặc toàn khoảng trắng
     static std::string kiemTraKhongDeTrong(const std::string& giaTri, const std::string& tenTruong = "Trường này");
 
+    // LÝ DO CHỌN: Tên giải có quy tắc riêng nên dùng chung một validator và bộ chuẩn hóa tại tầng widget.
+    static std::string kiemTraTenGiaiDau(const std::string& tenGiai);
+    static void chuanHoaTenGiaiDau(std::string& tenGiai);
+
     // Kiểm tra số điện thoại: đúng 10 chữ số và bắt đầu bằng số 0
     static std::string kiemTraSDT(const std::string& sdt);
 

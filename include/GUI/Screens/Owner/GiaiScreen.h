@@ -54,6 +54,8 @@ private:
 
     // Tab 3: Thêm giải thủ công
     std::string formTenGiai_;
+    bool formTenGiaiDaCham_ = false;
+    bool daGuiYeuCau_ = false;
     int formLoaiKhach_ = 0; // 0: Chọn từ danh bạ, 1: Nhập mới
     int formIndexKhach_ = 0;
     std::string formTenKhachMoi_;

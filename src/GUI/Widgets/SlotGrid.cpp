@@ -90,7 +90,8 @@ bool SlotGrid::Render(
 
     // DatePicker chọn ngày trực tiếp
     ImGui::SetNextItemWidth(220.0f);
-    if (Widgets::DatePicker(nullptr, "##slot_date_picker", ngayHienTai)) {
+    if (Widgets::DatePicker(
+            nullptr, "##slot_date_picker", ngayHienTai, nullptr, true)) {
         coThayDoi = true;
     }
 
@@ -121,6 +122,10 @@ bool SlotGrid::Render(
 
     veChuGiai(u8"Bảo trì",
               GUI::Theme::Colors::toU32(ImVec4(0.92f, 0.93f, 0.94f, 1.0f)),
+              GUI::Theme::Colors::toU32(GUI::Theme::Colors::Gray));
+
+    veChuGiai(u8"Đã qua",
+              GUI::Theme::Colors::toU32(ImVec4(0.91f, 0.92f, 0.93f, 1.0f)),
               GUI::Theme::Colors::toU32(GUI::Theme::Colors::Gray));
 
     if (choPhepChon) {
@@ -213,6 +218,12 @@ bool SlotGrid::Render(
                         textCol = GUI::Theme::Colors::Gray;
                         statusLabel = u8"BẢO TRÌ";
                         break;
+                    case SlotStatus::DaQua:
+                        bgCol = ImVec4(0.91f, 0.92f, 0.93f, 1.0f);
+                        borderCol = GUI::Theme::Colors::Gray;
+                        textCol = GUI::Theme::Colors::Gray;
+                        statusLabel = u8"ĐÃ QUA";
+                        break;
                     case SlotStatus::Trong:
                     default:
                         bgCol = ImVec4(0.88f, 0.96f, 0.91f, 1.0f);
@@ -266,6 +277,10 @@ bool SlotGrid::Render(
                         if (!info.ghiChu.empty()) {
                             ImGui::Text(u8"Lý do: %s", info.ghiChu.c_str());
                         }
+                    } else if (info.status == SlotStatus::DaQua) {
+                        ImGui::TextUnformatted(
+                            u8"Trạng thái: Khung giờ đã qua, không thể đặt."
+                        );
                     } else {
                         ImGui::Text(u8"Trạng thái: Còn trống - Sẵn sàng phục vụ");
                         if (info.giaTien > 0) {
