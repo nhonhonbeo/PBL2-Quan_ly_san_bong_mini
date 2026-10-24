@@ -14,7 +14,7 @@ namespace GUI::Screens::Owner {
 
 namespace {
 
-// Hàm định dạng số tiền có dấu phân cách hàng nghìn (ví dụ 86,500,000)
+// Hàm định dạng số tiền có dấu phân cách hàng nghìn.
 std::string dinhDangTien(long long amount) {
     std::string s = std::to_string(amount);
     int n = static_cast<int>(s.length()) - 3;
@@ -31,13 +31,16 @@ void DashboardScreen::onEnter() {
     // LÝ DO CHỌN: Toàn bộ dữ liệu ViewModel được nạp tập trung một lần duy nhất tại onEnter(),
     // tuyệt đối không truy vấn I/O hay tính toán nặng trong vòng lặp render().
     auto& facade = GUI::App::Facade::getInstance();
-    tongSoSan_ = facade.getTongSoSan();
-    luotDatHomNay_ = facade.getLuotDatHomNay();
-    doanhThuThang_ = facade.getDoanhThuThang();
-    soKhachMoi_ = facade.getSoKhachMoi();
-
-    doanhThu7Ngay_ = facade.getDoanhThu7NgayGanNhat();
-    luotDatSapToi_ = facade.getDanhSachLuotDatSapToi(5);
+    metrics_ = {};
+    loiBaoCao_.clear();
+    doanhThu7Ngay_.clear();
+    luotDatGanDay_.clear();
+    facade.getBaoCaoDashboard(
+        metrics_,
+        doanhThu7Ngay_,
+        luotDatGanDay_,
+        loiBaoCao_
+    );
 }
 
 void DashboardScreen::onExit() {
@@ -46,6 +49,12 @@ void DashboardScreen::onExit() {
 void DashboardScreen::render() {
     ImGui::Dummy(ImVec2(0.0f, 8.0f));
     ImGui::Indent(8.0f);
+    if (!loiBaoCao_.empty()) {
+        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::RedDanger);
+        ImGui::TextWrapped(u8"Không thể tải báo cáo: %s", loiBaoCao_.c_str());
+        ImGui::PopStyleColor();
+        ImGui::Spacing();
+    }
     renderStatCards();
     ImGui::Spacing();
     renderRevenueChart();
@@ -106,8 +115,8 @@ void DashboardScreen::renderStatCards() {
         "kpi_tong_san",
         "",
         u8"Tổng số sân bóng",
-        (std::to_string(tongSoSan_) + u8" sân").c_str(),
-        u8"Đang sẵn sàng phục vụ",
+        (std::to_string(metrics_.totalFields) + u8" sân").c_str(),
+        u8"Sân thuộc tài khoản của bạn",
         GUI::Theme::Colors::GrassGreen
     );
     ImGui::SameLine(0.0f, cardSpacing);
@@ -117,20 +126,20 @@ void DashboardScreen::renderStatCards() {
         "kpi_luot_dat",
         "",
         u8"Lượt đặt hôm nay",
-        (std::to_string(luotDatHomNay_) + u8" lượt").c_str(),
-        u8"Tỷ lệ lấp đầy đạt 83%",
+        (std::to_string(metrics_.bookingsToday) + u8" lượt").c_str(),
+        u8"Đơn chưa bị hủy",
         GUI::Theme::Colors::BlueInfo
     );
     ImGui::SameLine(0.0f, cardSpacing);
 
     // Thẻ 3: Doanh thu tháng
-    std::string dtStr = dinhDangTien(doanhThuThang_) + u8" đ";
+    std::string dtStr = dinhDangTien(metrics_.monthlyRevenueVnd) + u8" VNĐ";
     veTheKPI(
         "kpi_doanh_thu",
         "",
         u8"Doanh thu tháng này",
         dtStr.c_str(),
-        u8"+12.5% so với tháng trước",
+        u8"Đơn hoàn tất hoặc đã thanh toán",
         GUI::Theme::Colors::GoldAccent
     );
     ImGui::SameLine(0.0f, cardSpacing);
@@ -140,14 +149,21 @@ void DashboardScreen::renderStatCards() {
         "kpi_khach_moi",
         "",
         u8"Khách hàng mới",
-        (std::to_string(soKhachMoi_) + u8" khách").c_str(),
-        u8"Đã tạo tài khoản trong 30 ngày",
+        (std::to_string(metrics_.newCustomersThisMonth) + u8" khách").c_str(),
+        u8"Đơn đầu tiên trong tháng này",
         ImVec4(0.55f, 0.35f, 0.85f, 1.0f)
     );
 }
 
 void DashboardScreen::renderRevenueChart() {
     Widgets::Card("card_revenue_chart", u8"Biểu đồ doanh thu 7 ngày gần nhất", [this]() {
+        if (doanhThu7Ngay_.isEmpty()) {
+            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
+            ImGui::TextUnformatted(u8"Chưa có dữ liệu doanh thu");
+            ImGui::PopStyleColor();
+            return;
+        }
+
         float availW = ImGui::GetContentRegionAvail().x;
         float chartH = 220.0f;
         float labelYWidth = 80.0f;
@@ -161,14 +177,14 @@ void DashboardScreen::renderRevenueChart() {
         ImDrawList* dl = ImGui::GetWindowDrawList();
 
         // 1. Tìm giá trị cực đại để chia tỷ lệ trục Y
-        long long maxVal = 1000000;
-        for (const auto& item : doanhThu7Ngay_) {
-            if (item.second > maxVal) {
-                maxVal = item.second;
+        long long maxVal = 0;
+        for (auto* node = doanhThu7Ngay_.get_head(); node != nullptr; node = node->next) {
+            if (node->data.amountVnd > maxVal) {
+                maxVal = node->data.amountVnd;
             }
         }
-        // Làm tròn lên mốc chẵn triệu
-        maxVal = ((maxVal + 2999999LL) / 3000000LL) * 3000000LL;
+        const long long donViLamTron = 1000000LL;
+        maxVal = ((maxVal + donViLamTron - 1) / donViLamTron) * donViLamTron;
 
         // 2. Vẽ 4 vạch lưới ngang và nhãn trục Y
         int numGridLines = 4;
@@ -206,17 +222,18 @@ void DashboardScreen::renderRevenueChart() {
         );
 
         // 4. Vẽ các cột doanh thu
-        if (!doanhThu7Ngay_.empty()) {
-            size_t numCols = doanhThu7Ngay_.size();
-            float colSlotW = plotW / numCols;
+        if (!doanhThu7Ngay_.isEmpty() && maxVal > 0) {
+            const size_t numCols = static_cast<size_t>(doanhThu7Ngay_.size());
+            float colSlotW = plotW / static_cast<float>(numCols);
             float barW = colSlotW * 0.45f;
 
             ImVec2 mousePos = ImGui::GetIO().MousePos;
 
-            for (size_t i = 0; i < numCols; ++i) {
-                const auto& item = doanhThu7Ngay_[i];
-                float barRatio = static_cast<float>(item.second) / static_cast<float>(maxVal);
-                float curBarH = std::max(6.0f, barRatio * plotH);
+            size_t i = 0;
+            for (auto* node = doanhThu7Ngay_.get_head(); node != nullptr; node = node->next, ++i) {
+                const ReportRevenueDay& item = node->data;
+                float barRatio = static_cast<float>(item.amountVnd) / static_cast<float>(maxVal);
+                float curBarH = barRatio > 0.0f ? barRatio * plotH : 0.0f;
 
                 float centerX = plotStart.x + i * colSlotW + colSlotW * 0.5f;
                 ImVec2 barMin(centerX - barW * 0.5f, plotEnd.y - curBarH);
@@ -232,23 +249,25 @@ void DashboardScreen::renderRevenueChart() {
                     : GUI::Theme::Colors::toU32(GUI::Theme::Colors::GrassGreen);
 
                 // Vẽ cột bo góc trên
-                dl->AddRectFilled(barMin, barMax, barCol, 4.0f, ImDrawFlags_RoundCornersTop);
+                if (item.amountVnd > 0) {
+                    dl->AddRectFilled(barMin, barMax, barCol, 4.0f, ImDrawFlags_RoundCornersTop);
+                }
 
                 // Nhãn trục X dưới chân cột (T2, T3, T4...)
-                ImVec2 xLabelSize = ImGui::CalcTextSize(item.first.c_str());
+                ImVec2 xLabelSize = ImGui::CalcTextSize(item.label.c_str());
                 dl->AddText(
                     ImVec2(centerX - xLabelSize.x * 0.5f, plotEnd.y + 8.0f),
                     GUI::Theme::Colors::toU32(GUI::Theme::Colors::DarkText),
-                    item.first.c_str()
+                    item.label.c_str()
                 );
 
                 // Hiển thị Tooltip chi tiết khi rê chuột
                 if (isHovered) {
                     ImGui::BeginTooltip();
                     ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
-                    ImGui::Text(u8"Ngày: %s", item.first.c_str());
+                    ImGui::Text(u8"Ngày: %s", item.label.c_str());
                     ImGui::Separator();
-                    ImGui::Text(u8"Doanh thu: %s VNĐ", dinhDangTien(item.second).c_str());
+                    ImGui::Text(u8"Doanh thu: %s VNĐ", dinhDangTien(item.amountVnd).c_str());
                     ImGui::PopStyleColor();
                     ImGui::EndTooltip();
                 }
@@ -261,10 +280,10 @@ void DashboardScreen::renderRevenueChart() {
 }
 
 void DashboardScreen::renderUpcomingBookings() {
-    Widgets::Card("card_upcoming_bookings", u8"Danh sách lượt đặt sân sắp tới trong ngày", [this]() {
-        if (luotDatSapToi_.empty()) {
+    Widgets::Card("card_upcoming_bookings", u8"Danh sách đặt sân gần đây", [this]() {
+        if (luotDatGanDay_.isEmpty()) {
             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-            ImGui::TextUnformatted(u8"Hiện chưa có lượt đặt sân nào sắp tới.");
+            ImGui::TextUnformatted(u8"Chưa có lượt đặt nào");
             ImGui::PopStyleColor();
             return;
         }
@@ -274,9 +293,10 @@ void DashboardScreen::renderUpcomingBookings() {
                                 ImGuiTableFlags_BordersOuter |
                                 ImGuiTableFlags_SizingStretchProp;
 
-        if (ImGui::BeginTable("##tbl_upcoming", 7, flags)) {
+        if (ImGui::BeginTable("##tbl_upcoming", 8, flags)) {
             ImGui::TableSetupColumn(u8"Mã đơn", ImGuiTableColumnFlags_WidthFixed, 80.0f);
             ImGui::TableSetupColumn(u8"Mã sân", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+            ImGui::TableSetupColumn(u8"Ngày", ImGuiTableColumnFlags_WidthFixed, 100.0f);
             ImGui::TableSetupColumn(u8"Khách hàng", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupColumn(u8"Số điện thoại", ImGuiTableColumnFlags_WidthFixed, 110.0f);
             ImGui::TableSetupColumn(u8"Khung giờ", ImGuiTableColumnFlags_WidthFixed, 130.0f);
@@ -284,32 +304,36 @@ void DashboardScreen::renderUpcomingBookings() {
             ImGui::TableSetupColumn(u8"Trạng thái", ImGuiTableColumnFlags_WidthFixed, 120.0f);
             ImGui::TableHeadersRow();
 
-            for (const auto& don : luotDatSapToi_) {
+            for (auto* node = luotDatGanDay_.get_head(); node != nullptr; node = node->next) {
+                const ReportBookingRecord& don = node->data;
                 ImGui::TableNextRow();
 
                 ImGui::TableSetColumnIndex(0);
-                ImGui::TextUnformatted(don.maDon.c_str());
+                ImGui::TextUnformatted(don.bookingId.c_str());
 
                 ImGui::TableSetColumnIndex(1);
-                ImGui::TextUnformatted(don.maSan.c_str());
+                ImGui::TextUnformatted(don.fieldId.c_str());
 
                 ImGui::TableSetColumnIndex(2);
-                ImGui::TextUnformatted(don.tenKhachHang.c_str());
+                ImGui::TextUnformatted(don.date.c_str());
 
                 ImGui::TableSetColumnIndex(3);
-                ImGui::TextUnformatted(don.sdt.c_str());
+                ImGui::TextUnformatted(don.customerName.c_str());
 
                 ImGui::TableSetColumnIndex(4);
-                ImGui::TextUnformatted(don.khungGio.c_str());
+                ImGui::TextUnformatted(don.customerPhone.c_str());
 
                 ImGui::TableSetColumnIndex(5);
-                ImGui::Text("%s đ", dinhDangTien(don.giaTien).c_str());
+                ImGui::TextUnformatted(don.timeSlot.c_str());
 
                 ImGui::TableSetColumnIndex(6);
-                if (don.trangThai == u8"Đã thanh toán") {
-                    Widgets::BadgeDaDat(don.trangThai.c_str());
+                ImGui::Text("%s VNĐ", dinhDangTien(don.amountVnd).c_str());
+
+                ImGui::TableSetColumnIndex(7);
+                if (don.status == u8"Đã thanh toán" || don.status == u8"Đã hoàn thành") {
+                    Widgets::BadgeDaDat(don.status.c_str());
                 } else {
-                    Widgets::Badge(don.trangThai.c_str(), GUI::Theme::Colors::BlueInfo, GUI::Theme::Colors::WhiteCard);
+                    Widgets::Badge(don.status.c_str(), GUI::Theme::Colors::BlueInfo, GUI::Theme::Colors::WhiteCard);
                 }
             }
 

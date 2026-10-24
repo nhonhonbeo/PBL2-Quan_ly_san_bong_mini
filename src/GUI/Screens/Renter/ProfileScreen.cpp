@@ -70,8 +70,8 @@ void ProfileScreen::renderFormThongTin() {
             u8"Họ và tên (*)",
             "##profile_fullname",
             formHoTen_,
-            u8"Nhập họ và tên của bạn",
-            loiHoTen_.empty() ? nullptr : loiHoTen_.c_str()
+            loiHoTen_.empty() ? nullptr : loiHoTen_.c_str(),
+            u8"Nhập họ và tên của bạn"
         );
         ImGui::Spacing();
 

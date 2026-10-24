@@ -33,7 +33,6 @@ private:
 
     void renderModalXoaSan();
     void renderModalSuaSan();
-    void renderModalXoaKhungGio();
     void renderModalThemNhanh();
 
     // ==========================================
@@ -48,7 +47,6 @@ private:
     std::string maSanDangSua_;
     std::string tenSanDangSua_;
     int loaiSanDangSua_ = 5;
-    int giaThueDangSua_ = 250000;
     std::string maSanCanXoa_;
     int loaiSanThemNhanh_ = 5;
     int soLuongSanThemNhanh_ = 1;
@@ -57,12 +55,13 @@ private:
     // Tab b: Khung giờ
     std::string gioMoCua_ = "06:00";
     std::string gioDongCua_ = "23:00";
-    int buocThoiLuongIdx_ = 1; // 0: 60p, 1: 90p, 2: 120p
+    int buocThoiLuongIdx_ = 1; // 0: 60p, 1: 90p
     std::vector<GUI::App::KhungGioInfo> danhSachKhungGio_;
-    std::string idKhungGioCanXoa_;
 
     // Tab c: Giá thuê ma trận
     bool apDungTatCaCungLoai_ = false;
+    std::map<std::pair<std::string, int>, int> giaChoLuu_;
+    std::string loiGiaThue_;
 
     // Tab d: Tình trạng theo ngày (SlotGrid)
     std::string ngayXemSlot_ = "17/10/2026";
