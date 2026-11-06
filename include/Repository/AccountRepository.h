@@ -1,10 +1,17 @@
 #pragma once
+
 #include <memory>
 #include <string>
 #include <vector>
-class User; class FileManager;
+
+class User;
+class FileManager;
+
+// L? DO CH?N: AccountRepository ??c v? ghi danh s?ch t?i kho?n t? data/accounts.txt.
 class AccountRepository {
+private:
     FileManager& file_manager_;
+
 public:
     explicit AccountRepository(FileManager& fileManager);
     bool load(std::vector<std::shared_ptr<User>>& accounts, std::string& error) const;

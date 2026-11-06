@@ -1,4 +1,6 @@
-﻿#include "Service/CustomerService.h"
+#include "Service/CustomerService.h"
+
+#include <algorithm>
 
 #include "Account/Customer.h"
 #include "Core/DateTime.h"
@@ -8,7 +10,65 @@
 #include "Repository/CustomerRepository.h"
 
 CustomerService::CustomerService(CustomerRepository& customerRepository)
-    : customer_repository_(customerRepository) {}
+    : customer_repository_(customerRepository),
+      discount_thresholds_{
+          {1, 5, 5, u8"Kh?ch th?n thi?t"},
+          {2, 10, 10, u8"Kh?ch h?ng VIP B?c"},
+          {3, 20, 15, u8"Kh?ch h?ng VIP V?ng"}
+      } {}
+
+const std::vector<CustomerDiscountThreshold>& CustomerService::getDiscountThresholds() const {
+    return discount_thresholds_;
+}
+
+bool CustomerService::updateDiscountThreshold(int id, int minBookings,
+                                             int percentage,
+                                             std::string& error) {
+    for (auto& t : discount_thresholds_) {
+        if (t.id == id) {
+            t.minBookings = minBookings;
+            t.percentage = percentage;
+            return true;
+        }
+    }
+    error = "Khong tim thay nguong uu dai can sua.";
+    return false;
+}
+
+int CustomerService::getCustomerDiscountPercentage(const std::string& userIdOrPhone,
+                                                  std::string& error) const {
+    bool blocked = false;
+    std::string blockReason;
+    isBlacklisted(userIdOrPhone, blocked, blockReason);
+    if (blocked) {
+        return 0;
+    }
+
+    Customer c("", "", "", "", "");
+    if (!customer_repository_.findCustomerByUserId(userIdOrPhone, c, error)) {
+        return 0;
+    }
+
+    auto sorted = discount_thresholds_;
+    std::sort(sorted.begin(), sorted.end(), [](const auto& a, const auto& b) {
+        return a.minBookings > b.minBookings;
+    });
+
+    for (const auto& t : sorted) {
+        if (c.getBookingCount() >= t.minBookings) {
+            return t.percentage;
+        }
+    }
+    return 0;
+}
+
+bool CustomerService::applyDiscountsToAll(std::string& error) {
+    LinkedList<Customer> list;
+    if (!customer_repository_.loadAllCustomers(list, error)) {
+        return false;
+    }
+    return true;
+}
 
 bool CustomerService::isBlacklisted(const std::string& userId,
                                     bool& outIsBlacklisted,
@@ -35,6 +95,126 @@ bool CustomerService::isBlacklisted(const std::string& userId,
     return isBlacklisted(userId, outIsBlacklisted, outReason, err);
 }
 
+bool CustomerService::addToBlacklist(const std::string& customerIdOrPhone,
+                                    const std::string& reason,
+                                    std::string& error) {
+    Blacklist bl(
+        customerIdOrPhone,
+        reason.empty() ? u8"H?y s?n nhi?u l?n kh?ng th?ng b?o tr??c" : reason,
+        DateTime::today(),
+        true
+    );
+    return customer_repository_.saveBlacklist(bl, error);
+}
+
+bool CustomerService::removeFromBlacklist(const std::string& customerIdOrPhone,
+                                         std::string& error) {
+    return customer_repository_.removeBlacklist(customerIdOrPhone, error);
+}
+
+bool CustomerService::getAllBlacklists(LinkedList<Blacklist>& outList,
+                                      std::string& error) const {
+    return customer_repository_.loadAllBlacklists(outList, error);
+}
+
+bool CustomerService::getBlacklistCandidates(int minCancellations,
+                                             LinkedList<Customer>& outCandidates,
+                                             std::string& error) const {
+    outCandidates.clear();
+    LinkedList<Customer> list;
+    if (!customer_repository_.loadAllCustomers(list, error)) {
+        return false;
+    }
+
+    for (auto* node = list.get_head(); node != nullptr; node = node->next) {
+        if (node->data.getCancelCount() >= minCancellations) {
+            bool blocked = false;
+            std::string reason;
+            isBlacklisted(node->data.get_phone_number(), blocked, reason);
+            if (!blocked && !node->data.getUserId().empty()) {
+                isBlacklisted(node->data.getUserId(), blocked, reason);
+            }
+            if (!blocked) {
+                outCandidates.push_back(node->data);
+            }
+        }
+    }
+    return true;
+}
+
+bool CustomerService::addReview(const Review& review, std::string& error) {
+    if (review.getRating() < 1 || review.getRating() > 5) {
+        error = "??nh gi? ph?i t? 1 ??n 5 sao.";
+        return false;
+    }
+    if (review.getComment().empty()) {
+        error = "N?i dung ??nh gi? kh?ng ???c ?? tr?ng.";
+        return false;
+    }
+    if (!customer_repository_.hasCompletedBooking(review.getCustomerId(), review.getFieldId())) {
+        error = "Ch? c? th? ??nh gi? s?n sau khi ?? ho?n t?t ca thu? t?i s?n n?y.";
+        return false;
+    }
+    return customer_repository_.saveReview(review, error);
+}
+
+bool CustomerService::addOrUpdateReview(const Review& review, std::string& error) {
+    if (review.getRating() < 1 || review.getRating() > 5) {
+        error = "??nh gi? ph?i t? 1 ??n 5 sao.";
+        return false;
+    }
+    if (review.getComment().empty()) {
+        error = "N?i dung ??nh gi? kh?ng ???c ?? tr?ng.";
+        return false;
+    }
+    return customer_repository_.saveReview(review, error);
+}
+
+bool CustomerService::getAllReviews(LinkedList<Review>& outReviews,
+                                   std::string& error) const {
+    return customer_repository_.loadAllReviews(outReviews, error);
+}
+
+bool CustomerService::getAverageRatingOverall(float& outScore,
+                                             std::string& error) const {
+    LinkedList<Review> list;
+    if (!customer_repository_.loadAllReviews(list, error)) {
+        return false;
+    }
+    if (list.size() == 0) {
+        outScore = 0.0f;
+        return true;
+    }
+    float sum = 0.0f;
+    for (auto* node = list.get_head(); node != nullptr; node = node->next) {
+        sum += node->data.getRating();
+    }
+    outScore = sum / static_cast<float>(list.size());
+    return true;
+}
+
+bool CustomerService::getAverageRatingsMap(std::map<std::string, float>& outMap,
+                                          std::string& error) const {
+    outMap.clear();
+    LinkedList<Review> list;
+    if (!customer_repository_.loadAllReviews(list, error)) {
+        return false;
+    }
+    std::map<std::string, std::pair<float, int>> counts;
+    for (auto* node = list.get_head(); node != nullptr; node = node->next) {
+        counts[node->data.getFieldId()].first += node->data.getRating();
+        counts[node->data.getFieldId()].second++;
+    }
+    for (const auto& item : counts) {
+        if (item.second.second > 0) {
+            outMap[item.first] = item.second.first / static_cast<float>(item.second.second);
+        } else {
+            outMap[item.first] = 0.0f;
+        }
+    }
+    return true;
+}
+
 bool CustomerService::recordSuccessfulBooking(const std::string& userId,
                                               std::string& error) {
     Customer customer("", "", "", "", "");
@@ -55,22 +235,6 @@ bool CustomerService::recordCancellation(const std::string& userId,
     return customer_repository_.updateCustomer(customer, error);
 }
 
-bool CustomerService::addReview(const Review& review, std::string& error) {
-    if (review.getRating() < 1 || review.getRating() > 5) {
-        error = "Đánh giá phải từ 1 đến 5 sao.";
-        return false;
-    }
-    if (review.getComment().empty()) {
-        error = "Nội dung đánh giá không được để trống.";
-        return false;
-    }
-    if (!customer_repository_.hasCompletedBooking(review.getCustomerId(), review.getFieldId())) {
-        error = "Chỉ có thể đánh giá sân sau khi đã hoàn tất ca thuê tại sân này.";
-        return false;
-    }
-    return customer_repository_.saveReview(review, error);
-}
-
 bool CustomerService::findAvailableDiscount(const std::string& userId,
                                             Discount& out,
                                             std::string& error) const {
@@ -78,7 +242,7 @@ bool CustomerService::findAvailableDiscount(const std::string& userId,
     std::string blockReason;
     isBlacklisted(userId, blocked, blockReason);
     if (blocked) {
-        error = "Khách hàng bị chặn không được hưởng ưu đãi.";
+        error = "Kh?ch h?ng b? ch?n kh?ng ???c h??ng ?u ??i.";
         return false;
     }
 
@@ -96,7 +260,7 @@ bool CustomerService::findAvailableDiscount(const std::string& userId,
     } else if (bookings >= 5) {
         percentage = 5;
     } else {
-        error = "Chưa đạt số lần đặt tối thiểu để nhận ưu đãi.";
+        error = "Ch?a ??t s? l?n ??t t?i thi?u ?? nh?n ?u ??i.";
         return false;
     }
 
@@ -105,4 +269,15 @@ bool CustomerService::findAvailableDiscount(const std::string& userId,
     out = Discount(idBuf, userId, percentage, bookings,
                    DateTime::today(), DiscountStatus::AVAILABLE);
     return customer_repository_.saveDiscount(out, error);
+}
+
+bool CustomerService::getAllCustomers(LinkedList<Customer>& outList,
+                                      std::string& error) const {
+    return customer_repository_.loadAllCustomers(outList, error);
+}
+
+bool CustomerService::findCustomer(const std::string& idOrPhone,
+                                   Customer& out,
+                                   std::string& error) const {
+    return customer_repository_.findCustomerByUserId(idOrPhone, out, error);
 }

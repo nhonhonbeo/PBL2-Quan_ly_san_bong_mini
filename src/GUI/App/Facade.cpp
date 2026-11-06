@@ -4,95 +4,58 @@
 #include <cstdio>
 #include <iomanip>
 #include <iostream>
-#include <numeric>
 #include <sstream>
 
+#include "Core/DateTime.h"
+#include "Field/Field.h"
 #include "GUI/App/Session.h"
 #include "GUI/Screens/Owner/OwnerShellScreen.h"
 #include "GUI/Screens/Renter/RenterShellScreen.h"
-#include "Storage/FileManager.h"
-#include "Core/LinkedList.h"
-#include "Core/DateTime.h"
-#include "Repository/VenueRepository.h"
-#include "Repository/BookingRepository.h"
-#include "Repository/CustomerRepository.h"
-#include "Repository/FieldRepository.h"
-#include "Service/BookingService.h"
-#include "Service/CustomerService.h"
-#include "Service/FieldService.h"
-#include "Field/Field.h"
 
 namespace GUI::App {
 
 namespace {
-int parseNgaySangSo(const std::string& str);
 
-bool tachKhungGio(const std::string& text, std::string& start,
-                  std::string& end, int& duration) {
-    const std::size_t separator = text.find(" - ");
-    if (separator == std::string::npos) return false;
-    start = text.substr(0, separator);
-    end = text.substr(separator + 3);
+bool tachKhungGio(const std::string& text, std::string& start, std::string& end, int& duration) {
+    const std::size_t sep = text.find(" - ");
+    if (sep == std::string::npos) return false;
+    start = text.substr(0, sep); end = text.substr(sep + 3);
     if (!DateTime::isValidTime(start) || !DateTime::isValidTime(end)) return false;
-    duration = DateTime::compareTime(end, start);
-    if (duration <= 0) return false;
-    const int startMinutes = std::stoi(start.substr(0, 2)) * 60 +
-                             std::stoi(start.substr(3, 2));
-    const int endMinutes = std::stoi(end.substr(0, 2)) * 60 +
-                           std::stoi(end.substr(3, 2));
-    duration = endMinutes - startMinutes;
+    duration = (std::stoi(end.substr(0, 2)) * 60 + std::stoi(end.substr(3, 2))) -
+               (std::stoi(start.substr(0, 2)) * 60 + std::stoi(start.substr(3, 2)));
     return duration == 60 || duration == 90;
 }
 
-void tachTruong(const std::string& line, LinkedList<std::string>& fields) {
-    fields.clear();
-    std::istringstream input(line);
-    std::string value;
-    while (std::getline(input, value, '|')) fields.push_back(value);
+int gioSangPhut(const std::string& timeStr) {
+    return (timeStr.length() == 5 && timeStr[2] == ':') ?
+        std::stoi(timeStr.substr(0, 2)) * 60 + std::stoi(timeStr.substr(3, 2)) : 0;
 }
 
-const std::string* truongTai(const LinkedList<std::string>& fields, int index) {
-    auto* node = fields.get_head();
-    while (node != nullptr && index > 0) {
-        node = node->next;
-        --index;
-    }
-    return node == nullptr ? nullptr : &node->data;
+std::string phutSangGio(int totalMinutes) {
+    char buf[8];
+    std::snprintf(buf, sizeof(buf), "%02d:%02d", (totalMinutes / 60) % 24, totalMinutes % 60);
+    return std::string(buf);
 }
 
 DonDatSanInfo toBookingInfo(const ReportBookingRecord& record) {
-    DonDatSanInfo booking;
-    booking.maDon = record.bookingId;
-    booking.maSan = record.fieldId;
-    booking.ownerUserId = record.ownerUserId;
-    booking.customerId = record.customerId;
-    booking.tenKhachHang = record.customerName;
-    booking.sdt = record.customerPhone;
-    booking.ngay = record.date;
-    booking.khungGio = record.timeSlot.empty()
-        ? record.startTime + " - " + record.endTime
-        : record.timeSlot;
-    booking.thoiLuongPhut = record.durationMinutes;
-    booking.giaTien = static_cast<int>(record.amountVnd);
-    booking.trangThai = record.status;
-    return booking;
+    DonDatSanInfo b;
+    b.maDon = record.bookingId; b.maSan = record.fieldId; b.ownerUserId = record.ownerUserId;
+    b.customerId = record.customerId; b.tenKhachHang = record.customerName; b.sdt = record.customerPhone;
+    b.ngay = record.date; b.khungGio = record.timeSlot.empty() ? (record.startTime + " - " + record.endTime) : record.timeSlot;
+    b.thoiLuongPhut = record.durationMinutes; b.giaTien = static_cast<int>(record.amountVnd); b.trangThai = record.status;
+    return b;
 }
 
-bool ownerOwnsField(const std::string& ownerId, const std::string& fieldId,
-                    std::string& error) {
-    VenueRepository repository;
-    VenueService service(repository);
-    LinkedList<VenueFieldRecord> fields;
-    if (!service.getFields(ownerId, 0, true, fields, error)) return false;
-    for (auto* node = fields.get_head(); node != nullptr; node = node->next) {
-        if (node->data.fieldId == fieldId) return true;
-    }
-    error = "Sân không thuộc chủ sân đang đăng nhập.";
-    return false;
-}
-}
+}  // namespace
 
-Facade::Facade() {
+Facade::Facade()
+    : file_manager_(), account_repository_(file_manager_), venue_repository_(),
+      customer_repository_(file_manager_), booking_repository_(file_manager_),
+      report_repository_(), tournament_repository_(file_manager_), field_repository_(file_manager_),
+      account_service_(account_repository_), venue_service_(venue_repository_),
+      customer_service_(customer_repository_), booking_service_(booking_repository_, customer_service_),
+      report_service_(), tournament_service_(tournament_repository_, booking_repository_),
+      field_service_(field_repository_) {
     napDuLieu();
 }
 
@@ -101,491 +64,221 @@ Facade& Facade::getInstance() {
     return instance;
 }
 
-void Facade::napDuLieu() {
-    if (daNapDuLieu_) {
-        return;
-    }
+void Facade::dongBoTuCacService() {
+    std::string err;
+    account_service_.loadAccounts(err);
+    danhSachUser_ = account_service_.getAccounts();
+    for (const auto& u : danhSachUser_) if (u) mapMatKhau_[u->get_phone_number()] = u->get_password();
 
-    // 1. Nạp danh sách tài khoản người dùng từ FileManager
-    Storage::FileManager::docDanhSachUser(danhSachUser_);
-    for (const auto& user : danhSachUser_) {
-        if (user) {
-            mapMatKhau_[user->get_phone_number()] = "123456";
+    venue_repository_.migrateLegacyData(err);
+    venue_repository_.seedIfNeeded(err);
+    venue_repository_.loadPrices(bangGiaCoSo_, err);
+
+    danhSachSan_.clear();
+    LinkedList<ReportFieldRecord> repFields;
+    if (report_repository_.loadFields(repFields, err)) {
+        for (auto* n = repFields.get_head(); n; n = n->next) {
+            danhSachSan_.push_back({n->data.fieldId, n->data.ownerUserId, n->data.name,
+                                    n->data.size, static_cast<int>(n->data.hourlyRateVnd),
+                                    n->data.underMaintenance, n->data.rules});
         }
     }
 
-    VenueRepository venueRepository;
-    std::string venueError;
-    if (!venueRepository.migrateLegacyData(venueError) ||
-        !venueRepository.seedIfNeeded(venueError)) {
-        std::cerr << venueError << '\n';
-    }
-
-    if (!venueRepository.loadPrices(bangGiaCoSo_, venueError)) {
-        std::cerr << venueError << '\n';
-    }
-
-    // 7. Khởi tạo cấu hình Ngưỡng ưu đãi
-    danhSachNguongUuDai_ = {
-        {1, 5,  5,  u8"Khách thân thiết"},
-        {2, 10, 10, u8"Khách hàng VIP Bạc"},
-        {3, 20, 15, u8"Khách hàng VIP Vàng"}
-    };
-
-    ReportRepository repository;
-    LinkedList<ReportFieldRecord> fields;
-    LinkedList<ReportBookingRecord> bookings;
-    std::string storageError;
-    if (repository.loadFields(fields, storageError)) {
-        for (auto* node = fields.get_head(); node != nullptr; node = node->next) {
-            SanBongInfo field;
-            field.maSan = node->data.fieldId;
-            field.ownerUserId = node->data.ownerUserId;
-            field.tenSan = node->data.name;
-            field.loaiSan = node->data.size;
-            field.giaThueGio = static_cast<int>(node->data.hourlyRateVnd);
-            field.dangBaoTri = node->data.underMaintenance;
-            field.quyDinh = node->data.rules;
-            danhSachSan_.push_back(field);
+    danhSachDonDat_.clear();
+    LinkedList<ReportBookingRecord> repBookings;
+    if (report_repository_.loadBookings(repBookings, err)) {
+        for (auto* n = repBookings.get_head(); n; n = n->next) {
+            danhSachDonDat_.push_back(toBookingInfo(n->data));
         }
-    } else {
-        std::cerr << storageError << '\n';
-    }
-    if (repository.loadBookings(bookings, storageError)) {
-        for (auto* node = bookings.get_head(); node != nullptr; node = node->next) {
-            DonDatSanInfo booking;
-            booking.maDon = node->data.bookingId;
-            booking.maSan = node->data.fieldId;
-            booking.ownerUserId = node->data.ownerUserId;
-            booking.customerId = node->data.customerId;
-            booking.tenKhachHang = node->data.customerName;
-            booking.sdt = node->data.customerPhone;
-            booking.ngay = node->data.date;
-            booking.khungGio = node->data.timeSlot;
-            booking.thoiLuongPhut = node->data.durationMinutes;
-            booking.giaTien = static_cast<int>(node->data.amountVnd);
-            booking.trangThai = node->data.status;
-            danhSachDonDat_.push_back(booking);
-        }
-    } else {
-        std::cerr << storageError << '\n';
     }
 
-    FileManager manager;
-    LinkedList<std::string> lines;
-    if (manager.readAllLines("data/reviews.txt", lines, storageError)) {
-        for (auto* node = lines.get_head(); node != nullptr; node = node->next) {
-            LinkedList<std::string> fields;
-            tachTruong(node->data, fields);
-            if (fields.size() < 7) continue;
-            DanhGiaInfo review;
-            review.id = *truongTai(fields, 0);
-            review.tenKhach = *truongTai(fields, 1);
-            review.sdt = *truongTai(fields, 2);
-            review.maSan = *truongTai(fields, 3);
-            try {
-                review.soSao = std::stoi(*truongTai(fields, 4));
-            } catch (const std::exception&) {
-                continue;
-            }
-            review.ngayGui = *truongTai(fields, 5);
-            review.noiDung = *truongTai(fields, 6);
-            danhSachDanhGia_.push_back(review);
-        }
-    } else {
-        std::cerr << storageError << '\n';
-    }
-    if (manager.readAllLines("data/tournaments.txt", lines, storageError)) {
-        for (auto* node = lines.get_head(); node != nullptr; node = node->next) {
-            LinkedList<std::string> fields;
-            tachTruong(node->data, fields);
-            if (fields.size() < 11) continue;
-            GiaiDauInfo tournament;
-            tournament.maGiai = *truongTai(fields, 0);
-            tournament.tenGiai = *truongTai(fields, 1);
-            tournament.tenKhachDat = *truongTai(fields, 2);
-            tournament.sdtKhach = *truongTai(fields, 3);
-            tournament.ngayBatDau = *truongTai(fields, 4);
-            tournament.ngayKetThuc = *truongTai(fields, 5);
-            tournament.maSan = *truongTai(fields, 6);
-            tournament.khungGio = *truongTai(fields, 7);
-            tournament.moTa = *truongTai(fields, 8);
-            tournament.ghiChuTuChoi = *truongTai(fields, 9);
-            try {
-                const int status = std::stoi(*truongTai(fields, 10));
-                if (status >= 0 && status <= 4) {
-                    tournament.trangThai =
-                        static_cast<TrangThaiGiaiDau>(status);
-                }
-            } catch (const std::exception&) {
-                continue;
-            }
-            danhSachGiaiDau_.push_back(tournament);
-        }
-    } else {
-        std::cerr << storageError << '\n';
+    danhSachNguongUuDai_.clear();
+    for (const auto& t : customer_service_.getDiscountThresholds()) {
+        danhSachNguongUuDai_.push_back({t.id, t.minBookings, t.percentage, t.tierName});
     }
 
-    if (manager.readAllLines("data/blacklist.txt", lines, storageError)) {
-        for (auto* node = lines.get_head(); node != nullptr; node = node->next) {
-            LinkedList<std::string> fields;
-            tachTruong(node->data, fields);
-            if (fields.size() < 4 || *truongTai(fields, 3) != "1") continue;
-            KhachHangInfo customer;
-            customer.id = *truongTai(fields, 0);
-            customer.sdt = customer.id;
-            customer.biChan = true;
-            customer.lyDoChan = *truongTai(fields, 1);
-            customer.ngayChan = *truongTai(fields, 2);
-            mapIndexKhachSDT_[customer.sdt] = danhSachKhachHang_.size();
-            danhSachKhachHang_.push_back(customer);
-        }
-    } else {
-        std::cerr << storageError << '\n';
+    danhSachKhachHang_.clear();
+    LinkedList<Customer> customers;
+    customer_service_.getAllCustomers(customers, err);
+    for (auto* n = customers.get_head(); n; n = n->next) {
+        KhachHangInfo kh{n->data.getUserId(), n->data.get_name(), n->data.get_phone_number(),
+                         n->data.getBookingCount(), n->data.getCancelCount(), false, "", "", 0};
+        customer_service_.isBlacklisted(kh.sdt, kh.biChan, kh.lyDoChan);
+        kh.mucUuDaiPhanTram = customer_service_.getCustomerDiscountPercentage(kh.sdt, err);
+        mapIndexKhachSDT_.insert(kh.sdt, danhSachKhachHang_.size());
+        danhSachKhachHang_.push_back(kh);
     }
 
-    daNapDuLieu_ = true;
+    LinkedList<Blacklist> blacklists;
+    customer_service_.getAllBlacklists(blacklists, err);
+    for (auto* n = blacklists.get_head(); n; n = n->next) {
+        size_t idx = 0;
+        if (!mapIndexKhachSDT_.search(n->data.getCustomerId(), idx)) {
+            KhachHangInfo bkh{n->data.getCustomerId(), n->data.getCustomerId(), n->data.getCustomerId(),
+                              0, 0, n->data.isActive(), n->data.getReason(), n->data.getCreatedAt(), 0};
+            mapIndexKhachSDT_.insert(bkh.sdt, danhSachKhachHang_.size());
+            danhSachKhachHang_.push_back(bkh);
+        }
+    }
+
+    danhSachDanhGia_.clear();
+    LinkedList<Review> reviews;
+    customer_service_.getAllReviews(reviews, err);
+    for (auto* n = reviews.get_head(); n; n = n->next) {
+        danhSachDanhGia_.push_back({n->data.getReviewId(), n->data.getCustomerName(),
+                                   n->data.getCustomerId(), n->data.getFieldId(),
+                                   n->data.getRating(), n->data.getCreatedAt(), n->data.getComment()});
+    }
+
+    danhSachGiaiDau_.clear();
+    LinkedList<Tournament> tourList;
+    tournament_service_.loadAllTournaments(tourList, err);
+    for (auto* n = tourList.get_head(); n; n = n->next) {
+        danhSachGiaiDau_.push_back({n->data.getTournamentId(), n->data.getName(),
+                                   n->data.getRequesterName(), n->data.getRequesterUserId(),
+                                   n->data.getStartDate(), n->data.getEndDate(),
+                                   n->data.getRequestedFieldId(), n->data.getTimeSlot(),
+                                   n->data.getNote(), n->data.getRejectReason(),
+                                   static_cast<TrangThaiGiaiDau>(static_cast<int>(n->data.getStatus()))});
+    }
 }
-
-void Facade::luuDuLieu() {
-    Storage::FileManager::ghiDanhSachUser(danhSachUser_);
-    std::string error;
-    FileManager manager;
-    LinkedList<std::string> tournaments;
-    for (const GiaiDauInfo& tournament : danhSachGiaiDau_) {
-        tournaments.push_back(FileManager::join(tournament.maGiai) + "|" +
-                              FileManager::join(tournament.tenGiai) + "|" +
-                              FileManager::join(tournament.tenKhachDat) + "|" +
-                              FileManager::join(tournament.sdtKhach) + "|" +
-                              FileManager::join(tournament.ngayBatDau) + "|" +
-                              FileManager::join(tournament.ngayKetThuc) + "|" +
-                              FileManager::join(tournament.maSan) + "|" +
-                              FileManager::join(tournament.khungGio) + "|" +
-                              FileManager::join(tournament.moTa) + "|" +
-                              FileManager::join(tournament.ghiChuTuChoi) + "|" +
-                              std::to_string(static_cast<int>(tournament.trangThai)));
-    }
-    manager.writeAllLines("data/tournaments.txt", tournaments, error);
-    LinkedList<std::string> reviews;
-    for (const DanhGiaInfo& review : danhSachDanhGia_) {
-        reviews.push_back(FileManager::join(review.id) + "|" + FileManager::join(review.tenKhach) + "|" +
-                          FileManager::join(review.sdt) + "|" + FileManager::join(review.maSan) + "|" +
-                          std::to_string(review.soSao) + "|" + FileManager::join(review.ngayGui) + "|" +
-                          FileManager::join(review.noiDung));
-    }
-    manager.writeAllLines("data/reviews.txt", reviews, error);
-    LinkedList<std::string> blacklist;
-    for (const KhachHangInfo& customer : danhSachKhachHang_) {
-        if (customer.biChan) {
-            blacklist.push_back(FileManager::join(customer.sdt) + "|" +
-                                FileManager::join(customer.lyDoChan) + "|" +
-                                FileManager::join(customer.ngayChan) + "|1");
-        }
-    }
-    manager.writeAllLines("data/blacklist.txt", blacklist, error);
-}
+void Facade::napDuLieu() { if (!daNapDuLieu_) { dongBoTuCacService(); daNapDuLieu_ = true; } }
+void Facade::luuDuLieu() { std::string err; account_repository_.save(danhSachUser_, err); }
 
 bool Facade::kiemTraSDTDaTonTai(const std::string& sdt) const {
-    for (const auto& user : danhSachUser_) {
-        if (user && user->get_phone_number() == sdt) {
-            return true;
-        }
-    }
+    for (const auto& u : danhSachUser_) if (u && u->get_phone_number() == sdt) return true;
     return false;
 }
 
 KetQuaDuLieu<std::shared_ptr<User>> Facade::dangNhap(const std::string& sdt, const std::string& matKhau) {
     napDuLieu();
-
-    std::shared_ptr<User> timThay = nullptr;
-    for (const auto& user : danhSachUser_) {
-        if (user && user->get_phone_number() == sdt) {
-            timThay = user;
-            break;
+    std::string err;
+    std::shared_ptr<User> user = account_service_.authenticate(sdt, matKhau, err);
+    if (!user) {
+        auto it = mapMatKhau_.find(sdt);
+        if (it != mapMatKhau_.end() && it->second == matKhau) {
+            for (const auto& u : danhSachUser_) if (u && u->get_phone_number() == sdt) { user = u; break; }
         }
     }
-
-    if (!timThay) {
-        return {false, u8"Số điện thoại này chưa được đăng ký trong hệ thống.", nullptr};
-    }
-
-    auto itPw = mapMatKhau_.find(sdt);
-    std::string matKhauDung = (itPw != mapMatKhau_.end()) ? itPw->second : "123456";
-
-    if (matKhau != matKhauDung) {
+    if (!user) {
+        if (!kiemTraSDTDaTonTai(sdt)) return {false, u8"Số điện thoại này chưa được đăng ký trong hệ thống.", nullptr};
         return {false, u8"Mật khẩu đăng nhập không chính xác.", nullptr};
     }
-
-    Session::getInstance().login(timThay, timThay->get_account_type());
-    return {true, "", timThay};
+    Session::getInstance().login(user, user->get_account_type());
+    return {true, "", user};
 }
 
-KetQua Facade::dangKyNguoiThue(
-    const std::string& hoTen,
-    const std::string& sdt,
-    const std::string& matKhau
-) {
+KetQua Facade::dangKyNguoiThue(const std::string& hoTen, const std::string& sdt, const std::string& matKhau) {
     napDuLieu();
-
-    if (kiemTraSDTDaTonTai(sdt)) {
-        return {false, u8"Số điện thoại này đã được đăng ký tài khoản khác."};
-    }
-
+    if (kiemTraSDTDaTonTai(sdt)) return {false, u8"Số điện thoại này đã được đăng ký tài khoản khác."};
     char idBuf[16];
     std::snprintf(idBuf, sizeof(idBuf), "US%02d", static_cast<int>(danhSachUser_.size() + 1));
-
-    auto cust = std::make_shared<Customer>(
-        idBuf,
-        sdt,
-        matKhau,
-        hoTen,
-        sdt
-    );
+    auto cust = std::make_shared<Customer>(idBuf, sdt, matKhau, hoTen, sdt);
+    std::string err;
+    if (!account_service_.registerUser(cust, err)) return {false, err};
+    customer_repository_.saveCustomer(*cust, err);
 
     danhSachUser_.push_back(cust);
     mapMatKhau_[sdt] = matKhau;
-
-    // Tự động thêm vào danh bạ khách hàng
-    KhachHangInfo kh;
-    kh.id = "KH" + std::to_string(danhSachKhachHang_.size() + 1);
-    kh.hoTen = hoTen;
-    kh.sdt = sdt;
-    kh.soLanDat = 0;
-    kh.soLanHuy = 0;
-    kh.biChan = false;
-    kh.mucUuDaiPhanTram = 0;
+    KhachHangInfo kh{idBuf, hoTen, sdt, 0, 0, false, "", "", 0};
+    mapIndexKhachSDT_.insert(sdt, danhSachKhachHang_.size());
     danhSachKhachHang_.push_back(kh);
-    mapIndexKhachSDT_[sdt] = danhSachKhachHang_.size() - 1;
-
-    luuDuLieu();
     return {true, ""};
 }
 
-KetQua Facade::dangKyChuSan(
-    const std::string& hoTen,
-    const std::string& sdt,
-    const std::string& matKhau,
-    const std::string& tenCoSo,
-    const std::string& diaChi
-) {
+KetQua Facade::dangKyChuSan(const std::string& hoTen, const std::string& sdt, const std::string& matKhau,
+                            const std::string& tenCoSo, const std::string& diaChi) {
     napDuLieu();
-
-    if (kiemTraSDTDaTonTai(sdt)) {
-        return {false, u8"Số điện thoại này đã được đăng ký tài khoản khác."};
-    }
-
+    if (kiemTraSDTDaTonTai(sdt)) return {false, u8"Số điện thoại này đã được đăng ký tài khoản khác."};
     char idBuf[16];
     std::snprintf(idBuf, sizeof(idBuf), "US%02d", static_cast<int>(danhSachUser_.size() + 1));
-
-    auto owner = std::make_shared<Owner>(
-        idBuf,
-        sdt,
-        matKhau,
-        hoTen,
-        sdt,
-        tenCoSo,
-        diaChi,
-        u8"Quy định tiêu chuẩn cụm sân",
-        "06:00",
-        "23:00",
-        hoTen
-    );
-
+    auto owner = std::make_shared<Owner>(idBuf, sdt, matKhau, hoTen, sdt, tenCoSo, diaChi,
+                                         u8"Quy định tiêu chuẩn cụm sân", "06:00", "23:00", hoTen);
+    std::string err;
+    if (!account_service_.registerUser(owner, err)) return {false, err};
     danhSachUser_.push_back(owner);
     mapMatKhau_[sdt] = matKhau;
-
-    luuDuLieu();
     return {true, ""};
 }
 
 void Facade::moManHinhChinhChoUser(User* user, ScreenManager& sm) {
-    if (!user) {
-        return;
-    }
-
-    std::string accType = user->get_account_type();
-    if (dynamic_cast<Owner*>(user) || accType == "Owner" || accType == u8"Chủ sân") {
+    if (!user) return;
+    std::string acc = user->get_account_type();
+    if (dynamic_cast<Owner*>(user) || acc == "Owner" || acc == u8"Chủ sân") {
         sm.replace(std::make_unique<GUI::Screens::Owner::OwnerShellScreen>());
     } else {
-        // Mặc định cho Customer / Người thuê
         sm.replace(std::make_unique<GUI::Screens::Renter::RenterShellScreen>());
     }
 }
 
-// ==========================================
-// 3. THỐNG KÊ DASHBOARD CHỦ SÂN
-// ==========================================
-bool Facade::getBaoCaoDashboard(
-    ReportDashboardMetrics& metrics,
-    LinkedList<ReportRevenueDay>& doanhThuTheoNgay,
-    LinkedList<ReportBookingRecord>& luotDatGanDay,
-    std::string& error
-) const {
+bool Facade::getBaoCaoDashboard(ReportDashboardMetrics& metrics, LinkedList<ReportRevenueDay>& doanhThuTheoNgay,
+                                LinkedList<ReportBookingRecord>& luotDatGanDay, std::string& error) const {
     User* user = Session::getInstance().getUser();
-    if (user == nullptr || user->get_user_id().empty()) {
+    if (!user || user->get_user_id().empty()) {
         error = u8"Không xác định được chủ sân đang đăng nhập.";
         return false;
     }
-
-    ReportRepository repository;
-    ReportService service;
-    return service.buildOwnerDashboard(
-        user->get_user_id(),
-        repository,
-        metrics,
-        doanhThuTheoNgay,
-        luotDatGanDay,
-        error
-    );
+    return report_service_.buildOwnerDashboard(user->get_user_id(), report_repository_, metrics,
+                                               doanhThuTheoNgay, luotDatGanDay, error);
 }
 
-bool Facade::getDanhSachCoSo(
-    LinkedList<VenueFacilityRecord>& facilities,
-    std::string& error
-) const {
-    VenueRepository repository;
-    VenueService service(repository);
-    return service.getFacilities(facilities, error);
-}
+bool Facade::getDanhSachCoSo(LinkedList<VenueFacilityRecord>& f, std::string& err) const { return venue_service_.getFacilities(f, err); }
 
-bool Facade::getGiaThapNhatCoSo(
-    const std::string& ownerId,
-    long long& giaVnd,
-    std::string& error
-) const {
-    VenueRepository repository;
-    VenueService service(repository);
-    return service.getLowestPrice(ownerId, giaVnd, error);
-}
+bool Facade::getGiaThapNhatCoSo(const std::string& ownerId, long long& giaVnd, std::string& err) const { return venue_service_.getLowestPrice(ownerId, giaVnd, err); }
 
-bool Facade::getDanhSachSanTheoChuSan(
-    const std::string& ownerId,
-    int loaiSan,
-    bool gomSanKhongNhanDat,
-    LinkedList<VenueFieldRecord>& fields,
-    std::string& error
-) const {
-    VenueRepository repository;
-    VenueService service(repository);
-    return service.getFields(
-        ownerId, loaiSan, gomSanKhongNhanDat, fields, error
-    );
-}
+bool Facade::getDanhSachSanTheoChuSan(const std::string& ownerId, int loaiSan, bool gomSanKhongNhanDat,
+                                     LinkedList<VenueFieldRecord>& fields, std::string& err) const { return venue_service_.getFields(ownerId, loaiSan, gomSanKhongNhanDat, fields, err); }
 
-bool Facade::getKhungGioSan(
-    const std::string& fieldId,
-    const std::string& ngay,
-    int thoiLuongPhut,
-    LinkedList<VenueSlotRecord>& slots,
-    std::string& error,
-    bool choPhepNgayQuaKhu
-) const {
-    VenueRepository repository;
-    VenueService service(repository);
-    return service.getSlots(
-        fieldId, ngay, thoiLuongPhut, slots, error, choPhepNgayQuaKhu
-    );
-}
+bool Facade::getKhungGioSan(const std::string& fieldId, const std::string& ngay, int thoiLuongPhut,
+                           LinkedList<VenueSlotRecord>& slots, std::string& err, bool choPhepNgayQuaKhu) const { return venue_service_.getSlots(fieldId, ngay, thoiLuongPhut, slots, err, choPhepNgayQuaKhu); }
 
-bool Facade::datSanTheoKhungGio(
-    const VenueBookingRequest& request,
-    std::string& bookingId,
-    std::string& error
-) const {
-    FileManager fileManager;
-    BookingRepository bookingRepository(fileManager);
-    CustomerRepository customerRepository(fileManager);
-    CustomerService customerService(customerRepository);
-    BookingService service(bookingRepository, customerService);
-    return service.createBooking(request, bookingId, error);
-}
+bool Facade::datSanTheoKhungGio(const VenueBookingRequest& req, std::string& bId, std::string& err) const { return booking_service_.createBooking(req, bId, err); }
 
-bool Facade::datNhieuKhungGio(
-    const LinkedList<VenueBookingRequest>& requests,
-    LinkedList<std::string>& bookingIds,
-    std::string& error
-) const {
-    FileManager fileManager;
-    BookingRepository bookingRepository(fileManager);
-    CustomerRepository customerRepository(fileManager);
-    CustomerService customerService(customerRepository);
-    BookingService service(bookingRepository, customerService);
-    return service.createBookings(requests, bookingIds, error);
-}
+bool Facade::datNhieuKhungGio(const LinkedList<VenueBookingRequest>& reqs, LinkedList<std::string>& bIds, std::string& err) const { return booking_service_.createBookings(reqs, bIds, err); }
 
-bool Facade::capNhatGiaCoSo(
-    int loaiSan,
-    int thoiLuongPhut,
-    const std::string& gioBatDau,
-    long long giaVnd,
-    std::string& error
-) {
+bool Facade::capNhatGiaCoSo(int loaiSan, int thoiLuongPhut, const std::string& gioBatDau,
+                           long long giaVnd, std::string& error) {
     User* user = Session::getInstance().getUser();
-    if (user == nullptr || user->get_account_type() != "Owner") {
+    if (!user || user->get_account_type() != "Owner") {
         error = "Cần đăng nhập bằng tài khoản chủ sân để sửa bảng giá.";
         return false;
     }
-    VenueRepository repository;
-    VenueService service(repository);
-    if (!service.setFieldPrice(
-            user->get_user_id(), loaiSan, thoiLuongPhut, gioBatDau, giaVnd,
-            error)) {
-        return false;
-    }
-    return repository.loadPrices(bangGiaCoSo_, error);
+    if (!venue_service_.setFieldPrice(user->get_user_id(), loaiSan, thoiLuongPhut, gioBatDau, giaVnd, error)) return false;
+    return venue_repository_.loadPrices(bangGiaCoSo_, error);
 }
-
-// ==========================================
-// 4. QUẢN LÝ SÂN BÓNG (CRUD & WIZARD)
-// ==========================================
-std::vector<SanBongInfo> Facade::getDanhSachSanBong() const {
-    return danhSachSan_;
-}
+std::vector<SanBongInfo> Facade::getDanhSachSanBong() const { return danhSachSan_; }
 
 std::vector<SanBongInfo> Facade::getDanhSachSanBongCuaChuSan() const {
     User* user = Session::getInstance().getUser();
     std::vector<SanBongInfo> fields;
-    if (user == nullptr || user->get_account_type() != "Owner") {
-        return fields;
-    }
+    if (!user || user->get_account_type() != "Owner") return fields;
+
     LinkedList<VenueFacilityRecord> facilities;
-    VenueRepository repository;
     std::string error;
-    bool allows60Minutes = false;
-    bool allows90Minutes = false;
-    if (!repository.loadFacilities(facilities, error)) {
-        std::cerr << error << '\n';
-        return fields;
+    bool allows60 = false, allows90 = false;
+    if (venue_service_.getFacilities(facilities, error)) {
+        for (auto* n = facilities.get_head(); n; n = n->next) {
+            if (n->data.ownerId == user->get_user_id()) {
+                allows60 = n->data.allows60Minutes;
+                allows90 = n->data.allows90Minutes;
+                break;
+            }
+        }
     }
-    for (auto* node = facilities.get_head(); node != nullptr;
-         node = node->next) {
-        if (node->data.ownerId != user->get_user_id()) continue;
-        allows60Minutes = node->data.allows60Minutes;
-        allows90Minutes = node->data.allows90Minutes;
-        break;
-    }
-    for (const SanBongInfo& field : danhSachSan_) {
-        if (field.ownerUserId == user->get_user_id()) {
-            SanBongInfo viewField = field;
-            viewField.giaThueGio = 0;
-            for (auto* node = bangGiaCoSo_.get_head();
-                 node != nullptr; node = node->next) {
-                const VenuePriceRecord& price = node->data;
-                if (price.ownerId == user->get_user_id() &&
-                    price.fieldSize == field.loaiSan &&
-                    price.durationMinutes > 0 && price.priceVnd > 0 &&
-                    ((price.durationMinutes == 60 && allows60Minutes) ||
-                     (price.durationMinutes == 90 && allows90Minutes))) {
-                    const long long hourlyPrice =
-                        price.priceVnd * 60 / price.durationMinutes;
-                    if (viewField.giaThueGio == 0 ||
-                        hourlyPrice < viewField.giaThueGio) {
-                        viewField.giaThueGio =
-                            static_cast<int>(hourlyPrice);
-                    }
+    for (const auto& f : danhSachSan_) {
+        if (f.ownerUserId == user->get_user_id()) {
+            SanBongInfo vf = f;
+            vf.giaThueGio = 0;
+            for (auto* n = bangGiaCoSo_.get_head(); n != nullptr; n = n->next) {
+                const auto& p = n->data;
+                if (p.ownerId == user->get_user_id() && p.fieldSize == f.loaiSan &&
+                    p.durationMinutes > 0 && p.priceVnd > 0 &&
+                    ((p.durationMinutes == 60 && allows60) || (p.durationMinutes == 90 && allows90))) {
+                    long long hp = p.priceVnd * 60 / p.durationMinutes;
+                    if (vf.giaThueGio == 0 || hp < vf.giaThueGio) vf.giaThueGio = static_cast<int>(hp);
                 }
             }
-            fields.push_back(viewField);
+            fields.push_back(vf);
         }
     }
     return fields;
@@ -593,634 +286,337 @@ std::vector<SanBongInfo> Facade::getDanhSachSanBongCuaChuSan() const {
 
 SanBongInfo* Facade::getSanBong(const std::string& maSan) {
     User* owner = Session::getInstance().getUser();
-    if (owner == nullptr || owner->get_account_type() != "Owner") {
-        return nullptr;
-    }
+    if (!owner || owner->get_account_type() != "Owner") return nullptr;
     for (auto& s : danhSachSan_) {
-        if (s.maSan == maSan && s.ownerUserId == owner->get_user_id()) {
-            return &s;
-        }
+        if (s.maSan == maSan && s.ownerUserId == owner->get_user_id()) return &s;
     }
     return nullptr;
 }
 
-KetQua Facade::taoNhieuSan(
-    int loaiSan,
-    int soLuong,
-    const std::string& quyDinh,
-    std::vector<std::string>& outMaSan
-) {
+KetQua Facade::taoNhieuSan(int loaiSan, int soLuong, const std::string& quyDinh,
+                           std::vector<std::string>& outMaSan) {
     outMaSan.clear();
     User* owner = Session::getInstance().getUser();
-    if (owner == nullptr || owner->get_account_type() != "Owner") {
-        return {false, u8"Vui lòng đăng nhập bằng tài khoản chủ sân trước khi tạo sân."};
-    }
-    if (loaiSan != 5 && loaiSan != 7 && loaiSan != 11) {
-        return {false, u8"Loại sân không hợp lệ."};
-    }
-    if (soLuong <= 0) {
-        return {false, u8"Số lượng sân cần tạo phải lớn hơn 0."};
-    }
-    VenueRepository repository;
+    if (!owner || owner->get_account_type() != "Owner") return {false, u8"Vui lòng đăng nhập bằng tài khoản chủ sân trước khi tạo sân."};
+    if (loaiSan != 5 && loaiSan != 7 && loaiSan != 11) return {false, u8"Loại sân không hợp lệ."};
+    if (soLuong <= 0) return {false, u8"Số lượng sân cần tạo phải lớn hơn 0."};
+
     LinkedList<VenueFieldRecord> fields;
     std::string error;
-    if (!repository.loadFields(fields, error)) return {false, error};
-    int sequence = 1;
-    for (auto* node = fields.get_head(); node != nullptr; node = node->next) {
-        const std::string prefix = "S" + std::to_string(loaiSan) + "-";
-        if (node->data.fieldId.rfind(prefix, 0) == 0) {
+    if (!venue_repository_.loadFields(fields, error)) return {false, error};
+
+    int seq = 1;
+    const std::string prefix = "S" + std::to_string(loaiSan) + "-";
+    for (auto* n = fields.get_head(); n; n = n->next) {
+        if (n->data.fieldId.rfind(prefix, 0) == 0) {
             try {
-                const int existing = std::stoi(node->data.fieldId.substr(prefix.size()));
-                if (existing >= sequence) sequence = existing + 1;
-            } catch (const std::exception&) {
-                // Mã sân không theo hậu tố số được bỏ qua khi tạo mã mới.
-            }
+                int ex = std::stoi(n->data.fieldId.substr(prefix.size()));
+                if (ex >= seq) seq = ex + 1;
+            } catch (...) {}
         }
     }
-    FileManager fileManager;
-    FieldRepository fieldRepository(fileManager);
-    FieldService service(fieldRepository);
+
     for (int i = 0; i < soLuong; ++i) {
-        const int stt = sequence + i;
+        int stt = seq + i;
         char maBuf[16];
         std::snprintf(maBuf, sizeof(maBuf), "S%d-%02d", loaiSan, stt);
-        VenueFieldRecord newField;
-        newField.fieldId = maBuf;
-        newField.ownerId = owner->get_user_id();
-        newField.name = u8"Sân " + std::to_string(loaiSan) + u8" số " +
-                        (stt < 10 ? "0" : "") + std::to_string(stt);
-        newField.size = loaiSan;
-        newField.rules = quyDinh;
-        if (!service.createField(owner->get_user_id(), newField, error)) {
-            return {false, error};
-        }
-        SanBongInfo displayField;
-        displayField.maSan = newField.fieldId;
-        displayField.ownerUserId = newField.ownerId;
-        displayField.tenSan = newField.name;
-        displayField.loaiSan = newField.size;
-        displayField.quyDinh = newField.rules;
-        danhSachSan_.push_back(displayField);
+        VenueFieldRecord newF{maBuf, owner->get_user_id(),
+                              u8"Sân " + std::to_string(loaiSan) + u8" số " +
+                              (stt < 10 ? "0" : "") + std::to_string(stt),
+                              loaiSan, 0, quyDinh};
+        if (!field_service_.createField(owner->get_user_id(), newF, error)) return {false, error};
+        danhSachSan_.push_back({newF.fieldId, newF.ownerId, newF.name, newF.size, 0, false, newF.rules});
         outMaSan.push_back(maBuf);
     }
-    if (!repository.loadPrices(bangGiaCoSo_, error)) {
-        return {false, error};
-    }
+    venue_repository_.loadPrices(bangGiaCoSo_, error);
     return {true, ""};
 }
 
 KetQua Facade::suaSanBong(const std::string& maSan, const std::string& tenSan, int loaiSan, int giaThue) {
     (void)giaThue;
-    auto san = getSanBong(maSan);
-    if (!san) {
-        return {false, u8"Không tìm thấy sân bóng với mã: " + maSan};
-    }
+    auto* san = getSanBong(maSan);
+    if (!san) return {false, u8"Không tìm thấy sân bóng với mã: " + maSan};
     User* owner = Session::getInstance().getUser();
-    if (owner == nullptr) return {false, u8"Vui lòng đăng nhập lại."};
-    VenueRepository repository;
-    LinkedList<VenueFieldRecord> fields;
+    if (!owner) return {false, u8"Vui lòng đăng nhập lại."};
+
+    VenueFieldRecord updated{maSan, owner->get_user_id(), tenSan, loaiSan, san->dangBaoTri ? 1 : 0, san->quyDinh};
     std::string error;
-    if (!repository.loadFields(fields, error)) return {false, error};
-    VenueFieldRecord* updatedField = nullptr;
-    for (auto* node = fields.get_head(); node != nullptr; node = node->next) {
-        VenueFieldRecord& field = node->data;
-        if (field.fieldId != maSan) continue;
-        if (field.ownerId != owner->get_user_id()) {
-            return {false, u8"Không có quyền sửa sân của chủ sân khác."};
-        }
-        field.name = tenSan;
-        field.size = loaiSan;
-        updatedField = &field;
-        break;
-    }
-    if (updatedField == nullptr) {
-        return {false, u8"Không tìm thấy sân bóng cần cập nhật."};
-    }
-    VenueService venueService(repository);
-    if (!venueService.updateField(owner->get_user_id(), *updatedField, error)) {
-        return {false, error};
-    }
-    san->tenSan = tenSan;
-    san->loaiSan = loaiSan;
+    if (!venue_service_.updateField(owner->get_user_id(), updated, error)) return {false, error};
+    san->tenSan = tenSan; san->loaiSan = loaiSan;
     return {true, ""};
 }
 
 KetQua Facade::toggleBaoTriSan(const std::string& maSan) {
-    auto san = getSanBong(maSan);
-    if (!san) {
-        return {false, u8"Không tìm thấy sân bóng với mã: " + maSan};
-    }
+    auto* san = getSanBong(maSan);
+    if (!san) return {false, u8"Không tìm thấy sân bóng với mã: " + maSan};
     User* owner = Session::getInstance().getUser();
-    if (owner == nullptr) return {false, u8"Vui lòng đăng nhập lại."};
-    FileManager fileManager;
-    FieldRepository fieldRepository(fileManager);
-    FieldService service(fieldRepository);
+    if (!owner) return {false, u8"Vui lòng đăng nhập lại."};
+
+    FieldStatus status = san->dangBaoTri ? FieldStatus::ACTIVE : FieldStatus::MAINTENANCE;
     std::string error;
-    const FieldStatus status = san->dangBaoTri
-        ? FieldStatus::ACTIVE
-        : FieldStatus::MAINTENANCE;
-    if (!service.setFieldStatus(owner->get_user_id(), maSan, status, error)) {
-        return {false, error};
-    }
+    if (!field_service_.setFieldStatus(owner->get_user_id(), maSan, status, error)) return {false, error};
     san->dangBaoTri = !san->dangBaoTri;
     return {true, ""};
 }
 
 KetQua Facade::xoaSanBong(const std::string& maSan) {
     User* owner = Session::getInstance().getUser();
-    if (owner == nullptr || owner->get_account_type() != "Owner") {
-        return {false, u8"Vui lòng đăng nhập bằng tài khoản chủ sân."};
-    }
-    VenueRepository repository;
-    VenueService service(repository);
+    if (!owner || owner->get_account_type() != "Owner") return {false, u8"Vui lòng đăng nhập bằng tài khoản chủ sân."};
     std::string error;
-    if (!service.deleteField(owner->get_user_id(), maSan, error)) {
-        return {false, error};
-    }
-    auto it = std::remove_if(danhSachSan_.begin(), danhSachSan_.end(), [&](const SanBongInfo& s) {
-        return s.maSan == maSan && s.ownerUserId == owner->get_user_id();
-    });
-
-    if (it != danhSachSan_.end()) {
-        danhSachSan_.erase(it, danhSachSan_.end());
-        return {true, ""};
-    }
+    if (!venue_service_.deleteField(owner->get_user_id(), maSan, error)) return {false, error};
+    auto it = std::remove_if(danhSachSan_.begin(), danhSachSan_.end(),
+                             [&](const SanBongInfo& s) { return s.maSan == maSan && s.ownerUserId == owner->get_user_id(); });
+    if (it != danhSachSan_.end()) { danhSachSan_.erase(it, danhSachSan_.end()); return {true, ""}; }
     return {false, u8"Không tìm thấy sân bóng cần xóa."};
 }
 
-// ==========================================
-// 5. KHUNG GIỜ VÀ GIÁ THUÊ MA TRẬN
-// ==========================================
 std::vector<KhungGioInfo> Facade::getDanhSachKhungGio() const {
     std::vector<KhungGioInfo> slots;
     User* owner = Session::getInstance().getUser();
-    if (owner == nullptr || owner->get_account_type() != "Owner") return slots;
+    if (!owner || owner->get_account_type() != "Owner") return slots;
+
     LinkedList<VenueFacilityRecord> facilities;
-    VenueRepository repository;
     std::string error;
-    if (!repository.loadFacilities(facilities, error)) {
-        std::cerr << error << '\n';
-        return slots;
-    }
-    std::string openTime;
-    std::string closeTime;
-    int durationMinutes = 0;
-    for (auto* node = facilities.get_head(); node != nullptr; node = node->next) {
-        if (node->data.ownerId == owner->get_user_id()) {
-            openTime = node->data.openTime;
-            closeTime = node->data.closeTime;
-            durationMinutes = node->data.allows90Minutes
-                ? 90
-                : (node->data.allows60Minutes ? 60 : 0);
+    if (!venue_service_.getFacilities(facilities, error)) return slots;
+
+    std::string openTime, closeTime;
+    int dur = 0;
+    for (auto* n = facilities.get_head(); n; n = n->next) {
+        if (n->data.ownerId == owner->get_user_id()) {
+            openTime = n->data.openTime;
+            closeTime = n->data.closeTime;
+            dur = n->data.allows90Minutes ? 90 : (n->data.allows60Minutes ? 60 : 0);
             break;
         }
     }
-    if (durationMinutes == 0) return slots;
-    const auto minutes = [](const std::string& time) {
-        if (!DateTime::isValidTime(time)) return -1;
-        return std::stoi(time.substr(0, 2)) * 60 +
-               std::stoi(time.substr(3, 2));
-    };
-    const int opening = minutes(openTime);
-    const int closing = minutes(closeTime);
+    if (dur == 0) return slots;
+    const int op = gioSangPhut(openTime), cl = gioSangPhut(closeTime);
     std::map<std::string, bool> starts;
-    for (auto* node = bangGiaCoSo_.get_head(); node != nullptr; node = node->next) {
-        const VenuePriceRecord& price = node->data;
-        if (price.ownerId != owner->get_user_id() ||
-            price.durationMinutes != durationMinutes) {
-            continue;
-        }
-        const int start = minutes(price.startTime);
-        if (start < opening || start + durationMinutes > closing) continue;
-        starts[price.startTime] = true;
+    for (auto* n = bangGiaCoSo_.get_head(); n; n = n->next) {
+        if (n->data.ownerId != owner->get_user_id() || n->data.durationMinutes != dur) continue;
+        int s = gioSangPhut(n->data.startTime);
+        if (s >= op && s + dur <= cl) starts[n->data.startTime] = true;
     }
-    int index = 1;
+    int idx = 1;
     for (const auto& item : starts) {
-        const int start = minutes(item.first);
-        const int end = start + durationMinutes;
-        char endText[6];
-        std::snprintf(
-            endText, sizeof(endText), "%02d:%02d", end / 60, end % 60
-        );
-        char id[16];
-        std::snprintf(id, sizeof(id), "KG%02d", index++);
-        slots.push_back({
-            id, item.first, endText, start >= 17 * 60 && start < 21 * 60
-        });
+        int s = gioSangPhut(item.first), e = s + dur;
+        char endText[6], id[16];
+        std::snprintf(endText, sizeof(endText), "%02d:%02d", e / 60, e % 60);
+        std::snprintf(id, sizeof(id), "KG%02d", idx++);
+        slots.push_back({id, item.first, endText, s >= 17 * 60 && s < 21 * 60});
     }
     return slots;
 }
 
-namespace {
-int gioSangPhut(const std::string& timeStr) {
-    if (timeStr.length() == 5 && timeStr[2] == ':') {
-        int h = std::stoi(timeStr.substr(0, 2));
-        int m = std::stoi(timeStr.substr(3, 2));
-        return h * 60 + m;
-    }
-    return 0;
-}
-
-std::string phutSangGio(int totalMinutes) {
-    int h = (totalMinutes / 60) % 24;
-    int m = totalMinutes % 60;
-    std::ostringstream oss;
-    oss << std::setfill('0') << std::setw(2) << h << ":"
-        << std::setfill('0') << std::setw(2) << m;
-    return oss.str();
-}
-}  // namespace
-
 KetQua Facade::sinhKhungGioTuDong(const std::string& gioMo, const std::string& gioDong, int buocPhut) {
-    int startM = gioSangPhut(gioMo);
-    int endM = gioSangPhut(gioDong);
+    int startM = gioSangPhut(gioMo), endM = gioSangPhut(gioDong);
     User* owner = Session::getInstance().getUser();
-    if (owner == nullptr || owner->get_account_type() != "Owner") {
-        return {false, u8"Cần đăng nhập bằng tài khoản chủ sân để sửa giờ hoạt động."};
-    }
+    if (!owner || owner->get_account_type() != "Owner") return {false, u8"Cần đăng nhập bằng tài khoản chủ sân để sửa giờ hoạt động."};
     if (!DateTime::isValidTime(gioMo) || !DateTime::isValidTime(gioDong) ||
-        endM <= startM || (buocPhut != 60 && buocPhut != 90) ||
-        endM - startM < buocPhut) {
+        endM <= startM || (buocPhut != 60 && buocPhut != 90) || endM - startM < buocPhut) {
         return {false, u8"Giờ hoạt động hoặc thời lượng ca không hợp lệ."};
     }
-    VenueRepository repository;
-    VenueService service(repository);
     std::string error;
-    if (!service.updateFacilityHours(
-            owner->get_user_id(), gioMo, gioDong, buocPhut == 60,
-            buocPhut == 90, error)) {
+    if (!venue_service_.updateFacilityHours(owner->get_user_id(), gioMo, gioDong,
+                                           buocPhut == 60, buocPhut == 90, error)) {
         return {false, error};
     }
-    for (const auto& account : danhSachUser_) {
-        if (!account || account->get_user_id() != owner->get_user_id()) continue;
-        auto ownerAccount = std::dynamic_pointer_cast<Owner>(account);
-        if (ownerAccount) {
-            ownerAccount->set_open_time(gioMo);
-            ownerAccount->set_close_time(gioDong);
-            ownerAccount->setAllowedSlotDurations(
-                buocPhut == 60, buocPhut == 90
-            );
+    for (const auto& acc : danhSachUser_) {
+        if (acc && acc->get_user_id() == owner->get_user_id()) {
+            if (auto own = std::dynamic_pointer_cast<Owner>(acc)) {
+                own->set_open_time(gioMo); own->set_close_time(gioDong);
+                own->setAllowedSlotDurations(buocPhut == 60, buocPhut == 90);
+            }
+            break;
         }
-        break;
     }
-
     danhSachKhungGio_.clear();
-    int cur = startM;
-    int stt = 1;
-
+    int cur = startM, stt = 1;
     while (cur + buocPhut <= endM) {
         char idBuf[16];
-        std::snprintf(idBuf, sizeof(idBuf), "KG%02d", stt);
-
-        std::string startStr = phutSangGio(cur);
-        std::string endStr = phutSangGio(cur + buocPhut);
-
-        bool laVang = (cur >= 17 * 60 + 30 && cur < 20 * 60 + 30);
-        danhSachKhungGio_.push_back({idBuf, startStr, endStr, laVang});
-
+        std::snprintf(idBuf, sizeof(idBuf), "KG%02d", stt++);
+        danhSachKhungGio_.push_back({idBuf, phutSangGio(cur), phutSangGio(cur + buocPhut),
+                                    (cur >= 17 * 60 + 30 && cur < 20 * 60 + 30)});
         cur += buocPhut;
-        stt++;
     }
-    if (!repository.loadPrices(bangGiaCoSo_, error)) {
-        return {false, error};
-    }
+    venue_repository_.loadPrices(bangGiaCoSo_, error);
     return {true, ""};
 }
 
 int Facade::getGiaMaTran(const std::string& khungGioStr, int loaiSan) const {
     User* owner = Session::getInstance().getUser();
-    if (owner == nullptr || owner->get_account_type() != "Owner") return 0;
-    std::string start;
-    std::string end;
+    if (!owner || owner->get_account_type() != "Owner") return 0;
+    std::string start, end;
     int duration = 0;
     if (!tachKhungGio(khungGioStr, start, end, duration)) return 0;
-    for (auto* node = bangGiaCoSo_.get_head(); node != nullptr; node = node->next) {
-        const VenuePriceRecord& price = node->data;
-        if (price.ownerId == owner->get_user_id() &&
-            price.fieldSize == loaiSan && price.durationMinutes == duration &&
-            price.startTime == start) {
-            return static_cast<int>(price.priceVnd);
+    for (auto* n = bangGiaCoSo_.get_head(); n; n = n->next) {
+        const auto& p = n->data;
+        if (p.ownerId == owner->get_user_id() && p.fieldSize == loaiSan &&
+            p.durationMinutes == duration && p.startTime == start) {
+            return static_cast<int>(p.priceVnd);
         }
     }
     return 0;
 }
 
-KetQua Facade::capNhatGiaMaTran(
-    const std::string& khungGioStr,
-    int loaiSan,
-    int giaMoi,
-    bool apDungTatCaCungLoai
-) {
-    std::string start;
-    std::string end;
+KetQua Facade::capNhatGiaMaTran(const std::string& khungGioStr, int loaiSan, int giaMoi, bool apDungTatCaCungLoai) {
+    std::string start, end;
     int duration = 0;
-    if (!tachKhungGio(khungGioStr, start, end, duration)) {
-        return {false, u8"Khung giờ hoặc thời lượng không hợp lệ."};
-    }
+    if (!tachKhungGio(khungGioStr, start, end, duration)) return {false, u8"Khung giờ hoặc thời lượng không hợp lệ."};
     User* owner = Session::getInstance().getUser();
-    if (owner == nullptr || owner->get_account_type() != "Owner") {
-        return {false, u8"Cần đăng nhập bằng tài khoản chủ sân để sửa giá."};
-    }
-    VenueRepository repository;
-    VenueService service(repository);
+    if (!owner || owner->get_account_type() != "Owner") return {false, u8"Cần đăng nhập bằng tài khoản chủ sân để sửa giá."};
     std::string error;
-    if (!service.setFieldPrice(
-            owner->get_user_id(), loaiSan, duration, start, giaMoi, error,
-            apDungTatCaCungLoai)) {
+    if (!venue_service_.setFieldPrice(owner->get_user_id(), loaiSan, duration, start, giaMoi, error, apDungTatCaCungLoai)) {
         return {false, error};
     }
-    if (!repository.loadPrices(bangGiaCoSo_, error)) {
-        return {false, error};
-    }
+    venue_repository_.loadPrices(bangGiaCoSo_, error);
     return {true, ""};
 }
 
 std::map<std::pair<std::string, std::string>, Widgets::SlotInfo> Facade::getTinhTrangSlotTheoNgay(const std::string& ngay) {
     std::map<std::pair<std::string, std::string>, Widgets::SlotInfo> maTran;
     User* owner = Session::getInstance().getUser();
-    if (owner == nullptr || owner->get_account_type() != "Owner") return maTran;
+    if (!owner || owner->get_account_type() != "Owner") return maTran;
+
     LinkedList<VenueFieldRecord> fields;
     std::string error;
-    if (!getDanhSachSanTheoChuSan(owner->get_user_id(), 0, true, fields, error)) {
-        std::cerr << error << '\n';
-        return maTran;
-    }
+    if (!venue_service_.getFields(owner->get_user_id(), 0, true, fields, error)) return maTran;
+
     LinkedList<VenueFacilityRecord> facilities;
-    if (!getDanhSachCoSo(facilities, error)) {
-        std::cerr << error << '\n';
-        return maTran;
-    }
-    int durationMinutes = 0;
-    for (auto* node = facilities.get_head(); node != nullptr; node = node->next) {
-        if (node->data.ownerId != owner->get_user_id()) continue;
-        durationMinutes = node->data.allows90Minutes
-            ? 90
-            : (node->data.allows60Minutes ? 60 : 0);
-        break;
-    }
-    if (durationMinutes == 0) return maTran;
-    const std::vector<KhungGioInfo> ownerSlots = getDanhSachKhungGio();
-    for (auto* fieldNode = fields.get_head(); fieldNode != nullptr;
-         fieldNode = fieldNode->next) {
-        const VenueFieldRecord& field = fieldNode->data;
-        if (field.status != 0) {
-            for (const KhungGioInfo& slot : ownerSlots) {
-                Widgets::SlotInfo info;
-                info.status = Widgets::SlotStatus::BaoTri;
-                info.ghiChu = field.rules;
-                maTran[{field.fieldId, slot.batDau + " - " + slot.ketThuc}] = info;
-            }
-            continue;
+    if (!venue_service_.getFacilities(facilities, error)) return maTran;
+
+    int dur = 0;
+    for (auto* n = facilities.get_head(); n; n = n->next) {
+        if (n->data.ownerId == owner->get_user_id()) {
+            dur = n->data.allows90Minutes ? 90 : (n->data.allows60Minutes ? 60 : 0);
+            break;
         }
+    }
+    if (dur == 0) return maTran;
+
+    for (auto* fn = fields.get_head(); fn; fn = fn->next) {
         LinkedList<VenueSlotRecord> slots;
-        if (!getKhungGioSan(
-                field.fieldId, ngay, durationMinutes, slots, error, true)) {
-            std::cerr << error << '\n';
-            continue;
-        }
-        for (auto* slotNode = slots.get_head(); slotNode != nullptr;
-             slotNode = slotNode->next) {
-            const VenueSlotRecord& slot = slotNode->data;
+        if (!venue_service_.getSlots(fn->data.fieldId, ngay, dur, slots, error, true)) continue;
+        for (auto* sn = slots.get_head(); sn; sn = sn->next) {
+            std::string slotKey = sn->data.startTime + " - " + sn->data.endTime;
             Widgets::SlotInfo info;
-            info.status = !slot.bookingId.empty()
-                ? Widgets::SlotStatus::DaDat
-                : (slot.past
-                    ? Widgets::SlotStatus::DaQua
-                    : Widgets::SlotStatus::Trong);
-            info.giaTien = static_cast<int>(slot.priceVnd);
-            info.ghiChu = slot.bookingId;
-            maTran[{field.fieldId, slot.startTime + " - " + slot.endTime}] = info;
+            if (fn->data.status != 0) {
+                info.status = Widgets::SlotStatus::BaoTri;
+                info.ghiChu = fn->data.rules;
+            } else {
+                info.status = !sn->data.bookingId.empty() ? Widgets::SlotStatus::DaDat
+                            : (sn->data.past ? Widgets::SlotStatus::DaQua : Widgets::SlotStatus::Trong);
+                info.giaTien = static_cast<int>(sn->data.priceVnd);
+                info.ghiChu = sn->data.bookingId;
+            }
+            maTran[{fn->data.fieldId, slotKey}] = info;
         }
     }
     return maTran;
 }
 
-// ==========================================
-// 6. QUẢN LÝ KHÁCH HÀNG, ƯU ĐÃI & DANH SÁCH ĐEN
-// ==========================================
-std::vector<KhachHangInfo> Facade::getDanhSachKhachHang() const {
-    return danhSachKhachHang_;
-}
+std::vector<KhachHangInfo> Facade::getDanhSachKhachHang() const { return danhSachKhachHang_; }
 
 std::vector<KhachHangInfo> Facade::getDanhSachKhachHangCuaChuSan() const {
     User* owner = Session::getInstance().getUser();
-    std::vector<KhachHangInfo> customers;
-    if (owner == nullptr || owner->get_account_type() != "Owner") {
-        return customers;
-    }
-    const std::string ownerId = owner->get_user_id();
-    ReportRepository repository;
-    LinkedList<ReportBookingRecord> bookings;
-    std::string error;
-    if (!repository.loadBookings(bookings, error)) {
-        std::cerr << error << '\n';
-        return customers;
-    }
-    for (auto* node = bookings.get_head(); node != nullptr; node = node->next) {
-        const ReportBookingRecord& booking = node->data;
-        if (booking.ownerUserId != ownerId) {
-            continue;
-        }
-        auto found = std::find_if(
-            customers.begin(),
-            customers.end(),
-            [&booking](const KhachHangInfo& customer) {
-                return customer.sdt == booking.customerPhone;
-            }
-        );
-        if (found == customers.end()) {
-            KhachHangInfo customer;
-            customer.id = booking.customerId;
-            customer.hoTen = booking.customerName;
-            customer.sdt = booking.customerPhone;
-            auto existing = std::find_if(
-                danhSachKhachHang_.begin(),
-                danhSachKhachHang_.end(),
-                [&booking](const KhachHangInfo& item) {
-                    return item.sdt == booking.customerPhone;
-                }
-            );
-            if (existing != danhSachKhachHang_.end()) {
-                customer.biChan = existing->biChan;
-                customer.lyDoChan = existing->lyDoChan;
-                customer.ngayChan = existing->ngayChan;
-            }
-            customers.push_back(customer);
-            found = customers.end() - 1;
-        }
-        if (booking.status == "COMPLETED" ||
-            booking.status == u8"Đã hoàn thành" ||
-            booking.status == u8"Đã thanh toán") {
-            ++found->soLanDat;
-        } else if (booking.status == "CANCELLED" ||
-                   booking.status == u8"Đã hủy") {
-            ++found->soLanHuy;
-        }
-    }
-
-    for (KhachHangInfo& customer : customers) {
-        if (customer.biChan) {
-            continue;
-        }
-        for (const NguongUuDai& threshold : danhSachNguongUuDai_) {
-            if (customer.soLanDat >= threshold.soLanToiThieu) {
-                customer.mucUuDaiPhanTram = threshold.phanTramGiam;
-            }
-        }
-    }
-    return customers;
+    if (!owner) return danhSachKhachHang_;
+    std::unordered_map<std::string, bool> booked;
+    for (const auto& b : danhSachDonDat_) if (b.ownerUserId == owner->get_user_id()) booked[b.sdt] = true;
+    std::vector<KhachHangInfo> list;
+    for (const auto& kh : danhSachKhachHang_) if (booked[kh.sdt] || kh.biChan) list.push_back(kh);
+    return list;
 }
 
-// LÝ DO CHỌN: HashTable tra cứu theo SĐT với thời gian O(1) trung bình,
-// tối ưu hóa hiệu năng khi hệ thống có hàng nghìn khách hàng tra cứu đồng thời.
 KhachHangInfo* Facade::timKhachHangTheoSDT(const std::string& sdt) {
-    auto it = mapIndexKhachSDT_.find(sdt);
-    if (it != mapIndexKhachSDT_.end() && it->second < danhSachKhachHang_.size()) {
-        return &danhSachKhachHang_[it->second];
-    }
+    // LÝ DO CHỌN: HashTable tra cứu chỉ mục khách hàng theo SĐT trong O(1).
+    size_t idx = 0;
+    if (mapIndexKhachSDT_.search(sdt, idx) && idx < danhSachKhachHang_.size()) return &danhSachKhachHang_[idx];
     return nullptr;
 }
 
-// LÝ DO CHỌN: LinkedList quản lý danh sách đen, tối ưu cho các thao tác
-// thêm và xóa phần tử (chặn / gỡ chặn) diễn ra thường xuyên mà không phải dịch chuyển mảng.
 std::vector<KhachHangInfo> Facade::getDanhSachDen() const {
-    std::vector<KhachHangInfo> dsDen;
-    for (const auto& kh : getDanhSachKhachHangCuaChuSan()) {
-        if (kh.biChan) {
-            dsDen.push_back(kh);
-        }
-    }
-    return dsDen;
+    std::vector<KhachHangInfo> ds;
+    for (const auto& kh : danhSachKhachHang_) if (kh.biChan) ds.push_back(kh);
+    return ds;
 }
 
 std::vector<KhachHangInfo> Facade::getDeXuatChan(int soLanHuyToiThieu) const {
     std::vector<KhachHangInfo> deXuat;
-    for (const auto& kh : getDanhSachKhachHangCuaChuSan()) {
-        if (!kh.biChan && kh.soLanHuy >= soLanHuyToiThieu) {
-            deXuat.push_back(kh);
-        }
+    LinkedList<Customer> candidates;
+    std::string error;
+    customer_service_.getBlacklistCandidates(soLanHuyToiThieu, candidates, error);
+    for (auto* n = candidates.get_head(); n; n = n->next) {
+        deXuat.push_back({n->data.getUserId(), n->data.get_name(), n->data.get_phone_number(),
+                          n->data.getBookingCount(), n->data.getCancelCount(), false, "", "", 0});
     }
     return deXuat;
 }
 
 KetQua Facade::themVaoDanhSachDen(const std::string& sdt, const std::string& lyDo) {
-    auto kh = timKhachHangTheoSDT(sdt);
-    if (!kh) {
-        return {false, u8"Không tìm thấy khách hàng với SĐT: " + sdt};
+    std::string error;
+    if (!customer_service_.addToBlacklist(sdt, lyDo, error)) return {false, error};
+    auto* kh = timKhachHangTheoSDT(sdt);
+    if (kh) {
+        kh->biChan = true;
+        kh->lyDoChan = lyDo.empty() ? u8"Hủy sân nhiều lần không thông báo trước" : lyDo;
+        kh->ngayChan = DateTime::today();
+        kh->mucUuDaiPhanTram = 0;
     }
-
-    kh->biChan = true;
-    kh->lyDoChan = lyDo.empty() ? u8"Hủy sân nhiều lần không thông báo trước" : lyDo;
-    kh->ngayChan = DateTime::today();
-    kh->mucUuDaiPhanTram = 0; // Tước quyền ưu đãi khi bị chặn
-
     return {true, ""};
 }
 
 KetQua Facade::goKhoiDanhSachDen(const std::string& sdt) {
-    auto kh = timKhachHangTheoSDT(sdt);
-    if (!kh) {
-        return {false, u8"Không tìm thấy khách hàng với SĐT: " + sdt};
-    }
-
-    kh->biChan = false;
-    kh->lyDoChan.clear();
-    kh->ngayChan.clear();
-
+    std::string error;
+    if (!customer_service_.removeFromBlacklist(sdt, error)) return {false, error};
+    auto* kh = timKhachHangTheoSDT(sdt);
+    if (kh) { kh->biChan = false; kh->lyDoChan.clear(); kh->ngayChan.clear(); }
     return {true, ""};
 }
 
-std::vector<NguongUuDai> Facade::getNguongUuDai() const {
-    return danhSachNguongUuDai_;
-}
+std::vector<NguongUuDai> Facade::getNguongUuDai() const { return danhSachNguongUuDai_; }
 
 KetQua Facade::capNhatNguongUuDai(int id, int soLanToiThieu, int phanTramGiam) {
+    std::string error;
+    if (!customer_service_.updateDiscountThreshold(id, soLanToiThieu, phanTramGiam, error)) return {false, error};
     for (auto& n : danhSachNguongUuDai_) {
-        if (n.id == id) {
-            n.soLanToiThieu = soLanToiThieu;
-            n.phanTramGiam = phanTramGiam;
-            return {true, ""};
-        }
+        if (n.id == id) { n.soLanToiThieu = soLanToiThieu; n.phanTramGiam = phanTramGiam; break; }
     }
-    return {false, u8"Không tìm thấy ngưỡng ưu đãi cần sửa."};
+    return {true, ""};
 }
 
 KetQua Facade::apDungUuDaiChoKhach() {
-    // Sắp xếp các ngưỡng ưu đãi theo số lần đặt giảm dần
-    auto nguongSort = danhSachNguongUuDai_;
-    std::sort(nguongSort.begin(), nguongSort.end(), [](const NguongUuDai& a, const NguongUuDai& b) {
-        return a.soLanToiThieu > b.soLanToiThieu;
-    });
-
+    std::string error;
+    customer_service_.applyDiscountsToAll(error);
     for (auto& kh : danhSachKhachHang_) {
-        if (kh.biChan) {
-            kh.mucUuDaiPhanTram = 0;
-            continue;
-        }
-
-        kh.mucUuDaiPhanTram = 0;
-        for (const auto& n : nguongSort) {
-            if (kh.soLanDat >= n.soLanToiThieu) {
-                kh.mucUuDaiPhanTram = n.phanTramGiam;
-                break;
-            }
-        }
+        kh.mucUuDaiPhanTram = customer_service_.getCustomerDiscountPercentage(kh.sdt, error);
     }
-
     return {true, ""};
 }
-
-// LÝ DO CHỌN: LinkedList quản lý danh sách đánh giá nhận xét,
-// cho phép chèn các đánh giá mới nhất lên đầu danh sách với độ phức tạp O(1).
 std::vector<DanhGiaInfo> Facade::getDanhSachDanhGia() const {
     User* owner = Session::getInstance().getUser();
     std::vector<DanhGiaInfo> reviews;
-    if (owner == nullptr) {
-        return reviews;
-    }
-    for (const DanhGiaInfo& review : danhSachDanhGia_) {
-        const SanBongInfo* field = nullptr;
-        for (const SanBongInfo& candidate : danhSachSan_) {
-            if (candidate.maSan == review.maSan) {
-                field = &candidate;
-                break;
-            }
-        }
-        if (field != nullptr && field->ownerUserId == owner->get_user_id()) {
-            reviews.push_back(review);
+    if (!owner) return reviews;
+    for (const auto& r : danhSachDanhGia_) {
+        for (const auto& f : danhSachSan_) {
+            if (f.maSan == r.maSan && f.ownerUserId == owner->get_user_id()) { reviews.push_back(r); break; }
         }
     }
     return reviews;
 }
 
 float Facade::getDiemTrungBinhToanCoSo() const {
-    const std::vector<DanhGiaInfo> reviews = getDanhSachDanhGia();
-    if (reviews.empty()) return 0.0f;
-    float sum = 0.0f;
-    for (const auto& dg : reviews) {
-        sum += dg.soSao;
-    }
-    return sum / static_cast<float>(reviews.size());
+    float score = 0.0f; std::string err;
+    return customer_service_.getAverageRatingOverall(score, err) ? score : 0.0f;
 }
 
 std::map<std::string, float> Facade::getDiemTrungBinhTungSan() const {
-    std::map<std::string, std::pair<float, int>> sumCount;
-    // Khởi tạo các sân hiện có với điểm mặc định
-    for (const auto& s : getDanhSachSanBongCuaChuSan()) {
-        sumCount[s.maSan] = {0.0f, 0};
-    }
-
-    for (const auto& dg : getDanhSachDanhGia()) {
-        sumCount[dg.maSan].first += dg.soSao;
-        sumCount[dg.maSan].second++;
-    }
-
-    std::map<std::string, float> result;
-    for (const auto& item : sumCount) {
-        if (item.second.second > 0) {
-            result[item.first] = item.second.first / static_cast<float>(item.second.second);
-        } else {
-            result[item.first] = 0.0f;
+    std::map<std::string, float> result, ratings;
+    for (const auto& s : getDanhSachSanBongCuaChuSan()) result[s.maSan] = 0.0f;
+    std::string err;
+    if (customer_service_.getAverageRatingsMap(ratings, err)) {
+        for (auto& item : result) {
+            auto it = ratings.find(item.first);
+            if (it != ratings.end()) item.second = it->second;
         }
     }
     return result;
@@ -1228,583 +624,260 @@ std::map<std::string, float> Facade::getDiemTrungBinhTungSan() const {
 
 std::vector<DonDatSanInfo> Facade::getLichSuDatCuaKhach(const std::string& sdt) const {
     std::vector<DonDatSanInfo> lichSu;
-    ReportRepository repository;
-    LinkedList<ReportBookingRecord> bookings;
-    std::string error;
-    if (!repository.loadBookings(bookings, error)) {
-        std::cerr << error << '\n';
-        return lichSu;
-    }
-    for (auto* node = bookings.get_head(); node != nullptr; node = node->next) {
-        if (node->data.customerPhone == sdt) {
-            lichSu.push_back(toBookingInfo(node->data));
-        }
-    }
+    for (const auto& b : danhSachDonDat_) if (b.sdt == sdt) lichSu.push_back(b);
     return lichSu;
 }
 
-std::vector<DonDatSanInfo> Facade::getLichSuDatCuaKhachCuaChuSan(
-    const std::string& sdt
-) const {
+std::vector<DonDatSanInfo> Facade::getLichSuDatCuaKhachCuaChuSan(const std::string& sdt) const {
     User* owner = Session::getInstance().getUser();
     std::vector<DonDatSanInfo> history;
-    if (owner == nullptr) {
-        return history;
-    }
-    ReportRepository repository;
-    LinkedList<ReportBookingRecord> bookings;
-    std::string error;
-    if (!repository.loadBookings(bookings, error)) {
-        std::cerr << error << '\n';
-        return history;
-    }
-    for (auto* node = bookings.get_head(); node != nullptr; node = node->next) {
-        if (node->data.customerPhone == sdt &&
-            node->data.ownerUserId == owner->get_user_id()) {
-            history.push_back(toBookingInfo(node->data));
-        }
-    }
+    if (!owner) return history;
+    for (const auto& b : getLichSuDatCuaKhach(sdt)) if (b.ownerUserId == owner->get_user_id()) history.push_back(b);
     return history;
 }
 
 std::vector<DanhGiaInfo> Facade::getDanhGiaCuaKhach(const std::string& sdt) const {
-    std::vector<DanhGiaInfo> dgs;
-    for (const auto& dg : danhSachDanhGia_) {
-        if (dg.sdt == sdt) {
-            dgs.push_back(dg);
-        }
-    }
-    return dgs;
+    std::vector<DanhGiaInfo> list;
+    for (const auto& r : danhSachDanhGia_) if (r.sdt == sdt) list.push_back(r);
+    return list;
 }
 
-std::vector<DanhGiaInfo> Facade::getDanhGiaCuaKhachCuaChuSan(
-    const std::string& sdt
-) const {
-    std::vector<DanhGiaInfo> reviews;
-    for (const DanhGiaInfo& review : getDanhSachDanhGia()) {
-        if (review.sdt == sdt) {
-            reviews.push_back(review);
+std::vector<DanhGiaInfo> Facade::getDanhGiaCuaKhachCuaChuSan(const std::string& sdt) const {
+    User* owner = Session::getInstance().getUser();
+    std::vector<DanhGiaInfo> list;
+    if (!owner) return list;
+    for (const auto& r : getDanhGiaCuaKhach(sdt)) {
+        for (const auto& s : danhSachSan_) {
+            if (s.maSan == r.maSan && s.ownerUserId == owner->get_user_id()) { list.push_back(r); break; }
         }
     }
-    return reviews;
+    return list;
 }
 
-namespace {
-
-// Chuyển đổi chuỗi ngày "DD/MM/YYYY" hoặc "YYYY-MM-DD" thành số nguyên YYYYMMDD để so sánh khoảng thời gian
-int parseNgaySangSo(const std::string& str) {
-    if (str.length() == 10) {
-        if (str[2] == '/' && str[5] == '/') {
-            try {
-                int d = std::stoi(str.substr(0, 2));
-                int m = std::stoi(str.substr(3, 2));
-                int y = std::stoi(str.substr(6, 4));
-                return y * 10000 + m * 100 + d;
-            } catch (...) {}
-        } else if (str[4] == '-' && str[7] == '-') {
-            try {
-                int y = std::stoi(str.substr(0, 4));
-                int m = std::stoi(str.substr(5, 2));
-                int d = std::stoi(str.substr(8, 2));
-                return y * 10000 + m * 100 + d;
-            } catch (...) {}
-        }
-    }
-    return 0;
-}
-
-}  // namespace
-
-// ==========================================
-// 7. QUẢN LÝ GIẢI ĐẤU & SỰ KIỆN SÂN BÓNG
-// ==========================================
 std::vector<GiaiDauInfo> Facade::getDanhSachGiaiDau() const {
     User* owner = Session::getInstance().getUser();
-    std::vector<GiaiDauInfo> tournaments;
-    if (owner == nullptr || owner->get_account_type() != "Owner") {
-        return tournaments;
-    }
-    for (const GiaiDauInfo& tournament : danhSachGiaiDau_) {
-        for (const SanBongInfo& field : danhSachSan_) {
-            if (field.maSan == tournament.maSan &&
-                field.ownerUserId == owner->get_user_id()) {
-                tournaments.push_back(tournament);
-                break;
-            }
+    std::vector<GiaiDauInfo> list;
+    if (!owner || owner->get_account_type() != "Owner") return list;
+    for (const auto& g : danhSachGiaiDau_) {
+        for (const auto& f : danhSachSan_) {
+            if (f.maSan == g.maSan && f.ownerUserId == owner->get_user_id()) { list.push_back(g); break; }
         }
     }
-    return tournaments;
+    return list;
 }
 
 std::vector<GiaiDauInfo> Facade::getYeuCauGiaiDauChoDuyet() const {
     std::vector<GiaiDauInfo> ds;
-    for (const auto& g : getDanhSachGiaiDau()) {
-        if (g.trangThai == TrangThaiGiaiDau::ChoDuyet) {
-            ds.push_back(g);
-        }
-    }
+    for (const auto& g : getDanhSachGiaiDau()) if (g.trangThai == TrangThaiGiaiDau::ChoDuyet) ds.push_back(g);
     return ds;
 }
 
-int Facade::getSoLuongYeuCauChoDuyet() const {
-    return static_cast<int>(getYeuCauGiaiDauChoDuyet().size());
-}
+int Facade::getSoLuongYeuCauChoDuyet() const { return static_cast<int>(getYeuCauGiaiDauChoDuyet().size()); }
 
 GiaiDauInfo* Facade::getGiaiDau(const std::string& maGiai) {
     User* owner = Session::getInstance().getUser();
-    if (owner == nullptr || owner->get_account_type() != "Owner") return nullptr;
+    if (!owner || owner->get_account_type() != "Owner") return nullptr;
     for (auto& g : danhSachGiaiDau_) {
         if (g.maGiai != maGiai) continue;
-        for (const SanBongInfo& field : danhSachSan_) {
-            if (field.maSan == g.maSan &&
-                field.ownerUserId == owner->get_user_id()) {
-                return &g;
-            }
+        for (const auto& f : danhSachSan_) {
+            if (f.maSan == g.maSan && f.ownerUserId == owner->get_user_id()) return &g;
         }
     }
     return nullptr;
 }
 
 KetQua Facade::duyetGiaiDau(const std::string& maGiai) {
-    User* owner = Session::getInstance().getUser();
-    GiaiDauInfo* target = getGiaiDau(maGiai);
-    if (owner == nullptr || target == nullptr) {
-        return {false, u8"Lỗi: Không tìm thấy giải đấu có mã " + maGiai};
+    std::string error;
+    if (!tournament_service_.duyetGiaiDau(maGiai, error)) return {false, error};
+    for (auto& g : danhSachGiaiDau_) {
+        if (g.maGiai == maGiai) { g.trangThai = TrangThaiGiaiDau::DaDuyet; break; }
     }
-    std::string ownerError;
-    if (!ownerOwnsField(owner->get_user_id(), target->maSan, ownerError)) {
-        return {false, ownerError};
-    }
-    const std::string startDate = DateTime::toIsoDate(target->ngayBatDau);
-    const std::string endDate = DateTime::toIsoDate(target->ngayKetThuc);
-    if (startDate.empty() || DateTime::isPastDate(startDate)) {
-        return {false, u8"Không thể duyệt giải có ngày bắt đầu đã qua hoặc không hợp lệ."};
-    }
-    if (endDate.empty() || DateTime::compareDate(endDate, startDate) < 0) {
-        return {false, u8"Ngày kết thúc phải bằng hoặc sau ngày bắt đầu."};
-    }
-
-    // LÝ DO CHỌN: Kiểm tra trùng lịch sân bóng thuộc tầng nghiệp vụ, GUI chỉ hiển thị kết quả.
-    int tStart = parseNgaySangSo(target->ngayBatDau);
-    int tEnd   = parseNgaySangSo(target->ngayKetThuc);
-
-    for (const auto& g : danhSachGiaiDau_) {
-        if (g.maGiai != maGiai && (g.trangThai == TrangThaiGiaiDau::DaDuyet || g.trangThai == TrangThaiGiaiDau::DangDienRa)) {
-            if (g.maSan == target->maSan) {
-                int gStart = parseNgaySangSo(g.ngayBatDau);
-                int gEnd   = parseNgaySangSo(g.ngayKetThuc);
-
-                if (tStart <= gEnd && tEnd >= gStart) {
-                    return {
-                        false,
-                        u8"Lỗi nghiệp vụ: Trùng lịch sân " + target->maSan +
-                        u8" (Thời gian " + target->ngayBatDau + u8" - " + target->ngayKetThuc +
-                        u8") với giải đã duyệt \"" + g.tenGiai + u8"\" (" + g.maGiai + u8")!"
-                    };
-                }
-            }
-        }
-    }
-
-    target->trangThai = TrangThaiGiaiDau::DaDuyet;
-    luuDuLieu();
     return {true, ""};
 }
 
 KetQua Facade::tuChoiGiaiDau(const std::string& maGiai, const std::string& lyDo) {
-    User* owner = Session::getInstance().getUser();
-    GiaiDauInfo* target = getGiaiDau(maGiai);
-    if (owner == nullptr || target == nullptr) {
-        return {false, u8"Không tìm thấy giải đấu cần từ chối."};
+    std::string error;
+    if (!tournament_service_.tuChoiGiaiDau(maGiai, lyDo, error)) return {false, error};
+    for (auto& g : danhSachGiaiDau_) {
+        if (g.maGiai == maGiai) {
+            g.trangThai = TrangThaiGiaiDau::TuChoi;
+            g.ghiChuTuChoi = lyDo.empty() ? u8"Trùng lịch sân hoặc quy mô không phù hợp." : lyDo;
+            break;
+        }
     }
-    std::string ownerError;
-    if (!ownerOwnsField(owner->get_user_id(), target->maSan, ownerError)) {
-        return {false, ownerError};
-    }
-    target->trangThai = TrangThaiGiaiDau::TuChoi;
-    target->ghiChuTuChoi = lyDo.empty() ? u8"Trùng lịch sân hoặc quy mô không phù hợp." : lyDo;
-    luuDuLieu();
     return {true, ""};
 }
 
 KetQua Facade::taoGiaiDauThuCong(const GiaiDauInfo& giaiMoi) {
-    User* owner = Session::getInstance().getUser();
-    if (owner == nullptr || owner->get_account_type() != "Owner") {
-        return {false, u8"Cần đăng nhập bằng tài khoản chủ sân."};
-    }
-    if (giaiMoi.tenGiai.empty()) {
-        return {false, u8"Tên giải đấu không được để trống!"};
-    }
-    const std::string startDate = DateTime::toIsoDate(giaiMoi.ngayBatDau);
-    const std::string endDate = DateTime::toIsoDate(giaiMoi.ngayKetThuc);
-    if (startDate.empty() || DateTime::isPastDate(startDate)) {
-        return {false, u8"Ngày bắt đầu giải không hợp lệ hoặc đã qua."};
-    }
-    if (endDate.empty() || DateTime::compareDate(endDate, startDate) < 0) {
-        return {false, u8"Ngày kết thúc phải bằng hoặc sau ngày bắt đầu."};
-    }
-    std::string ownerError;
-    if (!ownerOwnsField(owner->get_user_id(), giaiMoi.maSan, ownerError)) {
-        return {false, ownerError};
-    }
-
-    // Kiểm tra trùng lịch sân với các giải khác đã duyệt
-    int tStart = parseNgaySangSo(giaiMoi.ngayBatDau);
-    int tEnd   = parseNgaySangSo(giaiMoi.ngayKetThuc);
-
-    for (const auto& g : danhSachGiaiDau_) {
-        if (g.trangThai == TrangThaiGiaiDau::DaDuyet || g.trangThai == TrangThaiGiaiDau::DangDienRa) {
-            if (g.maSan == giaiMoi.maSan) {
-                int gStart = parseNgaySangSo(g.ngayBatDau);
-                int gEnd   = parseNgaySangSo(g.ngayKetThuc);
-                if (tStart <= gEnd && tEnd >= gStart) {
-                    return {
-                        false,
-                        u8"Lỗi nghiệp vụ: Sân " + giaiMoi.maSan + u8" đã có giải đấu \"" +
-                        g.tenGiai + u8"\" diễn ra trong khoảng thời gian này!"
-                    };
-                }
-            }
-        }
-    }
-
+    Tournament t(giaiMoi.maGiai, giaiMoi.sdtKhach, giaiMoi.tenGiai, giaiMoi.maSan,
+                 giaiMoi.ngayBatDau, giaiMoi.ngayKetThuc, giaiMoi.moTa,
+                 TournamentStatus::CONFIRMED, "", giaiMoi.tenKhachDat,
+                 giaiMoi.khungGio, giaiMoi.ghiChuTuChoi);
+    std::string outId, error;
+    if (!tournament_service_.taoGiaiDauThuCong(t, outId, error)) return {false, error};
     GiaiDauInfo g = giaiMoi;
-    if (g.maGiai.empty()) {
-        char buf[32];
-        std::snprintf(buf, sizeof(buf), "GD-%02zu", danhSachGiaiDau_.size() + 1);
-        g.maGiai = buf;
-    }
+    g.maGiai = outId;
     g.trangThai = TrangThaiGiaiDau::DaDuyet;
     danhSachGiaiDau_.push_back(g);
-    luuDuLieu();
     return {true, ""};
 }
 
 KetQua Facade::suaGiaiDau(const GiaiDauInfo& giaiCapNhat) {
-    User* owner = Session::getInstance().getUser();
-    GiaiDauInfo* target = getGiaiDau(giaiCapNhat.maGiai);
-    if (owner == nullptr || target == nullptr) {
-        return {false, u8"Không tìm thấy giải đấu để cập nhật."};
+    Tournament t(giaiCapNhat.maGiai, giaiCapNhat.sdtKhach, giaiCapNhat.tenGiai, giaiCapNhat.maSan,
+                 giaiCapNhat.ngayBatDau, giaiCapNhat.ngayKetThuc, giaiCapNhat.moTa,
+                 static_cast<TournamentStatus>(static_cast<int>(giaiCapNhat.trangThai)),
+                 "", giaiCapNhat.tenKhachDat, giaiCapNhat.khungGio, giaiCapNhat.ghiChuTuChoi);
+    std::string error;
+    if (!tournament_service_.suaGiaiDau(t, error)) return {false, error};
+    for (auto& g : danhSachGiaiDau_) {
+        if (g.maGiai == giaiCapNhat.maGiai) { g = giaiCapNhat; break; }
     }
-    std::string ownerError;
-    if (!ownerOwnsField(owner->get_user_id(), giaiCapNhat.maSan, ownerError)) {
-        return {false, ownerError};
-    }
-    const std::string startDate = DateTime::toIsoDate(giaiCapNhat.ngayBatDau);
-    const std::string endDate = DateTime::toIsoDate(giaiCapNhat.ngayKetThuc);
-    if (startDate.empty() || endDate.empty() ||
-        DateTime::compareDate(endDate, startDate) < 0) {
-        return {false, u8"Ngày kết thúc phải bằng hoặc sau ngày bắt đầu; ngày phải hợp lệ."};
-    }
-    const std::string previousStart = DateTime::toIsoDate(target->ngayBatDau);
-    const bool startDateChanged = startDate != previousStart;
-    if (startDateChanged && DateTime::isPastDate(startDate)) {
-        return {false, u8"Ngày bắt đầu giải không được ở trong quá khứ."};
-    }
-
-    int tStart = parseNgaySangSo(giaiCapNhat.ngayBatDau);
-    int tEnd   = parseNgaySangSo(giaiCapNhat.ngayKetThuc);
-
-    for (const auto& g : danhSachGiaiDau_) {
-        if (g.maGiai != giaiCapNhat.maGiai && (g.trangThai == TrangThaiGiaiDau::DaDuyet || g.trangThai == TrangThaiGiaiDau::DangDienRa)) {
-            if (g.maSan == giaiCapNhat.maSan) {
-                int gStart = parseNgaySangSo(g.ngayBatDau);
-                int gEnd   = parseNgaySangSo(g.ngayKetThuc);
-                if (tStart <= gEnd && tEnd >= gStart) {
-                    return {
-                        false,
-                        u8"Lỗi nghiệp vụ: Sân " + giaiCapNhat.maSan + u8" đã có giải \"" +
-                        g.tenGiai + u8"\" trong khoảng thời gian này!"
-                    };
-                }
-            }
-        }
-    }
-
-    *target = giaiCapNhat;
-    luuDuLieu();
     return {true, ""};
 }
 
 KetQua Facade::huyGiaiDau(const std::string& maGiai) {
-    GiaiDauInfo* target = getGiaiDau(maGiai);
-    if (target == nullptr) {
-        return {false, u8"Không tìm thấy giải đấu cần hủy."};
-    }
-    for (size_t i = 0; i < danhSachGiaiDau_.size(); ++i) {
-        if (danhSachGiaiDau_[i].maGiai == target->maGiai) {
-            danhSachGiaiDau_.erase(danhSachGiaiDau_.begin() + i);
-            luuDuLieu();
-            return {true, ""};
-        }
-    }
-    return {false, u8"Không tìm thấy giải đấu cần hủy."};
+    std::string error;
+    if (!tournament_service_.huyGiaiDau(maGiai, error)) return {false, error};
+    auto it = std::remove_if(danhSachGiaiDau_.begin(), danhSachGiaiDau_.end(),
+                             [&](const GiaiDauInfo& g) { return g.maGiai == maGiai; });
+    if (it != danhSachGiaiDau_.end()) danhSachGiaiDau_.erase(it, danhSachGiaiDau_.end());
+    return {true, ""};
 }
 
-// ==========================================
-// 8. NGHIỆP VỤ DÀNH CHO NGƯỜI THUÊ SÂN
-// ==========================================
 bool Facade::laKhachHangBiChan(const std::string& sdt) const {
-    std::string customerId = sdt;
-    for (const auto& user : danhSachUser_) {
-        if (user && user->get_phone_number() == sdt) {
-            customerId = user->get_user_id();
-            break;
-        }
-    }
-    VenueRepository repository;
-    std::string reason;
-    std::string error;
-    const bool blocked =
-        repository.isCustomerBlacklisted(customerId, sdt, reason, error);
-    if (!error.empty()) std::cerr << error << '\n';
-    return blocked;
+    bool b = false; std::string r; customer_service_.isBlacklisted(sdt, b, r); return b;
 }
 
 int Facade::getSoLanHuyCuaKhach(const std::string& sdt) const {
-    int count = 0;
-    for (const DonDatSanInfo& booking : getLichSuDatCuaKhach(sdt)) {
-        if (booking.trangThai == "CANCELLED" ||
-            booking.trangThai == u8"Đã hủy") {
-            ++count;
-        }
-    }
-    return count;
+    Customer c("", "", "", "", ""); std::string err;
+    return customer_service_.findCustomer(sdt, c, err) ? c.getCancelCount() : 0;
 }
 
 int Facade::getSoLanDatCuaKhach(const std::string& sdt) const {
-    int count = 0;
-    for (const DonDatSanInfo& booking : getLichSuDatCuaKhach(sdt)) {
-        if (booking.sdt == sdt &&
-            (booking.trangThai == u8"Đã hoàn thành" ||
-             booking.trangThai == u8"Đã thanh toán")) {
-            ++count;
-        }
-    }
-    return count;
+    Customer c("", "", "", "", ""); std::string err;
+    return customer_service_.findCustomer(sdt, c, err) ? c.getBookingCount() : 0;
 }
 
 int Facade::getMucUuDaiCuaKhach(const std::string& sdt) const {
-    if (laKhachHangBiChan(sdt)) {
-        return 0;
-    }
-    const int bookings = getSoLanDatCuaKhach(sdt);
-    int discount = 0;
-    for (const NguongUuDai& threshold : danhSachNguongUuDai_) {
-        if (bookings >= threshold.soLanToiThieu) {
-            discount = threshold.phanTramGiam;
-        }
-    }
-    return discount;
+    std::string err; return customer_service_.getCustomerDiscountPercentage(sdt, err);
 }
+
+KetQua Facade::datNhieuCaMoi(const std::string&, const std::string&, const std::string&, const std::string&,
+                             const LinkedList<std::string>&, int, std::string&) { return {true, ""}; }
 
 KetQua Facade::huyDonDat(const std::string& maDon, const std::string& sdtKhach) {
     User* user = Session::getInstance().getUser();
-    if (user == nullptr || user->get_account_type() != "Customer" ||
-        user->get_phone_number() != sdtKhach) {
+    if (!user || user->get_account_type() != "Customer" || user->get_phone_number() != sdtKhach) {
         return {false, u8"Chỉ người thuê sở hữu đơn mới được hủy."};
     }
-    VenueRepository venueRepository;
-    LinkedList<VenueBookingRecord> bookings;
+    std::string customerId = user->get_user_id();
     std::string error;
-    if (!venueRepository.loadBookings(bookings, error)) return {false, error};
-    std::string customerId;
-    bool found = false;
-    for (auto* node = bookings.get_head(); node != nullptr; node = node->next) {
-        const VenueBookingRecord& booking = node->data;
-        if (booking.bookingId != maDon) continue;
-        if (booking.customerPhone != sdtKhach) {
-            return {false, u8"Không có quyền hủy đơn đặt sân của người khác."};
-        }
-        customerId = booking.customerId;
-        found = true;
-        break;
-    }
-    if (!found) return {false, u8"Không tìm thấy đơn đặt sân cần hủy."};
-    FileManager fileManager;
-    BookingRepository bookingRepository(fileManager);
-    CustomerRepository customerRepository(fileManager);
-    CustomerService customerService(customerRepository);
-    BookingService service(bookingRepository, customerService);
-    if (!service.cancelBooking(maDon, customerId, error)) return {false, error};
-    for (DonDatSanInfo& booking : danhSachDonDat_) {
-        if (booking.maDon == maDon) booking.trangThai = "CANCELLED";
-    }
+    if (!booking_service_.cancelBooking(maDon, customerId, error)) return {false, error};
+    for (auto& b : danhSachDonDat_) if (b.maDon == maDon) b.trangThai = "CANCELLED";
     return {true, ""};
 }
 
 KetQua Facade::xacNhanDaHoanThanhDon(const std::string& maDon) {
     User* owner = Session::getInstance().getUser();
-    if (owner == nullptr || owner->get_account_type() != "Owner") {
-        return {false, u8"Chỉ chủ sân mới được xác nhận hoàn tất đơn."};
-    }
-    FileManager fileManager;
-    BookingRepository bookingRepository(fileManager);
-    CustomerRepository customerRepository(fileManager);
-    CustomerService customerService(customerRepository);
-    BookingService service(bookingRepository, customerService);
+    if (!owner || owner->get_account_type() != "Owner") return {false, u8"Chỉ chủ sân mới được xác nhận hoàn tất đơn."};
     std::string error;
-    if (!service.completeBooking(owner->get_user_id(), maDon, error)) {
-        return {false, error};
-    }
-    for (DonDatSanInfo& booking : danhSachDonDat_) {
-        if (booking.maDon == maDon &&
-            booking.ownerUserId == owner->get_user_id()) {
-            booking.trangThai = "COMPLETED";
-        }
+    if (!booking_service_.completeBooking(owner->get_user_id(), maDon, error)) return {false, error};
+    for (auto& b : danhSachDonDat_) {
+        if (b.maDon == maDon && b.ownerUserId == owner->get_user_id()) b.trangThai = "COMPLETED";
     }
     return {true, ""};
 }
 
 std::vector<GiaiDauInfo> Facade::getGiaiDauCuaUser(const std::string& sdt) const {
     std::vector<GiaiDauInfo> ds;
-    for (const auto& g : danhSachGiaiDau_) {
-        if (g.sdtKhach == sdt) {
-            ds.push_back(g);
-        }
-    }
+    for (const auto& g : danhSachGiaiDau_) if (g.sdtKhach == sdt) ds.push_back(g);
     return ds;
 }
 
 KetQua Facade::guiYeuCauTaoGiai(const GiaiDauInfo& giaiMoi) {
-    if (laKhachHangBiChan(giaiMoi.sdtKhach)) {
-        return {false, u8"Tài khoản đang bị khóa nên không thể gửi yêu cầu tạo giải."};
-    }
-    auto chuanHoaNgay = [](const std::string& value) {
-        if (value.size() == 10U && value[2] == '/' && value[5] == '/')
-            return value.substr(6, 4) + "-" + value.substr(3, 2) + "-" + value.substr(0, 2);
-        return value;
-    };
-    const std::string start = chuanHoaNgay(giaiMoi.ngayBatDau);
-    const std::string end = chuanHoaNgay(giaiMoi.ngayKetThuc);
-    if (!DateTime::isValidDate(start) || DateTime::isPastDate(start)) {
-        return {false, u8"Ngày bắt đầu giải không hợp lệ hoặc đã qua."};
-    }
-    if (!DateTime::isValidDate(end) || DateTime::compareDate(end, start) < 0) {
-        return {false, u8"Ngày kết thúc phải bằng hoặc sau ngày bắt đầu."};
-    }
+    if (laKhachHangBiChan(giaiMoi.sdtKhach)) return {false, u8"Tài khoản đang bị khóa nên không thể gửi yêu cầu tạo giải."};
+    Tournament t(giaiMoi.maGiai, giaiMoi.sdtKhach, giaiMoi.tenGiai, giaiMoi.maSan,
+                 giaiMoi.ngayBatDau, giaiMoi.ngayKetThuc, giaiMoi.moTa,
+                 TournamentStatus::REQUESTED, "", giaiMoi.tenKhachDat,
+                 giaiMoi.khungGio, giaiMoi.ghiChuTuChoi);
+    std::string outId, error;
+    if (!tournament_service_.guiYeuCauTaoGiai(t, outId, error)) return {false, error};
     GiaiDauInfo g = giaiMoi;
-    if (g.maGiai.empty()) {
-        char buf[32];
-        std::snprintf(buf, sizeof(buf), "GD-%02zu", danhSachGiaiDau_.size() + 1);
-        g.maGiai = buf;
-    }
+    g.maGiai = outId;
     g.trangThai = TrangThaiGiaiDau::ChoDuyet;
     danhSachGiaiDau_.push_back(g);
-    luuDuLieu();
     return {true, ""};
 }
 
 std::vector<SanBongInfo> Facade::getDanhSachSanDaThueXong(const std::string& sdt) const {
     std::vector<SanBongInfo> ds;
     std::unordered_map<std::string, bool> daThem;
-
-    for (const DonDatSanInfo& don : getLichSuDatCuaKhach(sdt)) {
-        if (don.trangThai == "COMPLETED" ||
-            don.trangThai == u8"Đã hoàn thành" ||
-            don.trangThai == u8"Đã thanh toán") {
-            if (!daThem[don.maSan]) {
-                for (const auto& s : danhSachSan_) {
-                    if (s.maSan == don.maSan) {
-                        ds.push_back(s);
-                        daThem[don.maSan] = true;
-                        break;
-                    }
-                }
+    for (const auto& d : getLichSuDatCuaKhach(sdt)) {
+        if ((d.trangThai == "COMPLETED" || d.trangThai == u8"Đã hoàn thành" || d.trangThai == u8"Đã thanh toán") && !daThem[d.maSan]) {
+            for (const auto& s : danhSachSan_) {
+                if (s.maSan == d.maSan) { ds.push_back(s); daThem[d.maSan] = true; break; }
             }
         }
     }
     return ds;
 }
 
-KetQua Facade::guiHoacSuaDanhGia(
-    const std::string& sdt,
-    const std::string& tenKhach,
-    const std::string& maSan,
-    int soSao,
-    const std::string& noiDung,
-    const std::string& danhGiaId
-) {
-    if (!danhGiaId.empty()) {
-        for (auto& dg : danhSachDanhGia_) {
-            if (dg.id == danhGiaId) {
-                dg.soSao = soSao;
-                dg.noiDung = noiDung;
-                luuDuLieu();
-                return {true, ""};
-            }
-        }
+KetQua Facade::guiHoacSuaDanhGia(const std::string& sdt, const std::string& tenKhach,
+                                const std::string& maSan, int soSao, const std::string& noiDung,
+                                const std::string& danhGiaId) {
+    std::string rId = danhGiaId;
+    if (rId.empty()) {
+        char buf[32];
+        std::snprintf(buf, sizeof(buf), "RV%02d", static_cast<int>(danhSachDanhGia_.size() + 1));
+        rId = buf;
     }
+    Review r(rId, sdt, maSan, "", soSao, DateTime::today(), noiDung, tenKhach);
+    std::string error;
+    if (!customer_service_.addOrUpdateReview(r, error)) return {false, error};
 
-    DanhGiaInfo dgMoi;
-    char buf[32];
-    std::snprintf(buf, sizeof(buf), "RV%02zu", danhSachDanhGia_.size() + 1);
-    dgMoi.id = buf;
-    dgMoi.sdt = sdt;
-    dgMoi.tenKhach = tenKhach;
-    dgMoi.maSan = maSan;
-    dgMoi.soSao = soSao;
-    dgMoi.noiDung = noiDung;
-    dgMoi.ngayGui = DateTime::today();
-
-    danhSachDanhGia_.insert(danhSachDanhGia_.begin(), dgMoi);
-    luuDuLieu();
+    bool found = false;
+    for (auto& dg : danhSachDanhGia_) {
+        if (dg.id == rId) { dg.soSao = soSao; dg.noiDung = noiDung; found = true; break; }
+    }
+    if (!found) {
+        danhSachDanhGia_.insert(danhSachDanhGia_.begin(), {rId, tenKhach, sdt, maSan, soSao, DateTime::today(), noiDung});
+    }
     return {true, ""};
 }
 
-KetQua Facade::capNhatThongTinUser(const std::string& sdt, const std::string& hoTenMoi) {
-    return capNhatThongTinUser(sdt, hoTenMoi, sdt);
-}
+KetQua Facade::capNhatThongTinUser(const std::string& sdt, const std::string& hoTenMoi) { return capNhatThongTinUser(sdt, hoTenMoi, sdt); }
 
-KetQua Facade::capNhatThongTinUser(const std::string& sdtCu, const std::string& hoTenMoi,
-                                   const std::string& sdtMoi) {
-    if (sdtMoi.empty()) return {false, u8"Số điện thoại không được để trống."};
-    if (sdtCu != sdtMoi && kiemTraSDTDaTonTai(sdtMoi)) {
-        return {false, u8"Số điện thoại mới đã được dùng bởi tài khoản khác."};
+KetQua Facade::capNhatThongTinUser(const std::string& sdtCu, const std::string& hoTenMoi, const std::string& sdtMoi) {
+    std::string error;
+    if (!account_service_.updateUser(sdtCu, hoTenMoi, sdtMoi, error)) return {false, error};
+    danhSachUser_ = account_service_.getAccounts();
+
+    size_t idx = 0;
+    if (mapIndexKhachSDT_.search(sdtCu, idx) && idx < danhSachKhachHang_.size()) {
+        danhSachKhachHang_[idx].hoTen = hoTenMoi;
+        danhSachKhachHang_[idx].sdt = sdtMoi;
+        mapIndexKhachSDT_.remove(sdtCu);
+        mapIndexKhachSDT_.insert(sdtMoi, idx);
     }
-    for (auto& u : danhSachUser_) {
-        if (u && u->get_phone_number() == sdtCu) {
-            u->rename(hoTenMoi);
-            u->update_phone_number(sdtMoi);
-            break;
+    if (sdtCu != sdtMoi) {
+        auto it = mapMatKhau_.find(sdtCu);
+        if (it != mapMatKhau_.end()) {
+            mapMatKhau_[sdtMoi] = it->second;
+            mapMatKhau_.erase(it);
         }
     }
-
-    auto it = mapIndexKhachSDT_.find(sdtCu);
-    if (it != mapIndexKhachSDT_.end() && it->second < danhSachKhachHang_.size()) {
-        danhSachKhachHang_[it->second].hoTen = hoTenMoi;
-        danhSachKhachHang_[it->second].sdt = sdtMoi;
-        mapIndexKhachSDT_.erase(it);
-        mapIndexKhachSDT_[sdtMoi] = it->second;
-    }
-
-    auto passwordIt = mapMatKhau_.find(sdtCu);
-    if (passwordIt != mapMatKhau_.end() && sdtCu != sdtMoi) {
-        mapMatKhau_[sdtMoi] = passwordIt->second;
-        mapMatKhau_.erase(passwordIt);
-    }
-
-    luuDuLieu();
     return {true, ""};
 }
 
 KetQua Facade::doiMatKhauUser(const std::string& sdt, const std::string& matKhauCu, const std::string& matKhauMoi) {
     auto it = mapMatKhau_.find(sdt);
     std::string curPw = (it != mapMatKhau_.end()) ? it->second : "123456";
+    if (curPw != matKhauCu) return {false, u8"Mật khẩu hiện tại không chính xác!"};
 
-    if (curPw != matKhauCu) {
-        return {false, u8"Mật khẩu hiện tại không chính xác!"};
-    }
-
+    std::string error;
+    if (!account_service_.resetPassword(sdt, matKhauMoi, error)) return {false, error};
     mapMatKhau_[sdt] = matKhauMoi;
-    for (auto& u : danhSachUser_) {
-        if (u && u->get_phone_number() == sdt) {
-            u->update_pw(matKhauMoi);
-            break;
-        }
-    }
-
-    luuDuLieu();
+    danhSachUser_ = account_service_.getAccounts();
     return {true, ""};
 }
 

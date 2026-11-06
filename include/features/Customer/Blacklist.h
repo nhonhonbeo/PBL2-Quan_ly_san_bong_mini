@@ -13,8 +13,8 @@ private:
     bool active_;
 
 public:
-    Blacklist(const std::string& customerId, const std::string& reason,
-              const std::string& createdAt, bool active = true);
+    Blacklist(const std::string& customerId = "", const std::string& reason = "",
+              const std::string& createdAt = "", bool active = true);
 
     const std::string& getCustomerId() const;
     const std::string& getReason() const;

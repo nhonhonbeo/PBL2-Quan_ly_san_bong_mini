@@ -12,8 +12,22 @@
 #include "Core/LinkedList.h"
 #include "GUI/App/ScreenManager.h"
 #include "GUI/Widgets/SlotGrid.h"
+#include "Core/HashTable.h"
+#include "Repository/AccountRepository.h"
+#include "Repository/BookingRepository.h"
+#include "Repository/CustomerRepository.h"
+#include "Repository/FieldRepository.h"
+#include "Repository/ReportRepository.h"
+#include "Repository/TournamentRepository.h"
+#include "Repository/VenueRepository.h"
+#include "Service/AccountService.h"
+#include "Service/BookingService.h"
+#include "Service/CustomerService.h"
+#include "Service/FieldService.h"
 #include "Service/ReportService.h"
+#include "Service/TournamentService.h"
 #include "Service/VenueService.h"
+#include "Storage/FileManager.h"
 
 namespace GUI::App {
 
@@ -329,6 +343,26 @@ private:
     Facade(const Facade&) = delete;
     Facade& operator=(const Facade&) = delete;
 
+    // Bộ thể hiện duy nhất của Repositories và Services
+    FileManager file_manager_;
+    AccountRepository account_repository_;
+    VenueRepository venue_repository_;
+    CustomerRepository customer_repository_;
+    BookingRepository booking_repository_;
+    ReportRepository report_repository_;
+    TournamentRepository tournament_repository_;
+    FieldRepository field_repository_;
+
+    mutable AccountService account_service_;
+    mutable VenueService venue_service_;
+    mutable CustomerService customer_service_;
+    mutable BookingService booking_service_;
+    mutable ReportService report_service_;
+    mutable TournamentService tournament_service_;
+    mutable FieldService field_service_;
+
+    void dongBoTuCacService();
+
     std::vector<std::shared_ptr<User>> danhSachUser_;
     std::unordered_map<std::string, std::string> mapMatKhau_;
     bool daNapDuLieu_ = false;
@@ -342,7 +376,7 @@ private:
     // Bộ nhớ quản lý khách hàng, ưu đãi, danh sách đen và đánh giá
     std::vector<KhachHangInfo> danhSachKhachHang_;
     // LÝ DO CHỌN: HashTable lưu chỉ mục khách hàng theo SĐT để tra cứu siêu tốc O(1)
-    std::unordered_map<std::string, size_t> mapIndexKhachSDT_;
+    HashTable<std::string, size_t> mapIndexKhachSDT_;
     std::vector<NguongUuDai> danhSachNguongUuDai_;
     std::vector<DanhGiaInfo> danhSachDanhGia_;
 
