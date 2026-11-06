@@ -1,4 +1,4 @@
-#include "GUI/App/Application.h"
+﻿#include "GUI/App/Application.h"
 
 #include <filesystem>
 #include <iostream>
@@ -86,6 +86,9 @@ bool Application::init() {
         return false;
     }
 
+    // LÝ DO CHỌN: Giới hạn kích thước tối thiểu để bố cục màn hình không bị chồng lấn khi resize.
+    glfwSetWindowSizeLimits(window_, 1024, 680, GLFW_DONT_CARE, GLFW_DONT_CARE);
+
     setWindowIcon(window_);
     glfwMakeContextCurrent(window_);
     glfwSwapInterval(1); // VSync
@@ -155,7 +158,8 @@ void Application::run() {
             glfwGetFramebufferSize(window_, &displayWidth, &displayHeight);
             glViewport(0, 0, displayWidth, displayHeight);
 
-            glClearColor(0.886f, 0.910f, 0.941f, 1.0f);
+            // LÝ DO CHỌN: Màu nền tổng thể chuẩn #F3F6F8 dịu mắt, hòa quyện với LightBg
+            glClearColor(0.953f, 0.965f, 0.973f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
             glfwSwapBuffers(window_);

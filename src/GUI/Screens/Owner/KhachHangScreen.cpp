@@ -7,6 +7,7 @@
 #include <imgui.h>
 
 #include "GUI/Theme/Theme.h"
+#include "GUI/Theme/Fonts.h"
 #include "GUI/Widgets/Badge.h"
 #include "GUI/Widgets/Button.h"
 #include "GUI/Widgets/Card.h"
@@ -113,35 +114,24 @@ void KhachHangScreen::reloadViewModel() {
 }
 
 void KhachHangScreen::render() {
+    // LÝ DO CHỌN: Tab Bar chuẩn Modern SaaS hiển thị TextPrimary tương phản cao trên nền Surface
     if (ImGui::BeginTabBar("##KhachHangTabBar", ImGuiTabBarFlags_None)) {
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
-        bool showContacts = ImGui::BeginTabItem(u8"1. Danh bạ khách hàng");
-        ImGui::PopStyleColor();
-        if (showContacts) {
+        if (ImGui::BeginTabItem(u8"Danh bạ khách hàng")) {
             renderTabDanhBa();
             ImGui::EndTabItem();
         }
 
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
-        bool showDiscounts = ImGui::BeginTabItem(u8"2. Ngưỡng ưu đãi & Khách VIP");
-        ImGui::PopStyleColor();
-        if (showDiscounts) {
+        if (ImGui::BeginTabItem(u8"Ngưỡng ưu đãi & Khách VIP")) {
             renderTabUuDai();
             ImGui::EndTabItem();
         }
 
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
-        bool showBlacklist = ImGui::BeginTabItem(u8"3. Danh sách đen & Đề xuất");
-        ImGui::PopStyleColor();
-        if (showBlacklist) {
+        if (ImGui::BeginTabItem(u8"Danh sách đen & Đề xuất")) {
             renderTabDanhSachDen();
             ImGui::EndTabItem();
         }
 
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
-        bool showReviews = ImGui::BeginTabItem(u8"4. Đánh giá nhận xét");
-        ImGui::PopStyleColor();
-        if (showReviews) {
+        if (ImGui::BeginTabItem(u8"Đánh giá & Nhận xét")) {
             renderTabDanhGia();
             ImGui::EndTabItem();
         }
@@ -238,50 +228,92 @@ void KhachHangScreen::renderPanelChiTietKhachHang() {
 
         ImGui::Spacing();
 
-        // Tên và SĐT khách
+        // 1. Avatar tròn và Header thông tin khách hàng
+        ImVec2 avatarPos = ImGui::GetCursorScreenPos();
+        float avatarRadius = 22.0f;
+        ImVec2 avatarCenter(avatarPos.x + avatarRadius, avatarPos.y + avatarRadius);
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+
+        // Nền tròn avatar màu PrimaryLight (#E8F6EF), viền Primary (#16865B)
+        dl->AddCircleFilled(avatarCenter, avatarRadius, GUI::Theme::Colors::toU32(GUI::Theme::Colors::PrimaryLight));
+        dl->AddCircle(avatarCenter, avatarRadius, GUI::Theme::Colors::toU32(GUI::Theme::Colors::Primary), 0, 1.5f);
+
+        // Ký tự đầu họ tên
+        std::string initial = u8"K";
+        if (!khachDangChon_.hoTen.empty()) {
+            initial = khachDangChon_.hoTen.substr(0, 1);
+        }
+        if (GUI::Theme::getFonts().title) ImGui::PushFont(GUI::Theme::getFonts().title);
+        ImVec2 initSize = ImGui::CalcTextSize(initial.c_str());
+        dl->AddText(ImVec2(avatarCenter.x - initSize.x * 0.5f, avatarCenter.y - initSize.y * 0.5f),
+                    GUI::Theme::Colors::toU32(GUI::Theme::Colors::Primary), initial.c_str());
+        if (GUI::Theme::getFonts().title) ImGui::PopFont();
+
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + avatarRadius * 2.0f + 14.0f);
+        ImGui::BeginGroup();
+        if (GUI::Theme::getFonts().title) ImGui::PushFont(GUI::Theme::getFonts().title);
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
         ImGui::TextUnformatted(khachDangChon_.hoTen.c_str());
         ImGui::PopStyleColor();
+        if (GUI::Theme::getFonts().title) ImGui::PopFont();
 
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::GrassGreen);
-        ImGui::Text(u8"Số điện thoại: %s", khachDangChon_.sdt.c_str());
+        ImGui::Text(u8"SĐT: %s", khachDangChon_.sdt.c_str());
         ImGui::PopStyleColor();
-        ImGui::Spacing();
 
         // Badge trạng thái
         if (khachDangChon_.biChan) {
-            Widgets::BadgeDanhSachDen(u8"Đang bị chặn (Blacklist)");
-            ImGui::Spacing();
+            Widgets::BadgeDanhSachDen(u8"Bị chặn");
+        } else if (khachDangChon_.mucUuDaiPhanTram > 0) {
+            Widgets::BadgeVIP((u8"VIP " + std::to_string(khachDangChon_.mucUuDaiPhanTram) + "%").c_str());
+        } else {
+            Widgets::Badge(u8"Tiêu chuẩn", GUI::Theme::Colors::GrayHover, GUI::Theme::Colors::DarkText);
+        }
+        ImGui::EndGroup();
+
+        ImGui::Spacing();
+        ImGui::Spacing();
+
+        if (khachDangChon_.biChan) {
             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::RedDanger);
-            ImGui::TextWrapped(u8"Lý do: %s", khachDangChon_.lyDoChan.c_str());
+            ImGui::TextWrapped(u8"Lý do chặn: %s", khachDangChon_.lyDoChan.c_str());
             ImGui::Text(u8"Ngày chặn: %s", khachDangChon_.ngayChan.c_str());
             ImGui::PopStyleColor();
-        } else if (khachDangChon_.mucUuDaiPhanTram > 0) {
-            Widgets::BadgeVIP((u8"Khách hàng VIP (Giảm " + std::to_string(khachDangChon_.mucUuDaiPhanTram) + "%)").c_str());
-        } else {
-            Widgets::Badge(u8"Khách hàng tiêu chuẩn", GUI::Theme::Colors::GrayHover, GUI::Theme::Colors::DarkText);
+            ImGui::Spacing();
         }
 
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
+        // 2. Hai thẻ thống kê nhỏ (Metric Cards)
+        float statCardW = (availW - 10.0f) * 0.5f;
+        auto veMiniCard = [dl](ImVec2 pos, float w, const char* label, const char* val, ImVec4 accent) {
+            ImVec2 p1(pos.x + w, pos.y + 54.0f);
+            dl->AddRectFilled(pos, p1, GUI::Theme::Colors::toU32(GUI::Theme::Colors::GrayHover), 6.0f);
+            dl->AddRect(pos, p1, GUI::Theme::Colors::toU32(GUI::Theme::Colors::Border), 6.0f);
+            dl->AddRectFilled(pos, ImVec2(pos.x + 3.0f, p1.y), GUI::Theme::Colors::toU32(accent), 6.0f);
 
-        // Thống kê số lần đặt / hủy
-        ImGui::Text(u8"• Số lần đã đặt sân: %d lần", khachDangChon_.soLanDat);
-        ImGui::Text(u8"• Số lần đã hủy sân: %d lần", khachDangChon_.soLanHuy);
+            dl->AddText(ImVec2(pos.x + 10.0f, pos.y + 6.0f), GUI::Theme::Colors::toU32(GUI::Theme::Colors::MutedText), label);
+            dl->AddText(ImVec2(pos.x + 10.0f, pos.y + 26.0f), GUI::Theme::Colors::toU32(GUI::Theme::Colors::DarkText), val);
+        };
 
+        ImVec2 card1Pos = ImGui::GetCursorScreenPos();
+        std::string valDat = std::to_string(khachDangChon_.soLanDat) + u8" lần";
+        veMiniCard(card1Pos, statCardW, u8"Đã đặt thành công", valDat.c_str(), GUI::Theme::Colors::Primary);
+
+        ImVec2 card2Pos(card1Pos.x + statCardW + 10.0f, card1Pos.y);
         float tyLeHuy = 0.0f;
         int tongLuot = khachDangChon_.soLanDat + khachDangChon_.soLanHuy;
         if (tongLuot > 0) {
             tyLeHuy = (static_cast<float>(khachDangChon_.soLanHuy) / tongLuot) * 100.0f;
         }
-        ImGui::Text(u8"• Tỷ lệ hủy đặt: %.1f%%", tyLeHuy);
+        char valHuy[64];
+        std::snprintf(valHuy, sizeof(valHuy), u8"%d lần (%.0f%%)", khachDangChon_.soLanHuy, tyLeHuy);
+        veMiniCard(card2Pos, statCardW, u8"Đã hủy lịch", valHuy, GUI::Theme::Colors::Danger);
 
-        ImGui::Spacing();
+        ImGui::Dummy(ImVec2(availW, 60.0f));
+
         ImGui::Separator();
         ImGui::Spacing();
 
-        // Lịch sử đặt sân gần đây của khách
+        // 3. Lịch sử đặt sân gần đây của khách
         ImGui::TextUnformatted(u8"Lịch sử đặt sân gần nhất:");
         ImGui::Spacing();
 
@@ -299,7 +331,7 @@ void KhachHangScreen::renderPanelChiTietKhachHang() {
         ImGui::Separator();
         ImGui::Spacing();
 
-        // Đánh giá đã gửi
+        // 4. Đánh giá đã gửi
         ImGui::TextUnformatted(u8"Đánh giá & Nhận xét đã gửi:");
         ImGui::Spacing();
 
@@ -321,7 +353,7 @@ void KhachHangScreen::renderPanelChiTietKhachHang() {
         ImGui::Separator();
         ImGui::Spacing();
 
-        // Thao tác chặn / gỡ chặn nhanh
+        // 5. Thao tác chặn / gỡ chặn nhanh
         if (khachDangChon_.biChan) {
             if (Widgets::NutChinh(u8"Gỡ khỏi danh sách đen", ImVec2(-1.0f, 34.0f))) {
                 sdtCanGoChan_ = khachDangChon_.sdt;
@@ -601,9 +633,11 @@ void KhachHangScreen::renderTabDanhGia() {
 
         ImGui::Spacing();
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::GoldAccent);
+        if (GUI::Theme::getFonts().heading) ImGui::PushFont(GUI::Theme::getFonts().heading);
         char scoreBuf[32];
         std::snprintf(scoreBuf, sizeof(scoreBuf), "%.1f / 5.0", diemTBToanCoSo_);
         ImGui::TextUnformatted(scoreBuf);
+        if (GUI::Theme::getFonts().heading) ImGui::PopFont();
         ImGui::PopStyleColor();
 
         int starScore = static_cast<int>(diemTBToanCoSo_ + 0.5f);

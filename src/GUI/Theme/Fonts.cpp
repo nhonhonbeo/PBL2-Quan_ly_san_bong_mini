@@ -1,4 +1,4 @@
-#include "GUI/Theme/Fonts.h"
+﻿#include "GUI/Theme/Fonts.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -22,8 +22,6 @@ namespace {
 
 namespace fs = std::filesystem;
 
-// LÝ DO CHỌN: Thư mục chứa file thực thi không phụ thuộc vào "thư mục làm việc hiện tại",
-// nên chạy .exe bằng double-click / từ IDE / từ thư mục khác vẫn tìm được assets/fonts.
 fs::path executableDirectory() {
     std::error_code ec;
 #ifdef _WIN32
@@ -53,7 +51,28 @@ bool isFontFile(const fs::path& path) {
     return extension == ".ttf" || extension == ".otf";
 }
 
-// Thu thập các file font ứng viên trong assets/fonts, đi ngược lên tối đa 5 cấp thư mục cha.
+// LÝ DO CHỌN: Ưu tiên font hệ thống Segoe UI theo tiêu chuẩn Windows Desktop App,
+// sau đó đến các font đính kèm trong assets/fonts (Roboto, Arial).
+void collectSystemFonts(std::vector<fs::path>& out) {
+    static const char* systemFonts[] = {
+#ifdef _WIN32
+        "C:\\Windows\\Fonts\\segoeui.ttf",
+        "C:\\Windows\\Fonts\\arial.ttf",
+        "C:\\Windows\\Fonts\\tahoma.ttf",
+        "C:\\Windows\\Fonts\\times.ttf"
+#else
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/TTF/DejaVuSans.ttf",
+        "/Library/Fonts/Arial.ttf",
+        "/System/Library/Fonts/Supplemental/Arial.ttf"
+#endif
+    };
+    for (const char* path : systemFonts) {
+        if (isFontFile(fs::path(path))) out.emplace_back(path);
+    }
+}
+
 void collectFontsFrom(fs::path start, std::vector<fs::path>& out) {
     static const char* preferred[] = {
         "Roboto-Regular.ttf", "Arial.ttf", "NotoSans-Regular.ttf", "BeVietnamPro-Regular.ttf"
@@ -77,27 +96,6 @@ void collectFontsFrom(fs::path start, std::vector<fs::path>& out) {
     }
 }
 
-// Font hệ thống làm phương án dự phòng (đều hỗ trợ tiếng Việt).
-void collectSystemFonts(std::vector<fs::path>& out) {
-    static const char* systemFonts[] = {
-#ifdef _WIN32
-        "C:\\Windows\\Fonts\\arial.ttf",
-        "C:\\Windows\\Fonts\\segoeui.ttf",
-        "C:\\Windows\\Fonts\\tahoma.ttf",
-        "C:\\Windows\\Fonts\\times.ttf"
-#else
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
-        "/usr/share/fonts/TTF/DejaVuSans.ttf",
-        "/Library/Fonts/Arial.ttf",
-        "/System/Library/Fonts/Supplemental/Arial.ttf"
-#endif
-    };
-    for (const char* path : systemFonts) {
-        if (isFontFile(fs::path(path))) out.emplace_back(path);
-    }
-}
-
 std::uint32_t be32(const std::vector<unsigned char>& d, std::size_t p) {
     return (std::uint32_t(d[p]) << 24) | (std::uint32_t(d[p + 1]) << 16) |
            (std::uint32_t(d[p + 2]) << 8) | std::uint32_t(d[p + 3]);
@@ -106,9 +104,6 @@ std::uint32_t be16(const std::vector<unsigned char>& d, std::size_t p) {
     return (std::uint32_t(d[p]) << 8) | std::uint32_t(d[p + 1]);
 }
 
-// LÝ DO CHỌN: Một file .ttf bị hỏng (cắt cụt, bị Git đổi CRLF, là file LFS pointer, tải lỗi...)
-// khiến ImGui đọc ra dữ liệu rác: hiện chữ sai, assertion hoặc crash. Kiểm tra cấu trúc
-// sfnt trước khi nạp để loại file hỏng và chuyển sang font khác thay vì sập ứng dụng.
 bool validateFont(const std::vector<unsigned char>& d, std::string& why) {
     if (d.size() < 28) { why = "file quá nhỏ"; return false; }
     const std::uint32_t tag = be32(d, 0);
@@ -121,27 +116,20 @@ bool validateFont(const std::vector<unsigned char>& d, std::string& why) {
 
     bool hasHead = false, hasCmap = false;
     for (std::size_t i = 0; i < numTables; ++i) {
-        const std::size_t rec = 12 + 16 * i;
-        const std::uint64_t offset = be32(d, rec + 8);
-        const std::uint64_t length = be32(d, rec + 12);
-        if (offset + length > d.size()) { why = "file bị cắt cụt hoặc hỏng (bảng nằm ngoài file)"; return false; }
-        const std::uint32_t name = be32(d, rec);
-        if (name == 0x68656164u) {  // 'head'
-            if (length < 54 || be32(d, static_cast<std::size_t>(offset) + 12) != 0x5F0F3CF5u) {
-                why = "bảng 'head' sai magic (file bị biến đổi byte)";
-                return false;
-            }
-            hasHead = true;
-        } else if (name == 0x636D6170u) {  // 'cmap'
-            hasCmap = true;
-        }
+        const std::size_t rec = 12 + i * 16;
+        const std::uint32_t tTag = be32(d, rec);
+        const std::uint32_t off  = be32(d, rec + 8);
+        const std::uint32_t len  = be32(d, rec + 12);
+        if (off + len > d.size()) { why = "bảng sfnt vượt kích thước"; return false; }
+        if (tTag == 0x68656164u) hasHead = true;
+        if (tTag == 0x636D6170u) hasCmap = true;
     }
-    if (!hasHead || !hasCmap) { why = "thiếu bảng 'head' hoặc 'cmap'"; return false; }
+    if (!hasHead || !hasCmap) { why = "thiếu bảng bắt buộc (head hoặc cmap)"; return false; }
     return true;
 }
 
 bool readFile(const fs::path& path, std::vector<unsigned char>& data) {
-    std::ifstream in(path, std::ios::binary);  // overload fs::path: an toàn với đường dẫn Unicode trên Windows
+    std::ifstream in(path, std::ios::binary);
     if (!in) return false;
     in.seekg(0, std::ios::end);
     const std::streamoff size = in.tellg();
@@ -151,8 +139,6 @@ bool readFile(const fs::path& path, std::vector<unsigned char>& data) {
     return static_cast<bool>(in.read(reinterpret_cast<char*>(data.data()), size));
 }
 
-// Dải glyph: toàn bộ Latin + tiếng Việt, cộng thêm các ký hiệu mà giao diện đang dùng.
-// Nếu thiếu glyph trong dải này, ImGui sẽ vẽ ký tự đó thành dấu '?'.
 void buildGlyphRanges(ImGuiIO& io, ImVector<ImWchar>& out) {
     ImFontGlyphRangesBuilder builder;
     builder.AddRanges(io.Fonts->GetGlyphRangesVietnamese());
@@ -165,11 +151,15 @@ void buildGlyphRanges(ImGuiIO& io, ImVector<ImWchar>& out) {
         0x20AB, 0x20AB,  // ₫
         0x2190, 0x2193,  // ← ↑ → ↓
         0x2264, 0x2265,  // ≤ ≥
+        0x2600, 0x26FF,  // Miscellaneous Symbols (⚽, 👤, 🕒, 🏆, etc.)
+        0x2700, 0x27BF,  // Dingbats
         0
     };
     builder.AddRanges(extraRanges);
     builder.BuildRanges(&out);
 }
+
+GUI::Theme::Fonts s_CurrentFonts;
 
 }  // namespace
 
@@ -178,25 +168,22 @@ namespace GUI::Theme {
 Fonts loadFonts() {
     ImGuiIO& io = ImGui::GetIO();
 
-    // Tìm font hợp lệ đầu tiên: ưu tiên assets/fonts của dự án, sau đó tới font hệ thống.
+    // Tìm font hợp lệ: Ưu tiên font hệ thống Segoe UI trên Windows, sau đó assets/fonts
     std::vector<fs::path> candidates;
     std::error_code ec;
+    collectSystemFonts(candidates);
     collectFontsFrom(fs::current_path(ec), candidates);
     collectFontsFrom(executableDirectory(), candidates);
-    collectSystemFonts(candidates);
 
-    // LÝ DO CHỌN: Dữ liệu font phải static vì ImGui giữ con trỏ tới nó (FontDataOwnedByAtlas = false).
     static std::vector<unsigned char> fontData;
     std::string usedPath;
     for (const fs::path& candidate : candidates) {
         std::vector<unsigned char> data;
         std::string why;
         if (!readFile(candidate, data)) {
-            std::cerr << "[Font] Không đọc được: " << candidate.string() << "\n";
             continue;
         }
         if (!validateFont(data, why)) {
-            std::cerr << "[Font] Bỏ qua font hỏng '" << candidate.string() << "': " << why << "\n";
             continue;
         }
         fontData = std::move(data);
@@ -204,45 +191,54 @@ Fonts loadFonts() {
         break;
     }
 
-    // Fallback về font mặc định của ImGui để giao diện luôn mở được, không gây sập ứng dụng.
     if (usedPath.empty()) {
-        std::cerr << "[Font] Không có font hợp lệ nào. Dùng font mặc định; tiếng Việt sẽ không hiển thị đúng.\n";
+        std::cerr << "[Font] Không có font hợp lệ. Dùng font mặc định.\n";
         ImFont* fallback = io.Fonts->AddFontDefault();
-        return {fallback, fallback, fallback};
+        s_CurrentFonts = {fallback, fallback, fallback, fallback};
+        return s_CurrentFonts;
     }
-    std::cerr << "[Font] Đang dùng: " << usedPath << " (" << fontData.size() << " byte)\n";
 
-    // LÝ DO CHỌN: ImFontConfig::GlyphRanges chỉ lưu CON TRỎ; mảng phải sống suốt vòng đời font
-    // nên khai báo static (biến cục bộ sẽ bị hủy -> ImGui đọc bộ nhớ rác).
     static ImVector<ImWchar> glyphRanges;
     glyphRanges.clear();
     buildGlyphRanges(io, glyphRanges);
 
     ImFontConfig config;
-    config.FontDataOwnedByAtlas = false;  // dữ liệu do fontData (static) quản lý
+    config.FontDataOwnedByAtlas = false;
     config.OversampleH = 2;
     config.OversampleV = 2;
     config.PixelSnapH = true;
 
     const int dataSize = static_cast<int>(fontData.size());
     Fonts fonts;
-    fonts.regular = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 18.0F, &config, glyphRanges.Data);
-    fonts.heading = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 28.0F, &config, glyphRanges.Data);
-    fonts.small = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 14.0F, &config, glyphRanges.Data);
+    // LÝ DO CHỌN: Phân cấp Typography chuẩn mực:
+    // - regular: 15px (nội dung, form, bảng)
+    // - heading: 24px (tiêu đề màn hình)
+    // - title:   18px (tiêu đề khu vực, card header)
+    // - small:   13px (nhãn phụ, badge, footnote)
+    fonts.regular = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 15.0F, &config, glyphRanges.Data);
+    fonts.heading = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 24.0F, &config, glyphRanges.Data);
+    fonts.title   = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 18.0F, &config, glyphRanges.Data);
+    fonts.small   = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 13.0F, &config, glyphRanges.Data);
 
-    if (fonts.regular == nullptr || fonts.heading == nullptr || fonts.small == nullptr) {
-        std::cerr << "[Font] Không thể nạp font '" << usedPath << "'. Dùng font mặc định.\n";
+    if (fonts.regular == nullptr || fonts.heading == nullptr || fonts.title == nullptr || fonts.small == nullptr) {
         io.Fonts->Clear();
         ImFont* fallback = io.Fonts->AddFontDefault();
-        return {fallback, fallback, fallback};
+        s_CurrentFonts = {fallback, fallback, fallback, fallback};
+        return s_CurrentFonts;
     }
+
     io.FontDefault = fonts.regular;
 
-    // Dựng atlas ngay (khi mọi dữ liệu còn hợp lệ) thay vì để ImGui dựng trễ ở khung hình đầu tiên.
     if (!io.Fonts->Build()) {
         std::cerr << "[Font] Không thể dựng atlas font.\n";
     }
+
+    s_CurrentFonts = fonts;
     return fonts;
+}
+
+const Fonts& getFonts() {
+    return s_CurrentFonts;
 }
 
 }  // namespace GUI::Theme

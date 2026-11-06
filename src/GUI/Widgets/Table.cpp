@@ -1,16 +1,17 @@
-#include "GUI/Widgets/Table.h"
+﻿#include "GUI/Widgets/Table.h"
 
 #include <algorithm>
 #include <cctype>
 #include <sstream>
+#include "GUI/Theme/Fonts.h"
 #include "GUI/Theme/Theme.h"
+#include "GUI/Widgets/Button.h"
 #include "GUI/Widgets/InputFields.h"
 
 namespace Widgets {
 
 namespace {
 
-// Chuyển chuỗi về chữ thường để tìm kiếm không phân biệt hoa thường
 std::string toLowerString(const std::string& input) {
     std::string result = input;
     std::transform(result.begin(), result.end(), result.begin(), [](unsigned char c) {
@@ -19,7 +20,6 @@ std::string toLowerString(const std::string& input) {
     return result;
 }
 
-// Kiểm tra và chuyển đổi số nguyên hoặc số thực nếu có thể để sắp xếp số học chính xác
 bool tryParseNumber(const std::string& s, double& outVal) {
     if (s.empty()) return false;
     std::stringstream ss(s);
@@ -46,18 +46,17 @@ bool Table(
     bool clickedRowEvent = false;
 
     // ==========================================
-    // 1. THANH CÔNG CỤ TRÊN BẢNG (Tìm kiếm & Phân trang)
+    // 1. THANH CÔNG CỤ TRÊN BẢNG (Tìm kiếm)
     // ==========================================
     float availWidth = ImGui::GetContentRegionAvail().x;
-    float searchWidth = 240.0f;
+    float searchWidth = 260.0f;
 
-    // Ô tìm kiếm
     InputText(
         nullptr,
         "##table_search",
         state.tuKhoaTimKiem,
         nullptr,
-        u8"Tìm kiếm...",
+        u8"🔍 Tìm kiếm nhanh...",
         std::min(searchWidth, availWidth)
     );
 
@@ -134,14 +133,12 @@ bool Table(
                             extraFlags;
 
     if (ImGui::BeginTable("##main_table", static_cast<int>(cacCot.size()), flags)) {
-        // Thiết lập header các cột
         for (size_t colIdx = 0; colIdx < cacCot.size(); ++colIdx) {
             const auto& col = cacCot[colIdx];
             ImGui::TableSetupColumn(col.tenCot.c_str(), col.flags, col.chieuRong);
         }
         ImGui::TableHeadersRow();
 
-        // Xử lý sự kiện click header cột để sắp xếp
         if (ImGuiTableSortSpecs* sortSpecs = ImGui::TableGetSortSpecs()) {
             if (sortSpecs->SpecsDirty && sortSpecs->SpecsCount > 0) {
                 state.cotSapXep = sortSpecs->Specs[0].ColumnIndex;
@@ -150,7 +147,6 @@ bool Table(
             }
         }
 
-        // Vẽ các dòng thuộc trang hiện tại
         for (int i = startIndex; i < endIndex; ++i) {
             size_t origIdx = filteredIndices[i];
             const auto& row = danhSachDong[origIdx];
@@ -162,7 +158,6 @@ bool Table(
                 ImGui::TableSetColumnIndex(static_cast<int>(colIdx));
 
                 if (colIdx == 0) {
-                    // Cột đầu tiên sử dụng Selectable kéo dài toàn bộ hàng để chọn dòng
                     std::string rowSelectableId = "##row_sel_" + std::to_string(origIdx);
                     if (ImGui::Selectable(rowSelectableId.c_str(), isRowSelected,
                                           ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap)) {
@@ -194,24 +189,29 @@ bool Table(
     // ==========================================
     int startDisplay = totalItems > 0 ? (startIndex + 1) : 0;
     int endDisplay   = endIndex;
-    ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
+
+    ImFont* smallFont = GUI::Theme::getFonts().small;
+    if (smallFont != nullptr) ImGui::PushFont(smallFont);
+
+    ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
     ImGui::Text(u8"Hiển thị %d - %d trên tổng %d kết quả", startDisplay, endDisplay, totalItems);
     ImGui::PopStyleColor();
+
+    if (smallFont != nullptr) ImGui::PopFont();
 
     ImGui::SameLine();
     float navWidth = 260.0f;
     ImGui::SetCursorPosX(availWidth - navWidth);
 
-    // Nút phân trang: Đầu, Trước, Trang X/Y, Sau, Cuối
     bool disablePrev = (state.trangHienTai <= 1);
     bool disableNext = (state.trangHienTai >= totalPages);
 
     if (disablePrev) ImGui::BeginDisabled();
-    if (ImGui::Button("<<##first")) {
+    if (NutPhu("<<##first", ImVec2(32.0f, 28.0f))) {
         state.trangHienTai = 1;
     }
     ImGui::SameLine();
-    if (ImGui::Button("<##prev")) {
+    if (NutPhu("<##prev", ImVec2(32.0f, 28.0f))) {
         state.trangHienTai--;
     }
     if (disablePrev) ImGui::EndDisabled();
@@ -225,11 +225,11 @@ bool Table(
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (80.0f - textW) * 0.5f);
 
     if (disableNext) ImGui::BeginDisabled();
-    if (ImGui::Button(">##next")) {
+    if (NutPhu(">##next", ImVec2(32.0f, 28.0f))) {
         state.trangHienTai++;
     }
     ImGui::SameLine();
-    if (ImGui::Button(">>##last")) {
+    if (NutPhu(">>##last", ImVec2(32.0f, 28.0f))) {
         state.trangHienTai = totalPages;
     }
     if (disableNext) ImGui::EndDisabled();

@@ -1,12 +1,13 @@
-#include "GUI/Widgets/Card.h"
+﻿#include "GUI/Widgets/Card.h"
 
 #include <imgui.h>
+#include "GUI/Theme/Fonts.h"
 #include "GUI/Theme/Theme.h"
 
 namespace Widgets {
 
 void Card(const char* id, const char* tieuDe, const std::function<void()>& noiDung) {
-    Card(id, tieuDe, 16.0f, 16.0f, noiDung);
+    Card(id, tieuDe, 18.0f, 16.0f, noiDung);
 }
 
 void Card(const char* id, const char* tieuDe, float paddingX, float paddingY, const std::function<void()>& noiDung) {
@@ -17,7 +18,7 @@ void Card(const char* id, const char* tieuDe, float paddingX, float paddingY, co
     ImVec2 startCursor = ImGui::GetCursorScreenPos();
 
     // LÝ DO CHỌN: Dùng ImDrawListSplitter riêng cục bộ cho mỗi Card thay vì drawList->ChannelsSplit(),
-    // cho phép các thẻ Card lồng nhau tùy ý mà không vi phạm ràng buộc phân kênh của ImGui (tránh assert fail gây crash).
+    // cho phép các thẻ Card lồng nhau tùy ý mà không vi phạm ràng buộc phân kênh của ImGui.
     ImDrawListSplitter splitter;
     splitter.Split(drawList, 2);
 
@@ -29,21 +30,27 @@ void Card(const char* id, const char* tieuDe, float paddingX, float paddingY, co
     // Tiêu đề thẻ (nếu có)
     if (tieuDe != nullptr && tieuDe[0] != '\0') {
         ImVec2 titlePos = ImGui::GetCursorScreenPos();
-        // Vạch màu xanh cỏ nhỏ bên trái tiêu đề tạo điểm nhấn thương hiệu
-        ImU32 accentColor = GUI::Theme::Colors::toU32(GUI::Theme::Colors::GrassGreen);
+        // Vạch màu xanh lá thương hiệu bo tròn bên trái tiêu đề tạo điểm nhấn chuyên nghiệp
+        ImU32 accentColor = GUI::Theme::Colors::toU32(GUI::Theme::Colors::Primary);
+        float lineHeight = ImGui::GetTextLineHeight();
         drawList->AddRectFilled(
-            ImVec2(titlePos.x - 6.0f, titlePos.y + 2.0f),
-            ImVec2(titlePos.x - 2.0f, titlePos.y + ImGui::GetTextLineHeight() - 2.0f),
+            ImVec2(titlePos.x - 8.0f, titlePos.y + 2.0f),
+            ImVec2(titlePos.x - 4.5f, titlePos.y + lineHeight - 1.0f),
             accentColor,
             2.0f
         );
 
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
+        ImFont* titleFont = GUI::Theme::getFonts().title;
+        if (titleFont != nullptr) ImGui::PushFont(titleFont);
+
+        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextPrimary);
         ImGui::TextUnformatted(tieuDe);
         ImGui::PopStyleColor();
 
+        if (titleFont != nullptr) ImGui::PopFont();
+
         ImGui::Spacing();
-        ImGui::PushStyleColor(ImGuiCol_Separator, GUI::Theme::Colors::BorderLight);
+        ImGui::PushStyleColor(ImGuiCol_Separator, GUI::Theme::Colors::Border);
         ImGui::Separator();
         ImGui::PopStyleColor();
         ImGui::Spacing();
@@ -62,32 +69,32 @@ void Card(const char* id, const char* tieuDe, float paddingX, float paddingY, co
     // Kênh 0: Nền thẻ và đổ bóng mềm
     splitter.SetCurrentChannel(drawList, 0);
 
-    // LÝ DO CHỌN: Vẽ 3 lớp bóng mờ xếp chồng để tạo hiệu ứng đổ bóng khuếch tán (soft ambient shadow)
+    // LÝ DO CHỌN: Đổ bóng khuếch tán đa tầng (ambient soft shadow) tạo cảm giác chiều sâu nổi khối SaaS
     drawList->AddRectFilled(
         ImVec2(cardMin.x - 1.0f, cardMin.y + 2.0f),
-        ImVec2(cardMax.x + 1.0f, cardMax.y + 4.0f),
-        IM_COL32(0, 0, 0, 12),
-        9.0f
+        ImVec2(cardMax.x + 1.0f, cardMax.y + 5.0f),
+        IM_COL32(0, 0, 0, 10),
+        8.0f
     );
     drawList->AddRectFilled(
         ImVec2(cardMin.x, cardMin.y + 1.0f),
         ImVec2(cardMax.x, cardMax.y + 2.0f),
-        IM_COL32(0, 0, 0, 18),
+        IM_COL32(0, 0, 0, 16),
         8.0f
     );
 
     // Nền trắng thẻ bo góc 8px
-    ImU32 cardBgColor = GUI::Theme::Colors::toU32(GUI::Theme::Colors::WhiteCard);
+    ImU32 cardBgColor = GUI::Theme::Colors::toU32(GUI::Theme::Colors::Surface);
     drawList->AddRectFilled(cardMin, cardMax, cardBgColor, 8.0f);
 
-    // Viền nhẹ tinh tế
-    ImU32 borderColor = GUI::Theme::Colors::toU32(GUI::Theme::Colors::BorderLight);
+    // Viền nhẹ tinh tế #E2E8E5
+    ImU32 borderColor = GUI::Theme::Colors::toU32(GUI::Theme::Colors::Border);
     drawList->AddRect(cardMin, cardMax, borderColor, 8.0f, 0, 1.0f);
 
     splitter.Merge(drawList);
 
-    // Đẩy con trỏ layout xuống dưới thẻ vừa vẽ kèm khoảng cách 12px
-    ImGui::SetCursorScreenPos(ImVec2(startCursor.x, cardMax.y + 12.0f));
+    // Đẩy con trỏ layout xuống dưới thẻ vừa vẽ kèm khoảng cách 14px
+    ImGui::SetCursorScreenPos(ImVec2(startCursor.x, cardMax.y + 14.0f));
 
     ImGui::PopID();
 }

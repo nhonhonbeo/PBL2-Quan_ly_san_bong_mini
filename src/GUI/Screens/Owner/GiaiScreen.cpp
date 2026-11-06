@@ -168,37 +168,26 @@ void GiaiScreen::reloadViewModel() {
 }
 
 void GiaiScreen::render() {
+    // LÝ DO CHỌN: Tab Bar chuẩn Modern SaaS hiển thị TextPrimary tương phản cao trên nền Surface
     if (ImGui::BeginTabBar("##GiaiTabBar", ImGuiTabBarFlags_None)) {
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
-        bool showTournamentList = ImGui::BeginTabItem(u8"1. Danh sách giải đấu");
-        ImGui::PopStyleColor();
-        if (showTournamentList) {
+        if (ImGui::BeginTabItem(u8"Danh sách giải đấu")) {
             renderTabDanhSachGiai();
             ImGui::EndTabItem();
         }
 
         // Tab có hiển thị số lượng yêu cầu chờ duyệt
-        std::string tabDuyetTitle = u8"2. Yêu cầu chờ duyệt (" + std::to_string(danhSachChoDuyet_.size()) + u8")";
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
-        bool showPending = ImGui::BeginTabItem(tabDuyetTitle.c_str());
-        ImGui::PopStyleColor();
-        if (showPending) {
+        std::string tabDuyetTitle = u8"Yêu cầu chờ duyệt (" + std::to_string(danhSachChoDuyet_.size()) + u8")";
+        if (ImGui::BeginTabItem(tabDuyetTitle.c_str())) {
             renderTabYeuCauChoDuyet();
             ImGui::EndTabItem();
         }
 
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
-        bool showManualEntry = ImGui::BeginTabItem(u8"3. Thêm giải thủ công");
-        ImGui::PopStyleColor();
-        if (showManualEntry) {
+        if (ImGui::BeginTabItem(u8"Thêm giải thủ công")) {
             renderTabThemGiaiThuCong();
             ImGui::EndTabItem();
         }
 
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
-        bool showEventSchedule = ImGui::BeginTabItem(u8"4. Lịch sự kiện giải đấu");
-        ImGui::PopStyleColor();
-        if (showEventSchedule) {
+        if (ImGui::BeginTabItem(u8"Lịch sự kiện giải đấu")) {
             renderTabLichSuKien();
             ImGui::EndTabItem();
         }
@@ -230,9 +219,9 @@ void GiaiScreen::renderTabDanhSachGiai() {
                     // Cột Trạng thái Badge
                     const std::string& tt = row.oDuLieu[6];
                     if (tt == u8"Chờ duyệt") {
-                        Widgets::Badge(tt.c_str(), GUI::Theme::Colors::GoldAccent, GUI::Theme::Colors::WhiteCard);
+                        Widgets::BadgeBaoTri(tt.c_str());
                     } else if (tt == u8"Đã duyệt") {
-                        Widgets::Badge(tt.c_str(), GUI::Theme::Colors::GrassGreen, GUI::Theme::Colors::WhiteCard);
+                        Widgets::BadgeTrong(tt.c_str());
                     } else if (tt == u8"Đang diễn ra") {
                         Widgets::BadgeVIP(tt.c_str());
                     } else if (tt == u8"Bị từ chối") {

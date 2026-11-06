@@ -1,4 +1,4 @@
-#include "GUI/Screens/Owner/OwnerShellScreen.h"
+﻿#include "GUI/Screens/Owner/OwnerShellScreen.h"
 
 #include <vector>
 #include <imgui.h>
@@ -20,7 +20,6 @@ namespace GUI::Screens::Owner {
 OwnerShellScreen::OwnerShellScreen() {
     dashboardScreen_ = std::make_unique<DashboardScreen>();
 
-    // Khi bấm nút tạo sân wizard trong FieldManagementScreen -> chuyển tab sang Wizard
     fieldMgmtScreen_ = std::make_unique<FieldManagementScreen>([this]() {
         selectedTab_ = 2;
         if (wizardScreen_) {
@@ -28,7 +27,6 @@ OwnerShellScreen::OwnerShellScreen() {
         }
     });
 
-    // Khi Wizard tạo sân hoàn tất -> tự động chuyển về Quản lý sân
     wizardScreen_ = std::make_unique<CreateFieldWizardScreen>([this]() {
         selectedTab_ = 1;
         if (fieldMgmtScreen_) {
@@ -36,10 +34,7 @@ OwnerShellScreen::OwnerShellScreen() {
         }
     });
 
-    // Quản lý khách hàng 4 tab
     khachHangScreen_ = std::make_unique<KhachHangScreen>();
-
-    // Quản lý giải đấu 4 tab
     giaiScreen_ = std::make_unique<GiaiScreen>();
 }
 
@@ -74,8 +69,6 @@ void OwnerShellScreen::render() {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 
     if (ImGui::Begin("##OwnerShellRootWindow", nullptr, flags)) {
-        // LÝ DO CHỌN: Kích hoạt mở modal đăng xuất ngay tại cửa sổ gốc OwnerShellRootWindow
-        // để ImGui::BeginPopupModal có cùng ID stack với OpenPopup, đảm bảo modal luôn hiển thị.
         if (yeuCauDangXuat_) {
             Widgets::MoModalXacNhan(u8"Xác nhận đăng xuất");
             yeuCauDangXuat_ = false;
@@ -87,11 +80,11 @@ void OwnerShellScreen::render() {
         ImGui::SameLine(0.0f, 0.0f);
 
         // 2. Vùng nội dung bên phải
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, GUI::Theme::Colors::LightBg);
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, GUI::Theme::Colors::Background);
         if (ImGui::BeginChild("##OwnerRightContent", ImVec2(0.0f, 0.0f), false)) {
             renderTopBar();
 
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(22.0f, 20.0f));
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(22.0f, 18.0f));
             if (ImGui::BeginChild("##OwnerScrollContent", ImVec2(0.0f, 0.0f), false)) {
                 renderContentArea();
             }
@@ -104,10 +97,10 @@ void OwnerShellScreen::render() {
         // Modal xác nhận đăng xuất
         Widgets::ModalXacNhan(
             u8"Xác nhận đăng xuất",
-            u8"Bạn có chắc chắn muốn đăng xuất tài khoản Chủ sân không?",
+            u8"Bạn có chắc chắn muốn đăng xuất khỏi phiên làm việc của Chủ sân không?\nMọi thay đổi chưa lưu sẽ được hệ thống tự động đồng bộ an toàn.",
             []() {
                 GUI::App::Session::getInstance().logout();
-                Widgets::ToastThongTin(u8"Đã đăng xuất tài khoản thành công!");
+                Widgets::ToastThongTin(u8"Đã đăng xuất tài khoản Chủ sân an toàn!");
                 GUI::App::ScreenManager::getInstance().replace(
                     std::make_unique<GUI::Screens::Auth::AuthScreen>()
                 );
@@ -124,11 +117,11 @@ void OwnerShellScreen::render() {
 
 void OwnerShellScreen::renderSidebar() {
     std::vector<Widgets::SidebarItem> menuItems = {
-        {"0", "", u8"Tổng quan cơ sở"},
-        {"1", "", u8"Quản lý sân bóng"},
-        {"2", "", u8"Khởi tạo sân mới"},
-        {"3", "", u8"Quản lý khách hàng"},
-        {"4", "", u8"Quản lý giải đấu"}
+        {"0", u8"📊", u8"Tổng quan cơ sở"},
+        {"1", u8"🏟️", u8"Quản lý sân bóng"},
+        {"2", u8"➕", u8"Khởi tạo sân mới"},
+        {"3", u8"👥", u8"Quản lý khách hàng"},
+        {"4", u8"🏆", u8"Quản lý giải đấu"}
     };
 
     int prevTab = selectedTab_;
@@ -141,7 +134,6 @@ void OwnerShellScreen::renderSidebar() {
         }
     );
 
-    // Kích hoạt nạp lại ViewModel tương ứng khi đổi tab qua Sidebar
     if (selectedTab_ != prevTab) {
         if (selectedTab_ == 0 && dashboardScreen_) dashboardScreen_->onEnter();
         else if (selectedTab_ == 1 && fieldMgmtScreen_) fieldMgmtScreen_->reloadViewModel();
@@ -154,53 +146,43 @@ void OwnerShellScreen::renderSidebar() {
 void OwnerShellScreen::renderTopBar() {
     const char* tabTitles[] = {
         u8"Tổng quan & Báo cáo cơ sở sân",
-        u8"Quản lý sân bóng mini (4 tab)",
+        u8"Quản lý danh sách sân & Lịch đặt",
         u8"Khởi tạo sân bóng mới (Wizard 4 bước)",
-        u8"Quản lý khách hàng & Ưu đãi (4 tab)",
-        u8"Quản lý sự kiện & Giải đấu (4 tab)"
+        u8"Quản lý danh bạ khách hàng & Ưu đãi VIP",
+        u8"Quản lý sự kiện & Giải đấu thể thao"
     };
 
     std::string currentTabName = tabTitles[selectedTab_];
     std::vector<std::string> breadcrumbs = {u8"Chủ sân", currentTabName};
 
     User* user = GUI::App::Session::getInstance().getUser();
-    std::string userName = user ? user->get_name() : u8"Nguyễn Văn Chủ";
+    std::string userName = user ? user->get_name() : u8"Chủ sân bóng";
 
     Widgets::TopBar(
         currentTabName.c_str(),
         breadcrumbs,
         userName.c_str(),
         u8"Chủ sân",
-        62.0f
+        60.0f
     );
 }
 
 void OwnerShellScreen::renderContentArea() {
     switch (selectedTab_) {
         case 0:
-            if (dashboardScreen_) {
-                dashboardScreen_->render();
-            }
+            if (dashboardScreen_) dashboardScreen_->render();
             break;
         case 1:
-            if (fieldMgmtScreen_) {
-                fieldMgmtScreen_->render();
-            }
+            if (fieldMgmtScreen_) fieldMgmtScreen_->render();
             break;
         case 2:
-            if (wizardScreen_) {
-                wizardScreen_->render();
-            }
+            if (wizardScreen_) wizardScreen_->render();
             break;
         case 3:
-            if (khachHangScreen_) {
-                khachHangScreen_->render();
-            }
+            if (khachHangScreen_) khachHangScreen_->render();
             break;
         case 4:
-            if (giaiScreen_) {
-                giaiScreen_->render();
-            }
+            if (giaiScreen_) giaiScreen_->render();
             break;
         default:
             break;

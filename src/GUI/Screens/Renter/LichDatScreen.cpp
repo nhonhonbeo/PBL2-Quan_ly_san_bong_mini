@@ -203,9 +203,9 @@ void LichDatScreen::renderTableDonDat() {
                 // Trạng thái Badge
                 const std::string& tt = row.oDuLieu[5];
                 if (tt == u8"Đã xác nhận") {
-                    Widgets::Badge(tt.c_str(), GUI::Theme::Colors::GrassGreen, GUI::Theme::Colors::WhiteCard);
+                    Widgets::BadgeTrong(tt.c_str());
                 } else if (tt == u8"Đã hoàn thành" || tt == u8"Đã thanh toán") {
-                    Widgets::Badge(tt.c_str(), GUI::Theme::Colors::BlueInfo, GUI::Theme::Colors::WhiteCard);
+                    Widgets::BadgeDaDat(tt.c_str());
                 } else if (tt == u8"Đã hủy") {
                     Widgets::BadgeDanhSachDen(tt.c_str());
                 } else {

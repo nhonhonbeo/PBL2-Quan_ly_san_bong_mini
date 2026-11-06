@@ -1,4 +1,4 @@
-#include "GUI/Screens/Renter/RenterShellScreen.h"
+﻿#include "GUI/Screens/Renter/RenterShellScreen.h"
 
 #include <vector>
 #include <imgui.h>
@@ -16,7 +16,6 @@
 namespace GUI::Screens::Renter {
 
 RenterShellScreen::RenterShellScreen() {
-    // Khi bấm "Xem lịch của tôi" trên phiếu đặt sân -> tự động chuyển sang tab Lịch đặt (tab 1)
     datSanScreen_ = std::make_unique<DatSanScreen>([this]() {
         selectedTab_ = 1;
         if (lichDatScreen_) {
@@ -64,8 +63,6 @@ void RenterShellScreen::render() {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 
     if (ImGui::Begin("##RenterShellRoot", nullptr, flags)) {
-        // LÝ DO CHỌN: Kích hoạt mở modal đăng xuất ngay tại cửa sổ gốc RenterShellRoot
-        // để ImGui::BeginPopupModal có cùng ID stack với OpenPopup, đảm bảo modal luôn hiển thị.
         if (yeuCauDangXuat_) {
             Widgets::MoModalXacNhan(u8"Xác nhận đăng xuất");
             yeuCauDangXuat_ = false;
@@ -77,11 +74,11 @@ void RenterShellScreen::render() {
         ImGui::SameLine(0.0f, 0.0f);
 
         // 2. Vùng nội dung bên phải
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, GUI::Theme::Colors::LightBg);
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, GUI::Theme::Colors::Background);
         if (ImGui::BeginChild("##RenterRightContent", ImVec2(0.0f, 0.0f), false)) {
             renderTopBar();
 
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(22.0f, 20.0f));
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(22.0f, 18.0f));
             if (ImGui::BeginChild("##RenterScrollContent", ImVec2(0.0f, 0.0f), false)) {
                 renderContentArea();
             }
@@ -94,10 +91,10 @@ void RenterShellScreen::render() {
         // Modal xác nhận đăng xuất
         Widgets::ModalXacNhan(
             u8"Xác nhận đăng xuất",
-            u8"Bạn có chắc chắn muốn đăng xuất tài khoản Người thuê không?",
+            u8"Bạn có chắc chắn muốn đăng xuất tài khoản Người thuê không?\nThông tin đặt sân và ưu đãi đã lưu sẽ không bị mất.",
             []() {
                 GUI::App::Session::getInstance().logout();
-                Widgets::ToastThongTin(u8"Đã đăng xuất tài khoản thành công!");
+                Widgets::ToastThongTin(u8"Đã đăng xuất tài khoản Người thuê an toàn!");
                 GUI::App::ScreenManager::getInstance().replace(
                     std::make_unique<GUI::Screens::Auth::AuthScreen>()
                 );
@@ -114,12 +111,12 @@ void RenterShellScreen::render() {
 
 void RenterShellScreen::renderSidebar() {
     std::vector<Widgets::SidebarItem> menuItems = {
-        {"0", "", u8"Đặt sân trực tuyến"},
-        {"1", "", u8"Lịch đặt của tôi"},
-        {"2", "", u8"Đăng ký tạo giải"},
-        {"3", "", u8"Ưu đãi thành viên"},
-        {"4", "", u8"Đánh giá sân bóng"},
-        {"5", "", u8"Thông tin cá nhân"}
+        {"0", u8"⚽", u8"Đặt sân trực tuyến"},
+        {"1", u8"📅", u8"Lịch đặt của tôi"},
+        {"2", u8"🏆", u8"Đăng ký tạo giải"},
+        {"3", u8"🎖️", u8"Ưu đãi thành viên"},
+        {"4", u8"⭐", u8"Đánh giá sân bóng"},
+        {"5", u8"👤", u8"Thông tin cá nhân"}
     };
 
     int prevTab = selectedTab_;
@@ -132,7 +129,6 @@ void RenterShellScreen::renderSidebar() {
         }
     );
 
-    // Kích hoạt nạp lại ViewModel khi đổi tab qua Sidebar
     if (selectedTab_ != prevTab) {
         if (selectedTab_ == 0 && datSanScreen_) datSanScreen_->reloadViewModel();
         else if (selectedTab_ == 1 && lichDatScreen_) lichDatScreen_->reloadViewModel();
@@ -145,60 +141,48 @@ void RenterShellScreen::renderSidebar() {
 
 void RenterShellScreen::renderTopBar() {
     const char* tabTitles[] = {
-        u8"Đặt sân bóng trực tuyến (Luồng từng bước)",
-        u8"Lịch đặt của tôi & Quản lý hủy sân",
+        u8"Đặt sân bóng trực tuyến (Quy trình 4 bước)",
+        u8"Lịch đặt của tôi & Quản lý hủy đơn",
         u8"Đăng ký tổ chức giải đấu phong trào",
-        u8"Ưu đãi tích lũy & Hạng thành viên",
-        u8"Đánh giá chất lượng sân bóng",
-        u8"Hồ sơ cá nhân & Đổi mật khẩu"
+        u8"Ưu đãi tích lũy & Hạng thành viên VIP",
+        u8"Đánh giá chất lượng dịch vụ & Sân bóng",
+        u8"Hồ sơ cá nhân & Đổi mật khẩu tài khoản"
     };
 
     std::string currentTabName = tabTitles[selectedTab_];
     std::vector<std::string> breadcrumbs = {u8"Người thuê", currentTabName};
 
     User* user = GUI::App::Session::getInstance().getUser();
-    std::string userName = user ? user->get_name() : u8"Người thuê";
+    std::string userName = user ? user->get_name() : u8"Người thuê sân";
 
     Widgets::TopBar(
         currentTabName.c_str(),
         breadcrumbs,
         userName.c_str(),
         u8"Người thuê",
-        62.0f
+        60.0f
     );
 }
 
 void RenterShellScreen::renderContentArea() {
     switch (selectedTab_) {
         case 0:
-            if (datSanScreen_) {
-                datSanScreen_->render();
-            }
+            if (datSanScreen_) datSanScreen_->render();
             break;
         case 1:
-            if (lichDatScreen_) {
-                lichDatScreen_->render();
-            }
+            if (lichDatScreen_) lichDatScreen_->render();
             break;
         case 2:
-            if (taoGiaiScreen_) {
-                taoGiaiScreen_->render();
-            }
+            if (taoGiaiScreen_) taoGiaiScreen_->render();
             break;
         case 3:
-            if (uuDaiScreen_) {
-                uuDaiScreen_->render();
-            }
+            if (uuDaiScreen_) uuDaiScreen_->render();
             break;
         case 4:
-            if (danhGiaScreen_) {
-                danhGiaScreen_->render();
-            }
+            if (danhGiaScreen_) danhGiaScreen_->render();
             break;
         case 5:
-            if (profileScreen_) {
-                profileScreen_->render();
-            }
+            if (profileScreen_) profileScreen_->render();
             break;
         default:
             break;

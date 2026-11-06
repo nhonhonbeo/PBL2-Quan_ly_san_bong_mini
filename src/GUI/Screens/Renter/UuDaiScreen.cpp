@@ -7,6 +7,7 @@
 
 #include "GUI/App/Session.h"
 #include "GUI/Theme/Theme.h"
+#include "GUI/Theme/Fonts.h"
 #include "GUI/Widgets/Badge.h"
 #include "GUI/Widgets/Card.h"
 #include "GUI/Widgets/ProgressBar.h"
@@ -65,53 +66,84 @@ void UuDaiScreen::render() {
 }
 
 void UuDaiScreen::renderThongKeUuDai() {
-    Widgets::Card("card_renter_discount_stats", u8"Quyền lợi & Tiến trình nâng hạng thành viên", [this]() {
-        ImGui::Columns(3, nullptr, false);
+    float availW = ImGui::GetContentRegionAvail().x;
+    float cardSpacing = 16.0f;
+    float cardW = (availW - cardSpacing * 2.0f) / 3.0f;
 
-        // 1. Số lần đã đặt
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-        ImGui::TextUnformatted(u8"Số lần đã đặt thành công:");
+    auto veTheKPI = [cardW](const char* id, const char* tieuDe, const char* giaTri, const char* moTa, ImVec4 accentColor) {
+        ImGui::PushID(id);
+        ImVec2 p0 = ImGui::GetCursorScreenPos();
+        float cardH = 110.0f;
+        ImVec2 p1 = ImVec2(p0.x + cardW, p0.y + cardH);
+
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+
+        // 1. Bóng đổ khuếch tán nhẹ
+        dl->AddRectFilled(ImVec2(p0.x, p0.y + 2.0f), ImVec2(p1.x, p1.y + 3.0f), IM_COL32(0, 0, 0, 8), 8.0f);
+
+        // 2. Nền trắng và viền chuẩn
+        dl->AddRectFilled(p0, p1, GUI::Theme::Colors::toU32(GUI::Theme::Colors::Surface), 8.0f);
+        dl->AddRect(p0, p1, GUI::Theme::Colors::toU32(GUI::Theme::Colors::Border), 8.0f, 0, 1.0f);
+
+        // 3. Vạch màu chỉ báo trên đỉnh
+        dl->AddRectFilled(p0, ImVec2(p1.x, p0.y + 3.5f), GUI::Theme::Colors::toU32(accentColor), 8.0f, ImDrawFlags_RoundCornersTop);
+
+        // 4. Nội dung text
+        ImGui::SetCursorScreenPos(ImVec2(p0.x + 16.0f, p0.y + 14.0f));
+        ImGui::BeginGroup();
+
+        // Tiêu đề nhỏ viết hoa
+        if (GUI::Theme::getFonts().small) ImGui::PushFont(GUI::Theme::getFonts().small);
+        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
+        ImGui::TextUnformatted(tieuDe);
         ImGui::PopStyleColor();
+        if (GUI::Theme::getFonts().small) ImGui::PopFont();
+
         ImGui::Spacing();
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
-        ImGui::Text(u8"%d lần đặt sân", soLanDat_);
+
+        // Giá trị số nổi bật
+        if (GUI::Theme::getFonts().title) ImGui::PushFont(GUI::Theme::getFonts().title);
+        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextPrimary);
+        ImGui::TextUnformatted(giaTri);
         ImGui::PopStyleColor();
+        if (GUI::Theme::getFonts().title) ImGui::PopFont();
 
-        ImGui::NextColumn();
+        ImGui::Spacing();
 
-        // 2. Mức ưu đãi hiện có
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-        ImGui::TextUnformatted(u8"Mức giảm giá hiện tại:");
+        // Mô tả phụ
+        if (GUI::Theme::getFonts().small) ImGui::PushFont(GUI::Theme::getFonts().small);
+        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
+        ImGui::TextUnformatted(moTa);
         ImGui::PopStyleColor();
-        ImGui::Spacing();
-        if (mucUuDaiHienTai_ > 0) {
-            Widgets::BadgeVIP((u8"Giảm " + std::to_string(mucUuDaiHienTai_) + "% / giờ").c_str());
-        } else {
-            Widgets::Badge(u8"0% (Chưa có ưu đãi)", GUI::Theme::Colors::GrayHover, GUI::Theme::Colors::DarkText);
-        }
+        if (GUI::Theme::getFonts().small) ImGui::PopFont();
 
-        ImGui::NextColumn();
+        ImGui::EndGroup();
 
-        // 3. Hạng thành viên
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-        ImGui::TextUnformatted(u8"Hạng thành viên hiện tại:");
-        ImGui::PopStyleColor();
-        ImGui::Spacing();
-        if (mucUuDaiHienTai_ >= 10) {
-            Widgets::BadgeVIP(tenHangHienTai_.c_str());
-        } else if (mucUuDaiHienTai_ > 0) {
-            Widgets::Badge(tenHangHienTai_.c_str(), GUI::Theme::Colors::GrassGreen, GUI::Theme::Colors::WhiteCard);
-        } else {
-            Widgets::Badge(tenHangHienTai_.c_str(), GUI::Theme::Colors::GrayHover, GUI::Theme::Colors::DarkText);
-        }
+        ImGui::SetCursorScreenPos(ImVec2(p1.x, p0.y));
+        ImGui::PopID();
+    };
 
-        ImGui::Columns(1);
+    // Hàng 3 thẻ KPI
+    float startX = ImGui::GetCursorPosX();
+    float startY = ImGui::GetCursorPosY();
 
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
+    std::string valDat = std::to_string(soLanDat_) + u8" lượt";
+    std::string valGiam = std::to_string(mucUuDaiHienTai_) + "%";
 
-        // Tiến trình nâng hạng
+    ImGui::SetCursorPos(ImVec2(startX, startY));
+    veTheKPI("kpi_renter_bookings", u8"TỔNG LƯỢT ĐẶT THÀNH CÔNG", valDat.c_str(), u8"Tích lũy từ khi đăng ký tài khoản", GUI::Theme::Colors::Primary);
+
+    ImGui::SetCursorPos(ImVec2(startX + cardW + cardSpacing, startY));
+    veTheKPI("kpi_renter_discount", u8"MỨC CHIẾT KHẤU HIỆN CÓ", valGiam.c_str(), u8"Trừ trực tiếp trên hóa đơn mỗi giờ", GUI::Theme::Colors::GoldAccent);
+
+    ImGui::SetCursorPos(ImVec2(startX + (cardW + cardSpacing) * 2.0f, startY));
+    veTheKPI("kpi_renter_tier", u8"HẠNG THÀNH VIÊN HIỆN TẠI", tenHangHienTai_.c_str(),
+             (mucUuDaiHienTai_ >= 10 ? u8"Đặc quyền thành viên VIP" : u8"Thành viên thân thiết"), GUI::Theme::Colors::Info);
+
+    ImGui::SetCursorPos(ImVec2(startX, startY + 116.0f));
+
+    // Card tiến trình nâng hạng
+    Widgets::Card("card_renter_tier_progress", u8"Tiến trình nâng hạng thành viên kế tiếp", [this]() {
         if (mocKeTiep_ > 0) {
             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
             ImGui::Text(u8"Tiến trình nâng lên hạng %s (Giảm %d%%):", tenHangKeTiep_.c_str(), phanTramKeTiep_);
@@ -122,12 +154,12 @@ void UuDaiScreen::renderThongKeUuDai() {
             std::snprintf(barText, sizeof(barText), u8"%d / %d lượt (Còn %d lượt đặt nữa)",
                           soLanDat_, mocKeTiep_, soLuotConLai_);
 
-            Widgets::ProgressBar(tienDoKeTiep_, barText, ImVec2(-1.0f, 30.0f), GUI::Theme::Colors::GrassGreen);
+            Widgets::ProgressBar(tienDoKeTiep_, barText, ImVec2(-1.0f, 32.0f), GUI::Theme::Colors::GrassGreen);
         } else {
             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::GrassGreen);
             ImGui::TextUnformatted(u8"Chúc mừng! Bạn đã đạt hạng thành viên cao nhất (VIP Vàng) của cụm sân.");
             ImGui::PopStyleColor();
-            Widgets::ProgressBar(1.0f, u8"100% Hoàn thành", ImVec2(-1.0f, 30.0f), GUI::Theme::Colors::GoldAccent);
+            Widgets::ProgressBar(1.0f, u8"100% Hoàn thành", ImVec2(-1.0f, 32.0f), GUI::Theme::Colors::GoldAccent);
         }
     });
 }

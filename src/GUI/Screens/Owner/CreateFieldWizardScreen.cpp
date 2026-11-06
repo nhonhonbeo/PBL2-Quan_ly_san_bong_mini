@@ -7,6 +7,7 @@
 #include "GUI/App/Facade.h"
 #include "GUI/App/Session.h"
 #include "GUI/Theme/Theme.h"
+#include "GUI/Theme/Fonts.h"
 #include "GUI/Widgets/Badge.h"
 #include "GUI/Widgets/Button.h"
 #include "GUI/Widgets/Card.h"
@@ -108,16 +109,23 @@ void CreateFieldWizardScreen::renderStep1LoaiSan() {
         ImVec2 p1 = ImVec2(p0.x + cardW, p0.y + 140.0f);
         ImDrawList* dl = ImGui::GetWindowDrawList();
 
-        // Nền thẻ
+        // Nền thẻ & Viền chuẩn Design System
         ImU32 bgCol = isSelected
-            ? IM_COL32(236, 253, 245, 255) // Xanh lá rất nhạt
-            : GUI::Theme::Colors::toU32(GUI::Theme::Colors::WhiteCard);
+            ? GUI::Theme::Colors::toU32(GUI::Theme::Colors::PrimaryLight)
+            : GUI::Theme::Colors::toU32(GUI::Theme::Colors::Surface);
         ImU32 borderCol = isSelected
-            ? GUI::Theme::Colors::toU32(GUI::Theme::Colors::GrassGreen)
-            : GUI::Theme::Colors::toU32(GUI::Theme::Colors::BorderLight);
+            ? GUI::Theme::Colors::toU32(GUI::Theme::Colors::Primary)
+            : GUI::Theme::Colors::toU32(GUI::Theme::Colors::Border);
 
         dl->AddRectFilled(p0, p1, bgCol, 8.0f);
-        dl->AddRect(p0, p1, borderCol, 8.0f, 0, isSelected ? 2.5f : 1.0f);
+        dl->AddRect(p0, p1, borderCol, 8.0f, 0, isSelected ? 2.0f : 1.0f);
+
+        // Nút radio tròn ở góc trên phải
+        ImVec2 radioCenter(p1.x - 20.0f, p0.y + 20.0f);
+        dl->AddCircle(radioCenter, 8.0f, borderCol, 0, 1.5f);
+        if (isSelected) {
+            dl->AddCircleFilled(radioCenter, 4.5f, GUI::Theme::Colors::toU32(GUI::Theme::Colors::Primary));
+        }
 
         std::string btnId = "##btn_loai_" + std::to_string(loai);
         ImGui::SetCursorScreenPos(p0);
@@ -129,16 +137,20 @@ void CreateFieldWizardScreen::renderStep1LoaiSan() {
         ImGui::SetCursorScreenPos(ImVec2(p0.x + 16.0f, p0.y + 14.0f));
         ImGui::BeginGroup();
 
-        ImGui::PushStyleColor(ImGuiCol_Text, isSelected ? GUI::Theme::Colors::GrassGreen : GUI::Theme::Colors::DarkText);
+        if (GUI::Theme::getFonts().title) ImGui::PushFont(GUI::Theme::getFonts().title);
+        ImGui::PushStyleColor(ImGuiCol_Text, isSelected ? GUI::Theme::Colors::Primary : GUI::Theme::Colors::TextPrimary);
         ImGui::TextUnformatted(tieuDe);
         ImGui::PopStyleColor();
+        if (GUI::Theme::getFonts().title) ImGui::PopFont();
 
         ImGui::Spacing();
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
+        if (GUI::Theme::getFonts().small) ImGui::PushFont(GUI::Theme::getFonts().small);
+        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
         ImGui::Text(u8"• Kích thước: %s", kichThuoc);
         ImGui::Text(u8"• Mặt sân: %s", co);
         ImGui::Text(u8"• Đơn giá đề xuất: %s", giaDeXuat);
         ImGui::PopStyleColor();
+        if (GUI::Theme::getFonts().small) ImGui::PopFont();
 
         ImGui::EndGroup();
 

@@ -1,9 +1,10 @@
-#include "GUI/Widgets/Toast.h"
+﻿#include "GUI/Widgets/Toast.h"
 
 #include <algorithm>
 #include <vector>
 #include <imgui.h>
 
+#include "GUI/Theme/Fonts.h"
 #include "GUI/Theme/Theme.h"
 
 namespace Widgets {
@@ -51,7 +52,6 @@ void RenderToasts() {
         t.thoiGianConLai -= dt;
     }
 
-    // Xóa các toast đã hết hạn
     s_Toasts.erase(
         std::remove_if(s_Toasts.begin(), s_Toasts.end(), [](const ToastItem& t) {
             return t.thoiGianConLai <= 0.0f;
@@ -60,14 +60,13 @@ void RenderToasts() {
     );
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    float toastWidth = 320.0f;
-    float posX = viewport->WorkPos.x + viewport->WorkSize.x - toastWidth - 20.0f;
-    float posY = viewport->WorkPos.y + 20.0f;
+    float toastWidth = 340.0f;
+    float posX = viewport->WorkPos.x + viewport->WorkSize.x - toastWidth - 24.0f;
+    float posY = viewport->WorkPos.y + 24.0f;
 
     for (size_t i = 0; i < s_Toasts.size(); ++i) {
         const auto& t = s_Toasts[i];
 
-        // LÝ DO CHỌN: Hiệu ứng mờ dần (Fade out) mượt mà trong 0.6 giây cuối đời của toast
         float alpha = 1.0f;
         if (t.thoiGianConLai < 0.6f) {
             alpha = t.thoiGianConLai / 0.6f;
@@ -76,7 +75,7 @@ void RenderToasts() {
 
         ImGui::SetNextWindowPos(ImVec2(posX, posY), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(toastWidth, 0.0f), ImGuiCond_Always);
-        ImGui::SetNextWindowBgAlpha(0.96f * alpha);
+        ImGui::SetNextWindowBgAlpha(0.98f * alpha);
 
         ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration |
                                  ImGuiWindowFlags_AlwaysAutoResize |
@@ -88,7 +87,7 @@ void RenderToasts() {
         std::string windowId = "##Toast_" + std::to_string(i);
         ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 8.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(14.0f, 10.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.0f, 12.0f));
 
         if (ImGui::Begin(windowId.c_str(), nullptr, flags)) {
             ImVec4 themeColor;
@@ -96,39 +95,38 @@ void RenderToasts() {
 
             switch (t.loai) {
                 case LoaiToast::ThanhCong:
-                    themeColor = GUI::Theme::Colors::GrassGreen;
-                    headerText = u8"[Thành công]";
+                    themeColor = GUI::Theme::Colors::Success;
+                    headerText = u8"✓ Thành công";
                     break;
                 case LoaiToast::Loi:
-                    themeColor = GUI::Theme::Colors::RedDanger;
-                    headerText = u8"[Lỗi]";
+                    themeColor = GUI::Theme::Colors::Danger;
+                    headerText = u8"✕ Lỗi xử lý";
                     break;
                 case LoaiToast::CanhBao:
-                    themeColor = GUI::Theme::Colors::GoldAccent;
-                    headerText = u8"[Cảnh báo]";
+                    themeColor = GUI::Theme::Colors::Warning;
+                    headerText = u8"⚠ Cảnh báo";
                     break;
                 case LoaiToast::ThongTin:
                 default:
-                    themeColor = GUI::Theme::Colors::BlueInfo;
-                    headerText = u8"[Thông tin]";
+                    themeColor = GUI::Theme::Colors::Info;
+                    headerText = u8"ℹ Thông báo";
                     break;
             }
 
-            // Vạch màu trạng thái bên trái
             ImDrawList* drawList = ImGui::GetWindowDrawList();
             ImVec2 winMin = ImGui::GetWindowPos();
             ImVec2 winMax = ImVec2(winMin.x + ImGui::GetWindowWidth(), winMin.y + ImGui::GetWindowHeight());
             ImU32 barCol = GUI::Theme::Colors::toU32(themeColor, alpha);
             drawList->AddRectFilled(winMin, ImVec2(winMin.x + 5.0f, winMax.y), barCol, 8.0f, ImDrawFlags_RoundCornersLeft);
 
-            // Tiêu đề loại toast
             ImGui::PushStyleColor(ImGuiCol_Text, themeColor);
             ImGui::TextUnformatted(headerText);
             ImGui::PopStyleColor();
 
-            // Nội dung thông báo
-            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
-            ImGui::PushTextWrapPos(toastWidth - 10.0f);
+            ImGui::Spacing();
+
+            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextPrimary);
+            ImGui::PushTextWrapPos(toastWidth - 14.0f);
             ImGui::TextUnformatted(t.noiDung.c_str());
             ImGui::PopTextWrapPos();
             ImGui::PopStyleColor();

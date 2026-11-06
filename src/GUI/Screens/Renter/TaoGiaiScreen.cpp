@@ -248,9 +248,9 @@ void TaoGiaiScreen::renderBangTheoDoiTrangThai() {
                     // Cột trạng thái
                     const std::string& tt = row.oDuLieu[4];
                     if (tt == u8"Chờ duyệt") {
-                        Widgets::Badge(tt.c_str(), GUI::Theme::Colors::GoldAccent, GUI::Theme::Colors::WhiteCard);
+                        Widgets::BadgeBaoTri(tt.c_str());
                     } else if (tt == u8"Đã duyệt") {
-                        Widgets::Badge(tt.c_str(), GUI::Theme::Colors::GrassGreen, GUI::Theme::Colors::WhiteCard);
+                        Widgets::BadgeTrong(tt.c_str());
                     } else if (tt == u8"Đang diễn ra") {
                         Widgets::BadgeVIP(tt.c_str());
                     } else if (tt == u8"Bị từ chối") {

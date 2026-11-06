@@ -3,3 +3,8 @@ S5-02|US01|Sân lịch sử S5-02|5|INACTIVE|Sân lịch sử đã migrate, khô
 S7-01|US01|Sân lịch sử S7-01|7|INACTIVE|Sân lịch sử đã migrate, không nhận lượt đặt mới.
 S11-01|US01|Sân lịch sử S11-02|11|INACTIVE|Sân lịch sử đã migrate, không nhận lượt đặt mới.
 S5-03|US01|Sân lịch sử S5-03|5|INACTIVE|Sân lịch sử đã migrate, không nhận lượt đặt mới.
+S5-04|US09|Sân 5 số 04|5|ACTIVE|1. Vui lòng mang giày thể thao chuyên dụng (đế cao su TF hoặc IC). 2. Nghiêm cấm hút thuốc lá và mang kẹo cao su vào mặt sân cỏ. 3. Có mặt trước giờ thi đấu 10 phút để nhận sân đúng lịch. 4. Giữ gìn vệ sinh chung và bảo quản trang thiết bị bóng, lưới.
+S5-05|US09|Sân 5 số 05|5|ACTIVE|1. Vui lòng mang giày thể thao chuyên dụng (đế cao su TF hoặc IC). 2. Nghiêm cấm hút thuốc lá và mang kẹo cao su vào mặt sân cỏ. 3. Có mặt trước giờ thi đấu 10 phút để nhận sân đúng lịch. 4. Giữ gìn vệ sinh chung và bảo quản trang thiết bị bóng, lưới.
+S5-06|US09|Sân 5 số 06|5|ACTIVE|1. Vui lòng mang giày thể thao chuyên dụng (đế cao su TF hoặc IC). 2. Nghiêm cấm hút thuốc lá và mang kẹo cao su vào mặt sân cỏ. 3. Có mặt trước giờ thi đấu 10 phút để nhận sân đúng lịch. 4. Giữ gìn vệ sinh chung và bảo quản trang thiết bị bóng, lưới.
+S5-07|US09|Sân 5 số 07|5|ACTIVE|1. Vui lòng mang giày thể thao chuyên dụng (đế cao su TF hoặc IC). 2. Nghiêm cấm hút thuốc lá và mang kẹo cao su vào mặt sân cỏ. 3. Có mặt trước giờ thi đấu 10 phút để nhận sân đúng lịch. 4. Giữ gìn vệ sinh chung và bảo quản trang thiết bị bóng, lưới.
+S5-08|US09|Sân 5 số 08|5|ACTIVE|1. Vui lòng mang giày thể thao chuyên dụng (đế cao su TF hoặc IC). 2. Nghiêm cấm hút thuốc lá và mang kẹo cao su vào mặt sân cỏ. 3. Có mặt trước giờ thi đấu 10 phút để nhận sân đúng lịch. 4. Giữ gìn vệ sinh chung và bảo quản trang thiết bị bóng, lưới.

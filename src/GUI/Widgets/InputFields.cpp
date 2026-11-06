@@ -1,15 +1,15 @@
-#include "GUI/Widgets/InputFields.h"
+﻿#include "GUI/Widgets/InputFields.h"
 
 #include <cctype>
 #include <vector>
 #include <imgui.h>
+#include "GUI/Theme/Fonts.h"
 #include "GUI/Theme/Theme.h"
 
 namespace Widgets {
 
 namespace {
 
-// LÝ DO CHỌN: Callback chuẩn của ImGui hỗ trợ std::string tự động cấp phát bộ nhớ khi người dùng gõ
 struct InputTextCallback_UserData {
     std::string* Str;
     ImGuiInputTextCallback ChainCallback;
@@ -62,7 +62,7 @@ bool InputTextStdString(
 
 void HienThiNhan(const char* label) {
     if (label != nullptr && label[0] != '\0') {
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
+        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextPrimary);
         ImGui::TextUnformatted(label);
         ImGui::PopStyleColor();
         ImGui::Spacing();
@@ -71,9 +71,14 @@ void HienThiNhan(const char* label) {
 
 void HienThiLoi(const char* loi) {
     if (loi != nullptr && loi[0] != '\0') {
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::RedDanger);
+        ImFont* smallFont = GUI::Theme::getFonts().small;
+        if (smallFont != nullptr) ImGui::PushFont(smallFont);
+
+        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::Danger);
         ImGui::TextUnformatted(loi);
         ImGui::PopStyleColor();
+
+        if (smallFont != nullptr) ImGui::PopFont();
     }
 }
 
@@ -92,7 +97,7 @@ bool InputText(
 
     bool coLoi = (loi != nullptr && loi[0] != '\0');
     if (coLoi) {
-        ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::RedDanger);
+        ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::Danger);
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.5f);
     }
 
@@ -143,7 +148,7 @@ bool InputTextValidated(
         ImGui::GetWindowDrawList()->AddRect(
             min,
             max,
-            ImGui::GetColorU32(GUI::Theme::Colors::RedDanger),
+            ImGui::GetColorU32(GUI::Theme::Colors::Danger),
             ImGui::GetStyle().FrameRounding,
             0,
             1.5f
@@ -168,7 +173,7 @@ bool InputPassword(
 
     bool coLoi = (loi != nullptr && loi[0] != '\0');
     if (coLoi) {
-        ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::RedDanger);
+        ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::Danger);
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.5f);
     }
 
@@ -185,17 +190,19 @@ bool InputPassword(
     }
 
     ImGui::SameLine();
-    // LÝ DO CHỌN: Nút chuyển đổi hiện/ẩn mật khẩu giúp người dùng kiểm tra lại mật khẩu vừa nhập
+    // LÝ DO CHỌN: Nút hiện/ẩn mật khẩu được tinh chỉnh giao diện nhỏ gọn, bo góc mềm mại
     const char* iconText = hienMatKhau ? u8"Ẩn" : u8"Hiện";
-    ImGui::PushStyleColor(ImGuiCol_Button, GUI::Theme::Colors::WhiteCard);
-    ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::GrassGreen);
-    ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::BorderLight);
+    ImGui::PushStyleColor(ImGuiCol_Button, GUI::Theme::Colors::Surface);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, GUI::Theme::Colors::GrayHover);
+    ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::Primary);
+    ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::InputBorder);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
     if (ImGui::Button(iconText, ImVec2(nutMatWidth, 0.0f))) {
         hienMatKhau = !hienMatKhau;
     }
-    ImGui::PopStyleVar();
-    ImGui::PopStyleColor(3);
+    ImGui::PopStyleVar(2);
+    ImGui::PopStyleColor(4);
 
     HienThiLoi(loi);
     ImGui::PopID();
@@ -215,7 +222,7 @@ bool InputInt(
 
     bool coLoi = (loi != nullptr && loi[0] != '\0');
     if (coLoi) {
-        ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::RedDanger);
+        ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::Danger);
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.5f);
     }
 
@@ -231,7 +238,6 @@ bool InputInt(
         style.FramePadding.x,
         (inputTextWidth - ImGui::CalcTextSize(currentValue.c_str()).x) * 0.5f
     );
-    // LÝ DO CHỌN: Đệm ngang động căn giữa giá trị số mà vẫn giữ nguyên vùng nhập của ImGui.
     ImGui::PushStyleVar(
         ImGuiStyleVar_FramePadding,
         ImVec2(centeredPadding, style.FramePadding.y)
@@ -251,13 +257,12 @@ bool InputInt(
 }
 
 static int FilterPhoneCallback(ImGuiInputTextCallbackData* data) {
-    // Chỉ cho phép ký tự số từ 0 đến 9
     if (data->EventChar < '0' || data->EventChar > '9') {
         return 1;
     }
     auto* user_data = static_cast<InputTextCallback_UserData*>(data->UserData);
     if (user_data && user_data->Str && user_data->Str->length() >= 10) {
-        return 1; // Đã đủ 10 chữ số, chặn nhập thêm
+        return 1;
     }
     return 0;
 }
@@ -274,12 +279,11 @@ bool InputPhone(
 
     bool coLoi = (loi != nullptr && loi[0] != '\0');
     if (coLoi) {
-        ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::RedDanger);
+        ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::Danger);
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.5f);
     }
 
     ImGui::SetNextItemWidth(-1.0f);
-    // LÝ DO CHỌN: Callback lọc ký tự chặn ngay từ bàn phím mọi ký tự không phải số và giới hạn 10 số
     bool changed = InputTextStdString(
         "##phone_input",
         placeholder,
@@ -290,7 +294,6 @@ bool InputPhone(
         10
     );
 
-    // Đảm bảo không vượt quá 10 ký tự nếu người dùng dán (paste)
     if (buffer.length() > 10) {
         buffer = buffer.substr(0, 10);
         changed = true;

@@ -6,6 +6,7 @@
 #include "Account/Customer.h"
 #include "GUI/App/Session.h"
 #include "GUI/Theme/Theme.h"
+#include "GUI/Theme/Fonts.h"
 #include "GUI/Widgets/Badge.h"
 #include "GUI/Widgets/Button.h"
 #include "GUI/Widgets/Card.h"
@@ -86,30 +87,54 @@ void ProfileScreen::renderFormThongTin() {
 
         ImGui::NextColumn();
 
-        // Thống kê tài khoản bên phải
+        // Thống kê tài khoản bên phải với các thẻ tóm tắt trực quan
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
         ImGui::TextUnformatted(u8"Thống kê hoạt động tài khoản:");
         ImGui::PopStyleColor();
         ImGui::Spacing();
 
-        ImGui::Text(u8"• Số lần đã đặt sân thành công: %d lần", soLanDat_);
-        ImGui::Text(u8"• Số lần đã hủy sân: %d lần", soLanHuy_);
+        float rightColW = ImGui::GetContentRegionAvail().x;
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+
+        auto veStatRow = [dl, rightColW](const char* label, const char* val, ImVec4 accent) {
+            ImVec2 p0 = ImGui::GetCursorScreenPos();
+            ImVec2 p1(p0.x + rightColW, p0.y + 42.0f);
+            dl->AddRectFilled(p0, p1, GUI::Theme::Colors::toU32(GUI::Theme::Colors::GrayHover), 6.0f);
+            dl->AddRect(p0, p1, GUI::Theme::Colors::toU32(GUI::Theme::Colors::Border), 6.0f);
+            dl->AddRectFilled(p0, ImVec2(p0.x + 3.5f, p1.y), GUI::Theme::Colors::toU32(accent), 6.0f);
+
+            dl->AddText(ImVec2(p0.x + 12.0f, p0.y + 12.0f), GUI::Theme::Colors::toU32(GUI::Theme::Colors::TextSecondary), label);
+            ImVec2 valSize = ImGui::CalcTextSize(val);
+            dl->AddText(ImVec2(p1.x - valSize.x - 12.0f, p0.y + 12.0f), GUI::Theme::Colors::toU32(GUI::Theme::Colors::TextPrimary), val);
+            ImGui::Dummy(ImVec2(rightColW, 44.0f));
+        };
+
+        std::string sDat = std::to_string(soLanDat_) + u8" lần";
+        veStatRow(u8"Đặt sân thành công", sDat.c_str(), GUI::Theme::Colors::Primary);
 
         float tyLeHuy = 0.0f;
         int tong = soLanDat_ + soLanHuy_;
         if (tong > 0) {
             tyLeHuy = (static_cast<float>(soLanHuy_) / tong) * 100.0f;
         }
-        ImGui::Text(u8"• Tỷ lệ hủy đơn: %.1f%%", tyLeHuy);
-        ImGui::Spacing();
+        char sHuy[64];
+        std::snprintf(sHuy, sizeof(sHuy), u8"%d lần (%.0f%%)", soLanHuy_, tyLeHuy);
+        veStatRow(u8"Đã hủy đặt sân", sHuy, (tyLeHuy > 20.0f ? GUI::Theme::Colors::Danger : GUI::Theme::Colors::Warning));
 
-        ImGui::TextUnformatted(u8"• Hạng tài khoản: ");
-        ImGui::SameLine();
+        ImVec2 p0 = ImGui::GetCursorScreenPos();
+        ImVec2 p1(p0.x + rightColW, p0.y + 42.0f);
+        dl->AddRectFilled(p0, p1, GUI::Theme::Colors::toU32(GUI::Theme::Colors::GrayHover), 6.0f);
+        dl->AddRect(p0, p1, GUI::Theme::Colors::toU32(GUI::Theme::Colors::Border), 6.0f);
+        dl->AddRectFilled(p0, ImVec2(p0.x + 3.5f, p1.y), GUI::Theme::Colors::toU32(GUI::Theme::Colors::Info), 6.0f);
+        dl->AddText(ImVec2(p0.x + 12.0f, p0.y + 12.0f), GUI::Theme::Colors::toU32(GUI::Theme::Colors::TextSecondary), u8"Hạng thành viên");
+
+        ImGui::SetCursorScreenPos(ImVec2(p1.x - 150.0f, p0.y + 8.0f));
         if (hangThanhVien_.find("VIP") != std::string::npos) {
             Widgets::BadgeVIP(hangThanhVien_.c_str());
         } else {
-            Widgets::Badge(hangThanhVien_.c_str(), GUI::Theme::Colors::GrassGreen, GUI::Theme::Colors::WhiteCard);
+            Widgets::Badge(hangThanhVien_.c_str(), GUI::Theme::Colors::PrimaryLight, GUI::Theme::Colors::Primary);
         }
+        ImGui::SetCursorScreenPos(ImVec2(p0.x, p1.y + 4.0f));
 
         ImGui::Columns(1);
 

@@ -187,7 +187,7 @@ void DanhGiaScreen::renderDanhSachDanhGiaCuaToi() {
         for (const auto& dg : danhSachDanhGiaCuaToi_) {
             ImGui::BeginGroup();
 
-            Widgets::Badge((u8"Sân " + dg.maSan).c_str(), GUI::Theme::Colors::GrassGreen, GUI::Theme::Colors::WhiteCard);
+            Widgets::BadgeTrong((u8"Sân " + dg.maSan).c_str());
             ImGui::SameLine(0.0f, 8.0f);
 
             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);

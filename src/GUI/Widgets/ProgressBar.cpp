@@ -1,4 +1,4 @@
-#include "GUI/Widgets/ProgressBar.h"
+﻿#include "GUI/Widgets/ProgressBar.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -18,16 +18,16 @@ void ProgressBar(
     if (width <= 0.0f) {
         width = ImGui::GetContentRegionAvail().x;
     }
-    float height = kichThuoc.y > 0.0f ? kichThuoc.y : 30.0f;
+    float height = kichThuoc.y > 0.0f ? kichThuoc.y : 28.0f;
 
     ImVec2 p0 = ImGui::GetCursorScreenPos();
     ImVec2 p1 = ImVec2(p0.x + width, p0.y + height);
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
-    constexpr float rounding = 0.0f;
+    constexpr float rounding = 6.0f;
 
     // 1. Nền rãnh thanh tiến trình
-    ImU32 bgCol = GUI::Theme::Colors::toU32(ImVec4(0.92f, 0.94f, 0.93f, 1.0f));
+    ImU32 bgCol = GUI::Theme::Colors::toU32(GUI::Theme::Colors::Border);
     drawList->AddRectFilled(p0, p1, bgCol, rounding);
 
     // 2. Thanh tiến trình đã nạp
@@ -50,10 +50,9 @@ void ProgressBar(
     float textOffsetX = std::max(0.0f, (width - txtSize.x) * 0.5f);
     ImVec2 txtPos(p0.x + textOffsetX, p0.y + (height - txtSize.y) * 0.5f);
 
-    // Chữ màu trắng nếu thanh đã đầy qua vị trí chữ, hoặc chữ màu đậm nếu nằm ngoài
     ImU32 txtCol = (clampedRatio > 0.55f)
         ? IM_COL32_WHITE
-        : GUI::Theme::Colors::toU32(GUI::Theme::Colors::DarkText);
+        : GUI::Theme::Colors::toU32(GUI::Theme::Colors::TextPrimary);
 
     drawList->AddText(txtPos, txtCol, buffer);
 

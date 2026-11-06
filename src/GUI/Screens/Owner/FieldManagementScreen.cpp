@@ -95,35 +95,25 @@ void FieldManagementScreen::reloadViewModel() {
 }
 
 void FieldManagementScreen::render() {
+    // LÝ DO CHỌN: Tab Bar chuẩn Modern SaaS không cần ép màu chữ WhiteCard,
+    // sử dụng TextPrimary trên nền Surface trắng và chỉ báo TabSelectedOverline xanh lá thương hiệu.
     if (ImGui::BeginTabBar("##FieldManagementTabBar", ImGuiTabBarFlags_None)) {
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
-        bool showFieldList = ImGui::BeginTabItem(u8"a. Danh sách sân bóng");
-        ImGui::PopStyleColor();
-        if (showFieldList) {
+        if (ImGui::BeginTabItem(u8"Danh sách sân bóng")) {
             renderTabDanhSachSan();
             ImGui::EndTabItem();
         }
 
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
-        bool showOperatingHours = ImGui::BeginTabItem(u8"b. Khung giờ hoạt động");
-        ImGui::PopStyleColor();
-        if (showOperatingHours) {
+        if (ImGui::BeginTabItem(u8"Khung giờ hoạt động")) {
             renderTabKhungGio();
             ImGui::EndTabItem();
         }
 
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
-        bool showPricing = ImGui::BeginTabItem(u8"c. Bảng giá thuê");
-        ImGui::PopStyleColor();
-        if (showPricing) {
+        if (ImGui::BeginTabItem(u8"Bảng giá thuê")) {
             renderTabGiaThueMaTran();
             ImGui::EndTabItem();
         }
 
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::WhiteCard);
-        bool showDailyStatus = ImGui::BeginTabItem(u8"d. Tình trạng theo ngày");
-        ImGui::PopStyleColor();
-        if (showDailyStatus) {
+        if (ImGui::BeginTabItem(u8"Tình trạng theo ngày")) {
             renderTabTinhTrangTheoNgay();
             ImGui::EndTabItem();
         }
@@ -275,7 +265,7 @@ void FieldManagementScreen::renderTabKhungGio() {
 
                 ImGui::TableSetColumnIndex(3);
                 if (kg.laGioVang) {
-                    Widgets::Badge(u8"Giờ vàng", GUI::Theme::Colors::GoldAccent, GUI::Theme::Colors::WhiteCard);
+                    Widgets::BadgeVIP(u8"Giờ vàng");
                 } else {
                     Widgets::Badge(u8"Giờ thường", GUI::Theme::Colors::GrayHover, GUI::Theme::Colors::DarkText);
                 }
