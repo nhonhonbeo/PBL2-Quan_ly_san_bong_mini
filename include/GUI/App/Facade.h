@@ -291,17 +291,6 @@ public:
     int getSoLanDatCuaKhach(const std::string& sdt) const;
     int getMucUuDaiCuaKhach(const std::string& sdt) const;
 
-    // Đặt sân mới và sinh mã đơn
-    KetQua datSanMoi(
-        const std::string& maSan,
-        const std::string& sdtKhach,
-        const std::string& tenKhach,
-        const std::string& ngay,
-        const std::string& khungGio,
-        int giaGoc,
-        int giaGiam,
-        std::string& outMaDon
-    );
     KetQua datNhieuCaMoi(const std::string& maSan, const std::string& sdtKhach,
                          const std::string& tenKhach, const std::string& ngay,
                          const LinkedList<std::string>& khungGio, int loaiSan,
@@ -332,15 +321,6 @@ public:
                                const std::string& sdtMoi);
     KetQua doiMatKhauUser(const std::string& sdt, const std::string& matKhauCu, const std::string& matKhauMoi);
 
-    // ==========================================
-    // 9. CÁC HÀM NGHIỆP VỤ TODO
-    // ==========================================
-    KetQua datSan(const std::string& maSan, const std::string& ngay, const std::string& gio);
-    KetQua huyDatSan(const std::string& maDonDat);
-    KetQua themSanBong(const std::string& tenSan, int loaiSan, int giaThue);
-    KetQua capNhatKhungGioGia(const std::string& maSan, const std::string& gioMo, const std::string& gioDong, int giaMoi);
-    KetQua themGiaiDau(const std::string& tenGiai, const std::string& ngayBatDau, const std::string& ngayKetThuc);
-    KetQua guiDanhGiaSan(const std::string& maSan, int soSao, const std::string& noiDung);
 
 private:
     Facade();

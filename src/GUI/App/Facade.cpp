@@ -1385,7 +1385,6 @@ KetQua Facade::duyetGiaiDau(const std::string& maGiai) {
     }
 
     // LÝ DO CHỌN: Kiểm tra trùng lịch sân bóng thuộc tầng nghiệp vụ, GUI chỉ hiển thị kết quả.
-    // TODO: Sinh viên thay thế bằng hàm kiểm tra trùng lịch của TournamentManager / BookingManager trong include/Tournament.
     int tStart = parseNgaySangSo(target->ngayBatDau);
     int tEnd   = parseNgaySangSo(target->ngayKetThuc);
 
@@ -1599,77 +1598,6 @@ int Facade::getMucUuDaiCuaKhach(const std::string& sdt) const {
     return discount;
 }
 
-KetQua Facade::datSanMoi(
-    const std::string& maSan,
-    const std::string& sdtKhach,
-    const std::string& tenKhach,
-    const std::string& ngay,
-    const std::string& khungGio,
-    int giaGoc,
-    int giaGiam,
-    std::string& outMaDon
-) {
-    auto chuanHoaNgay = [](const std::string& value) {
-        if (value.size() == 10U && value[2] == '/' && value[5] == '/') return value.substr(6, 4) + "-" + value.substr(3, 2) + "-" + value.substr(0, 2);
-        return value;
-    };
-    const std::string bookingDate = chuanHoaNgay(ngay);
-    if (!DateTime::isValidDate(bookingDate) || DateTime::isPastDate(bookingDate)) return {false, u8"Không thể đặt sân vào ngày trong quá khứ."};
-    if (bookingDate == DateTime::today() && khungGio.size() >= 5U && DateTime::compareTime(khungGio.substr(0, 5), DateTime::nowTime()) <= 0) return {false, u8"Khung giờ đã qua hoặc đang diễn ra hôm nay."};
-    if (giaGoc <= 0 || giaGiam < 0 || giaGiam > giaGoc) return {false, u8"Giá thuê hoặc ưu đãi không hợp lệ."};
-    if (laKhachHangBiChan(sdtKhach)) {
-        return {false, u8"Tài khoản của bạn đang bị khóa do vi phạm. Vui lòng liên hệ chủ sân!"};
-    }
-
-    SanBongInfo* field = getSanBong(maSan);
-    if (field == nullptr || field->ownerUserId.empty()) {
-        return {false, u8"Không tìm thấy sân thuộc chủ sân nào để nhận đặt chỗ."};
-    }
-
-    // Kiểm tra trùng đơn
-    for (const auto& don : danhSachDonDat_) {
-        if (don.maSan == maSan && don.ngay == ngay && don.khungGio == khungGio && don.trangThai != u8"Đã hủy") {
-            return {false, u8"Khung giờ này vừa có người đặt trước. Vui lòng chọn khung giờ khác!"};
-        }
-    }
-
-    char buf[32];
-    std::snprintf(buf, sizeof(buf), "BK-%04zu", danhSachDonDat_.size() + 101);
-    outMaDon = buf;
-
-    int tongTien = giaGoc - giaGiam;
-    if (tongTien < 0) tongTien = 0;
-
-    DonDatSanInfo donMoi;
-    donMoi.maDon = outMaDon;
-    donMoi.maSan = maSan;
-    donMoi.ownerUserId = field->ownerUserId;
-    donMoi.tenKhachHang = tenKhach;
-    donMoi.sdt = sdtKhach;
-    donMoi.ngay = ngay;
-    donMoi.khungGio = khungGio;
-    donMoi.giaTien = tongTien;
-    donMoi.trangThai = u8"Đã xác nhận";
-
-    danhSachDonDat_.insert(danhSachDonDat_.begin(), donMoi);
-
-    // Cập nhật số lần đặt cho khách
-    auto it = mapIndexKhachSDT_.find(sdtKhach);
-    if (it != mapIndexKhachSDT_.end() && it->second < danhSachKhachHang_.size()) {
-        // Lượt đặt chỉ được cộng khi chủ sân xác nhận đã đá xong.
-    }
-
-    // Cập nhật Customer object trong session nếu có
-    User* curUser = Session::getInstance().getUser();
-    auto customer = dynamic_cast<::Customer*>(curUser);
-    if (customer && customer->get_phone_number() == sdtKhach) {
-        // Thống kê Customer được cập nhật khi đơn hoàn thành.
-    }
-
-    luuDuLieu();
-    return {true, ""};
-}
-
 KetQua Facade::huyDonDat(const std::string& maDon, const std::string& sdtKhach) {
     User* user = Session::getInstance().getUser();
     if (user == nullptr || user->get_account_type() != "Customer" ||
@@ -1877,45 +1805,6 @@ KetQua Facade::doiMatKhauUser(const std::string& sdt, const std::string& matKhau
     }
 
     luuDuLieu();
-    return {true, ""};
-}
-
-// ==========================================
-// 9. CÁC HÀM NGHIỆP VỤ TODO
-// ==========================================
-KetQua Facade::datSan(const std::string& maSan, const std::string& ngay, const std::string& gio) {
-    (void)maSan; (void)ngay; (void)gio;
-    // TODO: Sinh viên triển khai kiểm tra khung giờ trùng trong BookingManager và lưu đơn đặt sân
-    return {true, ""};
-}
-
-KetQua Facade::huyDatSan(const std::string& maDonDat) {
-    (void)maDonDat;
-    // TODO: Sinh viên triển khai nghiệp vụ hoàn cọc và tăng biến cancel_count của Customer
-    return {true, ""};
-}
-
-KetQua Facade::themSanBong(const std::string& tenSan, int loaiSan, int giaThue) {
-    (void)tenSan; (void)loaiSan; (void)giaThue;
-    // TODO: Sinh viên triển khai lưu danh sách sân mới vào FieldManager
-    return {true, ""};
-}
-
-KetQua Facade::capNhatKhungGioGia(const std::string& maSan, const std::string& gioMo, const std::string& gioDong, int giaMoi) {
-    (void)maSan; (void)gioMo; (void)gioDong; (void)giaMoi;
-    // TODO: Sinh viên triển khai cập nhật thời gian mở đóng cửa và biểu giá theo khung giờ
-    return {true, ""};
-}
-
-KetQua Facade::themGiaiDau(const std::string& tenGiai, const std::string& ngayBatDau, const std::string& ngayKetThuc) {
-    (void)tenGiai; (void)ngayBatDau; (void)ngayKetThuc;
-    // TODO: Sinh viên triển khai lưu thông tin sự kiện giải đấu và danh sách bảng đấu
-    return {true, ""};
-}
-
-KetQua Facade::guiDanhGiaSan(const std::string& maSan, int soSao, const std::string& noiDung) {
-    (void)maSan; (void)soSao; (void)noiDung;
-    // TODO: Sinh viên triển khai lưu đánh giá và tính lại số sao trung bình của sân bóng
     return {true, ""};
 }
 

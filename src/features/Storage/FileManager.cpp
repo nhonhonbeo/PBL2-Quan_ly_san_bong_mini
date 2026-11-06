@@ -18,13 +18,6 @@ std::vector<std::string> tachChuoi(const std::string& str, char delimiter) {
     return tokens;
 }
 
-// Hàm hỗ trợ báo lỗi theo chuẩn TODO của đồ án
-bool reportTodo(std::string& error, const char* responsibility) {
-    error = std::string("TODO FileManager: ") + responsibility +
-            ". Sinh viên cần cài đặt truy xuất file an toàn.";
-    return false;
-}
-
 void themTaiKhoanMau(std::vector<std::shared_ptr<User>>& danhSach) {
     danhSach.push_back(std::make_shared<Owner>(
         "US01",
@@ -83,11 +76,6 @@ bool FileManager::readAllLines(const std::string& path,
     std::string line;
     while (std::getline(input, line)) out.push_back(line);
     return true;
-    (void)path;
-    (void)out;
-    // TODO: Đầu vào là đường dẫn hợp lệ; kết quả mong đợi là nạp từng dòng vào
-    // out hoặc trả false kèm lỗi. Không đọc file khi chưa có format đã duyệt.
-    return reportTodo(error, "đọc toàn bộ dòng");
 }
 
 bool FileManager::writeAllLines(const std::string& path,
@@ -99,11 +87,6 @@ bool FileManager::writeAllLines(const std::string& path,
     if (!output.is_open()) { error = "Khong the ghi file: " + path; return false; }
     lines.forEach([&output](const std::string& line) { output << line << '\n'; });
     return static_cast<bool>(output);
-    (void)path;
-    (void)lines;
-    // TODO: Đầu vào là danh sách dòng đã serialize; kết quả mong đợi là ghi an
-    // toàn hoặc trả false kèm lỗi, không tạo dữ liệu giả.
-    return reportTodo(error, "ghi toàn bộ dòng");
 }
 
 bool FileManager::appendLine(const std::string& path, const std::string& line,
@@ -114,11 +97,6 @@ bool FileManager::appendLine(const std::string& path, const std::string& line,
     if (!output.is_open()) { error = "Khong the ghi file: " + path; return false; }
     output << line << '\n';
     return static_cast<bool>(output);
-    (void)path;
-    (void)line;
-    // TODO: Đầu vào là một dòng do Repository serialize; kết quả mong đợi là
-    // thêm dòng hoặc trả false kèm lỗi.
-    return reportTodo(error, "thêm một dòng");
 }
 
 // --- 2. Triển khai API hỗ trợ trực tiếp module Account ---
