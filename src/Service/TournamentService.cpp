@@ -48,7 +48,7 @@ Queue<TournamentMatch> TournamentService::buildMatchScheduleQueue(
     const std::string& firstStart,
     int teamCount
 ) const {
-    // L? DO CH?N: Queue (h?ng ??i FIFO) qu?n l? th? t? c?c tr?n ??u trong l?ch gi?i.
+    // LÝ DO CHỌN: Queue (hàng đợi FIFO) quản lý thứ tự các trận đấu trong lịch giải.
     Queue<TournamentMatch> result;
     for (int i = 0; i + 1 < teamCount; i += 2) {
         char id[32];
@@ -81,18 +81,18 @@ bool TournamentService::checkOverlap(const Tournament& tournament,
     const std::string endDateIso = DateTime::toIsoDate(tournament.getEndDate());
 
     if (startDateIso.empty() || DateTime::isPastDate(startDateIso)) {
-        error = u8"Ng?y b?t ??u gi?i kh?ng h?p l? ho?c ?? qua.";
+        error = u8"Ngày bắt đầu giải không hợp lệ hoặc đã qua.";
         return false;
     }
     if (endDateIso.empty() || DateTime::compareDate(endDateIso, startDateIso) < 0) {
-        error = u8"Ng?y k?t th?c ph?i b?ng ho?c sau ng?y b?t ??u.";
+        error = u8"Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.";
         return false;
     }
 
     std::string tStartSlot, tEndSlot;
     tachKhung(tournament.getTimeSlot(), tStartSlot, tEndSlot);
 
-    // 1. Ki?m tra tr?ng l?ch v?i c?c gi?i ??u ?? duy?t / ?ang di?n ra kh?c
+    // 1. Kiểm tra trùng lịch với các giải đấu đã duyệt / đang diễn ra khác
     LinkedList<Tournament> allTournaments;
     std::string repoError;
     if (tournament_repository_.loadAll(allTournaments, repoError)) {
@@ -122,14 +122,14 @@ bool TournamentService::checkOverlap(const Tournament& tournament,
         }
     }
 
-    // 2. Ki?m tra tr?ng l?ch v?i ??n ??t s?n c?n hi?u l?c (b? qua ??n ?? h?y)
+    // 2. Kiểm tra trùng lịch với đơn đặt sân còn hiệu lực (bỏ qua đơn đã hủy)
     LinkedList<VenueBookingRecord> bookings;
     std::string bookError;
     if (booking_repository_.loadAll(bookings, bookError)) {
         for (auto* node = bookings.get_head(); node != nullptr; node = node->next) {
             const VenueBookingRecord& b = node->data;
             if (b.fieldId != tournament.getRequestedFieldId()) continue;
-            if (b.status == "CANCELLED" || b.status == u8"?? h?y") continue;
+            if (b.status == "CANCELLED" || b.status == u8"Đã hủy") continue;
 
             const std::string bDateIso = DateTime::toIsoDate(b.date);
             if (DateTime::compareDate(bDateIso, startDateIso) >= 0 &&
@@ -167,7 +167,7 @@ bool TournamentService::tuChoiGiaiDau(const std::string& tournamentId,
     if (!tournament_repository_.findById(tournamentId, target, error)) {
         return false;
     }
-    target.reject(reason.empty() ? u8"Tr?ng l?ch s?n ho?c quy m? kh?ng ph? h?p." : reason);
+    target.reject(reason.empty() ? u8"Trùng lịch sân hoặc quy mô không phù hợp." : reason);
     return tournament_repository_.update(target, error);
 }
 
@@ -175,7 +175,7 @@ bool TournamentService::taoGiaiDauThuCong(const Tournament& tournament,
                                          std::string& outId,
                                          std::string& error) {
     if (tournament.getName().empty()) {
-        error = u8"T?n gi?i ??u kh?ng ???c ?? tr?ng!";
+        error = u8"Tên giải đấu không được để trống!";
         return false;
     }
     if (!checkOverlap(tournament, "", error)) {
@@ -218,11 +218,11 @@ bool TournamentService::guiYeuCauTaoGiai(const Tournament& tournament,
     const std::string start = DateTime::toIsoDate(tournament.getStartDate());
     const std::string end = DateTime::toIsoDate(tournament.getEndDate());
     if (!DateTime::isValidDate(start) || DateTime::isPastDate(start)) {
-        error = u8"Ng?y b?t ??u gi?i kh?ng h?p l? ho?c ?? qua.";
+        error = u8"Ngày bắt đầu giải không hợp lệ hoặc đã qua.";
         return false;
     }
     if (!DateTime::isValidDate(end) || DateTime::compareDate(end, start) < 0) {
-        error = u8"Ng?y k?t th?c ph?i b?ng ho?c sau ng?y b?t ??u.";
+        error = u8"Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.";
         return false;
     }
 

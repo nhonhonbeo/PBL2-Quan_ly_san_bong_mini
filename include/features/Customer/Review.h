@@ -3,8 +3,8 @@
 
 #include <string>
 
-// L? DO CH?N: Review l?u tr? nh?n x?t v? ?i?m s? c?a kh?ch h?ng theo s?n,
-// li?n k?t tr?c ti?p v?i t?p tin data/reviews.txt.
+// LÝ DO CHỌN: Review lưu trữ nhận xét và điểm số của khách hàng theo sân,
+// liên kết trực tiếp với tập tin data/reviews.txt.
 class Review {
 private:
     std::string review_id_;

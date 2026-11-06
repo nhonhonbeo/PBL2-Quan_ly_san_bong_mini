@@ -6,8 +6,8 @@
 
 class FileManager;
 
-// L? DO CH?N: TournamentRepository qu?n l? vi?c l?u tr? v? truy xu?t c?c gi?i ??u
-// t? t?p data/tournaments.txt b?ng LinkedList tu?n t?.
+// LÝ DO CHỌN: TournamentRepository quản lý việc lưu trữ và truy xuất các giải đấu
+// từ tệp data/tournaments.txt bằng LinkedList tuần tự.
 class TournamentRepository {
 private:
     FileManager& file_manager_;

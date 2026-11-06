@@ -31,7 +31,7 @@ TournamentRepository::TournamentRepository(FileManager& manager)
 
 bool TournamentRepository::loadAll(LinkedList<Tournament>& tournaments,
                                    std::string& error) const {
-    // L? DO CH?N: LinkedList n?p danh s?ch gi?i ??u t? t?p tin data/tournaments.txt tu?n t?.
+    // LÝ DO CHỌN: LinkedList nạp danh sách giải đấu từ tập tin data/tournaments.txt tuần tự.
     LinkedList<std::string> lines;
     if (!file_manager_.readAllLines("data/tournaments.txt", lines, error)) {
         return false;
@@ -86,7 +86,7 @@ bool TournamentRepository::loadAll(LinkedList<Tournament>& tournaments,
 
 bool TournamentRepository::saveAll(const LinkedList<Tournament>& tournaments,
                                    std::string& error) const {
-    // L? DO CH?N: LinkedList n?i v? xu?t t?p d?ng gi?i ??u ra t?p tin data/tournaments.txt.
+    // LÝ DO CHỌN: LinkedList nối và xuất tệp dòng giải đấu ra tập tin data/tournaments.txt.
     LinkedList<std::string> lines;
     for (auto* node = tournaments.get_head(); node != nullptr; node = node->next) {
         const Tournament& t = node->data;

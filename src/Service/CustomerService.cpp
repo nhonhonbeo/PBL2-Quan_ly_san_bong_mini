@@ -12,9 +12,9 @@
 CustomerService::CustomerService(CustomerRepository& customerRepository)
     : customer_repository_(customerRepository),
       discount_thresholds_{
-          {1, 5, 5, u8"Kh?ch th?n thi?t"},
-          {2, 10, 10, u8"Kh?ch h?ng VIP B?c"},
-          {3, 20, 15, u8"Kh?ch h?ng VIP V?ng"}
+          {1, 5, 5, u8"Khách thân thiết"},
+          {2, 10, 10, u8"Khách hàng VIP Bạc"},
+          {3, 20, 15, u8"Khách hàng VIP Vàng"}
       } {}
 
 const std::vector<CustomerDiscountThreshold>& CustomerService::getDiscountThresholds() const {
@@ -100,7 +100,7 @@ bool CustomerService::addToBlacklist(const std::string& customerIdOrPhone,
                                     std::string& error) {
     Blacklist bl(
         customerIdOrPhone,
-        reason.empty() ? u8"H?y s?n nhi?u l?n kh?ng th?ng b?o tr??c" : reason,
+        reason.empty() ? u8"Hủy sân nhiều lần không thông báo trước" : reason,
         DateTime::today(),
         true
     );

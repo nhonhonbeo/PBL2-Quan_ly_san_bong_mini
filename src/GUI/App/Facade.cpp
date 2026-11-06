@@ -68,7 +68,16 @@ void Facade::dongBoTuCacService() {
     std::string err;
     account_service_.loadAccounts(err);
     danhSachUser_ = account_service_.getAccounts();
-    for (const auto& u : danhSachUser_) if (u) mapMatKhau_[u->get_phone_number()] = u->get_password();
+
+    User* cur = Session::getInstance().getUser();
+    if (cur) {
+        for (const auto& u : danhSachUser_) {
+            if (u && u->get_user_id() == cur->get_user_id()) {
+                Session::getInstance().login(u, u->get_account_type());
+                break;
+            }
+        }
+    }
 
     venue_repository_.migrateLegacyData(err);
     venue_repository_.seedIfNeeded(err);
@@ -97,6 +106,9 @@ void Facade::dongBoTuCacService() {
         danhSachNguongUuDai_.push_back({t.id, t.minBookings, t.percentage, t.tierName});
     }
 
+    for (const auto& kh : danhSachKhachHang_) {
+        mapIndexKhachSDT_.remove(kh.sdt);
+    }
     danhSachKhachHang_.clear();
     LinkedList<Customer> customers;
     customer_service_.getAllCustomers(customers, err);
@@ -143,7 +155,10 @@ void Facade::dongBoTuCacService() {
     }
 }
 void Facade::napDuLieu() { if (!daNapDuLieu_) { dongBoTuCacService(); daNapDuLieu_ = true; } }
-void Facade::luuDuLieu() { std::string err; account_repository_.save(danhSachUser_, err); }
+void Facade::luuDuLieu() {
+    // ponytail: Mỗi Service tự ghi xuống file ngay khi thao tác; luuDuLieu() chỉ chốt đồng bộ cache.
+    dongBoTuCacService();
+}
 
 bool Facade::kiemTraSDTDaTonTai(const std::string& sdt) const {
     for (const auto& u : danhSachUser_) if (u && u->get_phone_number() == sdt) return true;
@@ -154,12 +169,6 @@ KetQuaDuLieu<std::shared_ptr<User>> Facade::dangNhap(const std::string& sdt, con
     napDuLieu();
     std::string err;
     std::shared_ptr<User> user = account_service_.authenticate(sdt, matKhau, err);
-    if (!user) {
-        auto it = mapMatKhau_.find(sdt);
-        if (it != mapMatKhau_.end() && it->second == matKhau) {
-            for (const auto& u : danhSachUser_) if (u && u->get_phone_number() == sdt) { user = u; break; }
-        }
-    }
     if (!user) {
         if (!kiemTraSDTDaTonTai(sdt)) return {false, u8"Số điện thoại này chưa được đăng ký trong hệ thống.", nullptr};
         return {false, u8"Mật khẩu đăng nhập không chính xác.", nullptr};
@@ -178,11 +187,7 @@ KetQua Facade::dangKyNguoiThue(const std::string& hoTen, const std::string& sdt,
     if (!account_service_.registerUser(cust, err)) return {false, err};
     customer_repository_.saveCustomer(*cust, err);
 
-    danhSachUser_.push_back(cust);
-    mapMatKhau_[sdt] = matKhau;
-    KhachHangInfo kh{idBuf, hoTen, sdt, 0, 0, false, "", "", 0};
-    mapIndexKhachSDT_.insert(sdt, danhSachKhachHang_.size());
-    danhSachKhachHang_.push_back(kh);
+    dongBoTuCacService();
     return {true, ""};
 }
 
@@ -196,8 +201,7 @@ KetQua Facade::dangKyChuSan(const std::string& hoTen, const std::string& sdt, co
                                          u8"Quy định tiêu chuẩn cụm sân", "06:00", "23:00", hoTen);
     std::string err;
     if (!account_service_.registerUser(owner, err)) return {false, err};
-    danhSachUser_.push_back(owner);
-    mapMatKhau_[sdt] = matKhau;
+    dongBoTuCacService();
     return {true, ""};
 }
 
@@ -325,10 +329,9 @@ KetQua Facade::taoNhieuSan(int loaiSan, int soLuong, const std::string& quyDinh,
                               (stt < 10 ? "0" : "") + std::to_string(stt),
                               loaiSan, 0, quyDinh};
         if (!field_service_.createField(owner->get_user_id(), newF, error)) return {false, error};
-        danhSachSan_.push_back({newF.fieldId, newF.ownerId, newF.name, newF.size, 0, false, newF.rules});
         outMaSan.push_back(maBuf);
     }
-    venue_repository_.loadPrices(bangGiaCoSo_, error);
+    dongBoTuCacService();
     return {true, ""};
 }
 
@@ -342,7 +345,7 @@ KetQua Facade::suaSanBong(const std::string& maSan, const std::string& tenSan, i
     VenueFieldRecord updated{maSan, owner->get_user_id(), tenSan, loaiSan, san->dangBaoTri ? 1 : 0, san->quyDinh};
     std::string error;
     if (!venue_service_.updateField(owner->get_user_id(), updated, error)) return {false, error};
-    san->tenSan = tenSan; san->loaiSan = loaiSan;
+    dongBoTuCacService();
     return {true, ""};
 }
 
@@ -355,7 +358,7 @@ KetQua Facade::toggleBaoTriSan(const std::string& maSan) {
     FieldStatus status = san->dangBaoTri ? FieldStatus::ACTIVE : FieldStatus::MAINTENANCE;
     std::string error;
     if (!field_service_.setFieldStatus(owner->get_user_id(), maSan, status, error)) return {false, error};
-    san->dangBaoTri = !san->dangBaoTri;
+    dongBoTuCacService();
     return {true, ""};
 }
 
@@ -364,10 +367,8 @@ KetQua Facade::xoaSanBong(const std::string& maSan) {
     if (!owner || owner->get_account_type() != "Owner") return {false, u8"Vui lòng đăng nhập bằng tài khoản chủ sân."};
     std::string error;
     if (!venue_service_.deleteField(owner->get_user_id(), maSan, error)) return {false, error};
-    auto it = std::remove_if(danhSachSan_.begin(), danhSachSan_.end(),
-                             [&](const SanBongInfo& s) { return s.maSan == maSan && s.ownerUserId == owner->get_user_id(); });
-    if (it != danhSachSan_.end()) { danhSachSan_.erase(it, danhSachSan_.end()); return {true, ""}; }
-    return {false, u8"Không tìm thấy sân bóng cần xóa."};
+    dongBoTuCacService();
+    return {true, ""};
 }
 
 std::vector<KhungGioInfo> Facade::getDanhSachKhungGio() const {
@@ -469,7 +470,7 @@ KetQua Facade::capNhatGiaMaTran(const std::string& khungGioStr, int loaiSan, int
     if (!venue_service_.setFieldPrice(owner->get_user_id(), loaiSan, duration, start, giaMoi, error, apDungTatCaCungLoai)) {
         return {false, error};
     }
-    venue_repository_.loadPrices(bangGiaCoSo_, error);
+    dongBoTuCacService();
     return {true, ""};
 }
 
@@ -555,21 +556,14 @@ std::vector<KhachHangInfo> Facade::getDeXuatChan(int soLanHuyToiThieu) const {
 KetQua Facade::themVaoDanhSachDen(const std::string& sdt, const std::string& lyDo) {
     std::string error;
     if (!customer_service_.addToBlacklist(sdt, lyDo, error)) return {false, error};
-    auto* kh = timKhachHangTheoSDT(sdt);
-    if (kh) {
-        kh->biChan = true;
-        kh->lyDoChan = lyDo.empty() ? u8"Hủy sân nhiều lần không thông báo trước" : lyDo;
-        kh->ngayChan = DateTime::today();
-        kh->mucUuDaiPhanTram = 0;
-    }
+    dongBoTuCacService();
     return {true, ""};
 }
 
 KetQua Facade::goKhoiDanhSachDen(const std::string& sdt) {
     std::string error;
     if (!customer_service_.removeFromBlacklist(sdt, error)) return {false, error};
-    auto* kh = timKhachHangTheoSDT(sdt);
-    if (kh) { kh->biChan = false; kh->lyDoChan.clear(); kh->ngayChan.clear(); }
+    dongBoTuCacService();
     return {true, ""};
 }
 
@@ -578,18 +572,14 @@ std::vector<NguongUuDai> Facade::getNguongUuDai() const { return danhSachNguongU
 KetQua Facade::capNhatNguongUuDai(int id, int soLanToiThieu, int phanTramGiam) {
     std::string error;
     if (!customer_service_.updateDiscountThreshold(id, soLanToiThieu, phanTramGiam, error)) return {false, error};
-    for (auto& n : danhSachNguongUuDai_) {
-        if (n.id == id) { n.soLanToiThieu = soLanToiThieu; n.phanTramGiam = phanTramGiam; break; }
-    }
+    dongBoTuCacService();
     return {true, ""};
 }
 
 KetQua Facade::apDungUuDaiChoKhach() {
     std::string error;
     customer_service_.applyDiscountsToAll(error);
-    for (auto& kh : danhSachKhachHang_) {
-        kh.mucUuDaiPhanTram = customer_service_.getCustomerDiscountPercentage(kh.sdt, error);
-    }
+    dongBoTuCacService();
     return {true, ""};
 }
 std::vector<DanhGiaInfo> Facade::getDanhSachDanhGia() const {
@@ -689,22 +679,14 @@ GiaiDauInfo* Facade::getGiaiDau(const std::string& maGiai) {
 KetQua Facade::duyetGiaiDau(const std::string& maGiai) {
     std::string error;
     if (!tournament_service_.duyetGiaiDau(maGiai, error)) return {false, error};
-    for (auto& g : danhSachGiaiDau_) {
-        if (g.maGiai == maGiai) { g.trangThai = TrangThaiGiaiDau::DaDuyet; break; }
-    }
+    dongBoTuCacService();
     return {true, ""};
 }
 
 KetQua Facade::tuChoiGiaiDau(const std::string& maGiai, const std::string& lyDo) {
     std::string error;
     if (!tournament_service_.tuChoiGiaiDau(maGiai, lyDo, error)) return {false, error};
-    for (auto& g : danhSachGiaiDau_) {
-        if (g.maGiai == maGiai) {
-            g.trangThai = TrangThaiGiaiDau::TuChoi;
-            g.ghiChuTuChoi = lyDo.empty() ? u8"Trùng lịch sân hoặc quy mô không phù hợp." : lyDo;
-            break;
-        }
-    }
+    dongBoTuCacService();
     return {true, ""};
 }
 
@@ -715,10 +697,7 @@ KetQua Facade::taoGiaiDauThuCong(const GiaiDauInfo& giaiMoi) {
                  giaiMoi.khungGio, giaiMoi.ghiChuTuChoi);
     std::string outId, error;
     if (!tournament_service_.taoGiaiDauThuCong(t, outId, error)) return {false, error};
-    GiaiDauInfo g = giaiMoi;
-    g.maGiai = outId;
-    g.trangThai = TrangThaiGiaiDau::DaDuyet;
-    danhSachGiaiDau_.push_back(g);
+    dongBoTuCacService();
     return {true, ""};
 }
 
@@ -729,18 +708,14 @@ KetQua Facade::suaGiaiDau(const GiaiDauInfo& giaiCapNhat) {
                  "", giaiCapNhat.tenKhachDat, giaiCapNhat.khungGio, giaiCapNhat.ghiChuTuChoi);
     std::string error;
     if (!tournament_service_.suaGiaiDau(t, error)) return {false, error};
-    for (auto& g : danhSachGiaiDau_) {
-        if (g.maGiai == giaiCapNhat.maGiai) { g = giaiCapNhat; break; }
-    }
+    dongBoTuCacService();
     return {true, ""};
 }
 
 KetQua Facade::huyGiaiDau(const std::string& maGiai) {
     std::string error;
     if (!tournament_service_.huyGiaiDau(maGiai, error)) return {false, error};
-    auto it = std::remove_if(danhSachGiaiDau_.begin(), danhSachGiaiDau_.end(),
-                             [&](const GiaiDauInfo& g) { return g.maGiai == maGiai; });
-    if (it != danhSachGiaiDau_.end()) danhSachGiaiDau_.erase(it, danhSachGiaiDau_.end());
+    dongBoTuCacService();
     return {true, ""};
 }
 
@@ -770,10 +745,9 @@ KetQua Facade::huyDonDat(const std::string& maDon, const std::string& sdtKhach) 
     if (!user || user->get_account_type() != "Customer" || user->get_phone_number() != sdtKhach) {
         return {false, u8"Chỉ người thuê sở hữu đơn mới được hủy."};
     }
-    std::string customerId = user->get_user_id();
     std::string error;
-    if (!booking_service_.cancelBooking(maDon, customerId, error)) return {false, error};
-    for (auto& b : danhSachDonDat_) if (b.maDon == maDon) b.trangThai = "CANCELLED";
+    if (!booking_service_.cancelBooking(maDon, user->get_user_id(), error)) return {false, error};
+    dongBoTuCacService();
     return {true, ""};
 }
 
@@ -782,9 +756,7 @@ KetQua Facade::xacNhanDaHoanThanhDon(const std::string& maDon) {
     if (!owner || owner->get_account_type() != "Owner") return {false, u8"Chỉ chủ sân mới được xác nhận hoàn tất đơn."};
     std::string error;
     if (!booking_service_.completeBooking(owner->get_user_id(), maDon, error)) return {false, error};
-    for (auto& b : danhSachDonDat_) {
-        if (b.maDon == maDon && b.ownerUserId == owner->get_user_id()) b.trangThai = "COMPLETED";
-    }
+    dongBoTuCacService();
     return {true, ""};
 }
 
@@ -802,10 +774,7 @@ KetQua Facade::guiYeuCauTaoGiai(const GiaiDauInfo& giaiMoi) {
                  giaiMoi.khungGio, giaiMoi.ghiChuTuChoi);
     std::string outId, error;
     if (!tournament_service_.guiYeuCauTaoGiai(t, outId, error)) return {false, error};
-    GiaiDauInfo g = giaiMoi;
-    g.maGiai = outId;
-    g.trangThai = TrangThaiGiaiDau::ChoDuyet;
-    danhSachGiaiDau_.push_back(g);
+    dongBoTuCacService();
     return {true, ""};
 }
 
@@ -834,14 +803,7 @@ KetQua Facade::guiHoacSuaDanhGia(const std::string& sdt, const std::string& tenK
     Review r(rId, sdt, maSan, "", soSao, DateTime::today(), noiDung, tenKhach);
     std::string error;
     if (!customer_service_.addOrUpdateReview(r, error)) return {false, error};
-
-    bool found = false;
-    for (auto& dg : danhSachDanhGia_) {
-        if (dg.id == rId) { dg.soSao = soSao; dg.noiDung = noiDung; found = true; break; }
-    }
-    if (!found) {
-        danhSachDanhGia_.insert(danhSachDanhGia_.begin(), {rId, tenKhach, sdt, maSan, soSao, DateTime::today(), noiDung});
-    }
+    dongBoTuCacService();
     return {true, ""};
 }
 
@@ -850,34 +812,15 @@ KetQua Facade::capNhatThongTinUser(const std::string& sdt, const std::string& ho
 KetQua Facade::capNhatThongTinUser(const std::string& sdtCu, const std::string& hoTenMoi, const std::string& sdtMoi) {
     std::string error;
     if (!account_service_.updateUser(sdtCu, hoTenMoi, sdtMoi, error)) return {false, error};
-    danhSachUser_ = account_service_.getAccounts();
-
-    size_t idx = 0;
-    if (mapIndexKhachSDT_.search(sdtCu, idx) && idx < danhSachKhachHang_.size()) {
-        danhSachKhachHang_[idx].hoTen = hoTenMoi;
-        danhSachKhachHang_[idx].sdt = sdtMoi;
-        mapIndexKhachSDT_.remove(sdtCu);
-        mapIndexKhachSDT_.insert(sdtMoi, idx);
-    }
-    if (sdtCu != sdtMoi) {
-        auto it = mapMatKhau_.find(sdtCu);
-        if (it != mapMatKhau_.end()) {
-            mapMatKhau_[sdtMoi] = it->second;
-            mapMatKhau_.erase(it);
-        }
-    }
+    dongBoTuCacService();
     return {true, ""};
 }
 
 KetQua Facade::doiMatKhauUser(const std::string& sdt, const std::string& matKhauCu, const std::string& matKhauMoi) {
-    auto it = mapMatKhau_.find(sdt);
-    std::string curPw = (it != mapMatKhau_.end()) ? it->second : "123456";
-    if (curPw != matKhauCu) return {false, u8"Mật khẩu hiện tại không chính xác!"};
-
-    std::string error;
-    if (!account_service_.resetPassword(sdt, matKhauMoi, error)) return {false, error};
-    mapMatKhau_[sdt] = matKhauMoi;
-    danhSachUser_ = account_service_.getAccounts();
+    std::string err;
+    if (!account_service_.authenticate(sdt, matKhauCu, err)) return {false, u8"Mật khẩu hiện tại không chính xác!"};
+    if (!account_service_.resetPassword(sdt, matKhauMoi, err)) return {false, err};
+    dongBoTuCacService();
     return {true, ""};
 }
 

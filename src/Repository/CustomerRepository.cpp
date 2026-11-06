@@ -59,7 +59,7 @@ bool CustomerRepository::findCustomerByUserId(const std::string& userId,
                 customerList.push_back(c);
             }
         }
-        // L? DO CH?N: HashTable l?p ch? m?c tra c?u kh?ch h?ng theo ID ho?c S?T O(1).
+        // LÝ DO CHỌN: HashTable lập chỉ mục tra cứu khách hàng theo ID hoặc SĐT O(1).
         HashTable<std::string, Customer*> customerMap;
         for (auto* node = customerList.get_head(); node != nullptr; node = node->next) {
             customerMap.insert(node->data.getUserId(), &node->data);
@@ -112,7 +112,7 @@ bool CustomerRepository::findCustomerByUserId(const std::string& userId,
 
 bool CustomerRepository::loadAllCustomers(LinkedList<Customer>& out, std::string& error) const {
     out.clear();
-    // L? DO CH?N: LinkedList n?p danh s?ch kh?ch h?ng t? t?p tin customers.txt tu?n t?.
+    // LÝ DO CHỌN: LinkedList nạp danh sách khách hàng từ tập tin customers.txt tuần tự.
     LinkedList<std::string> lines;
     if (file_manager_.readAllLines("data/customers.txt", lines, error) && lines.size() > 0) {
         for (auto* node = lines.get_head(); node != nullptr; node = node->next) {
@@ -205,7 +205,7 @@ bool CustomerRepository::updateCustomer(const Customer& customer, std::string& e
     }
     file_manager_.writeAllLines("data/customers.txt", lines, error);
 
-    // ??ng b? s? li?u sang accounts.txt
+    // Đồng bộ số liệu sang accounts.txt
     LinkedList<std::string> accLines;
     if (file_manager_.readAllLines("data/accounts.txt", accLines, error)) {
         for (auto* node = accLines.get_head(); node != nullptr; node = node->next) {
@@ -263,7 +263,7 @@ bool CustomerRepository::findActiveBlacklist(const std::string& customerId,
 
 bool CustomerRepository::loadAllBlacklists(LinkedList<Blacklist>& out, std::string& error) const {
     out.clear();
-    // L? DO CH?N: LinkedList qu?n l? danh s?ch ?en kh?ch h?ng n?p t? blacklist.txt.
+    // LÝ DO CHỌN: LinkedList quản lý danh sách đen khách hàng nạp từ blacklist.txt.
     LinkedList<std::string> lines;
     if (!file_manager_.readAllLines("data/blacklist.txt", lines, error)) {
         return false;
@@ -385,7 +385,7 @@ bool CustomerRepository::saveReview(const Review& review, std::string& error) {
 
 bool CustomerRepository::loadAllReviews(LinkedList<Review>& out, std::string& error) const {
     out.clear();
-    // L? DO CH?N: LinkedList n?p danh s?ch nh?n x?t ??nh gi? t? reviews.txt tu?n t?.
+    // LÝ DO CHỌN: LinkedList nạp danh sách nhận xét đánh giá từ reviews.txt tuần tự.
     LinkedList<std::string> lines;
     if (!file_manager_.readAllLines("data/reviews.txt", lines, error)) {
         return false;
@@ -443,7 +443,7 @@ bool CustomerRepository::hasCompletedBooking(const std::string& customerId,
         if (cId && cPhone && fId && status) {
             if (*fId == fieldId &&
                 (*cId == customerId || *cPhone == customerId || *cId == phone || *cPhone == phone) &&
-                (*status == "COMPLETED" || *status == u8"?? ho?n th?nh")) {
+                (*status == "COMPLETED" || *status == u8"Đã hoàn thành")) {
                 return true;
             }
         }

@@ -363,8 +363,10 @@ private:
 
     void dongBoTuCacService();
 
+    // LÝ DO CHỌN: Toàn bộ dữ liệu nghiệp vụ do các Service/Repository quản lý và lưu bền vững.
+    // Các vector bên dưới chỉ đóng vai trò bộ nhớ đệm hiển thị (ViewModel cache) chỉ-đọc cho ImGui,
+    // tự động đồng bộ lại sau mỗi thao tác ghi, tuyệt đối không đọc file mỗi frame.
     std::vector<std::shared_ptr<User>> danhSachUser_;
-    std::unordered_map<std::string, std::string> mapMatKhau_;
     bool daNapDuLieu_ = false;
 
     // Bộ nhớ quản lý sân bóng, khung giờ, bảng giá

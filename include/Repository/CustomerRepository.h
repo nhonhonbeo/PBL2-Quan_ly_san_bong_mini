@@ -10,8 +10,8 @@ class Discount;
 class FileManager;
 class Review;
 
-// L? DO CH?N: CustomerRepository qu?n l? vi?c tu?n t? h?a c?c th?c th? Customer,
-// Blacklist, Discount v? Review v?o c?c t?p ph?ng trong th? m?c data/.
+// LÝ DO CHỌN: CustomerRepository quản lý việc tuần tự hóa các thực thể Customer,
+// Blacklist, Discount và Review vào các tệp phẳng trong thư mục data/.
 class CustomerRepository {
 private:
     FileManager& file_manager_;

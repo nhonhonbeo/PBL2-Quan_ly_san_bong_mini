@@ -7,8 +7,8 @@
 class AccountRepository;
 class User;
 
-// L? DO CH?N: AccountService qu?n l? tr?ng th?i t?i kho?n ng??i d?ng v? x?c th?c,
-// lo?i b? bi?n to?n c?c ?n danh ?? ??m b?o t?nh ??ng g?i h??ng ??i t??ng.
+// LÝ DO CHỌN: AccountService quản lý trạng thái tài khoản người dùng và xác thực,
+// loại bỏ biến toàn cục ẩn danh để đảm bảo tính đóng gói hướng đối tượng.
 class AccountService {
 private:
     AccountRepository& account_repository_;

@@ -7,7 +7,7 @@
 class User;
 class FileManager;
 
-// L? DO CH?N: AccountRepository ??c v? ghi danh s?ch t?i kho?n t? data/accounts.txt.
+// LÝ DO CHỌN: AccountRepository đọc và ghi danh sách tài khoản từ data/accounts.txt.
 class AccountRepository {
 private:
     FileManager& file_manager_;

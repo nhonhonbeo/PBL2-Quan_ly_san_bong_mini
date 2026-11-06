@@ -11,8 +11,8 @@ enum class TournamentStatus {
     CANCELLED = 4
 };
 
-// L? DO CH?N: Tournament bi?u di?n th?c th? gi?i ??u g?m 11 thu?c t?nh,
-// t??ng th?ch tr?c ti?p v?i d? li?u l?u tr? b?n v?ng data/tournaments.txt.
+// LÝ DO CHỌN: Tournament biểu diễn thực thể giải đấu gồm 11 thuộc tính,
+// tương thích trực tiếp với dữ liệu lưu trữ bền vững data/tournaments.txt.
 class Tournament {
 private:
     std::string tournament_id_;

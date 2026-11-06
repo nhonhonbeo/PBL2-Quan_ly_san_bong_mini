@@ -20,8 +20,8 @@ struct CustomerDiscountThreshold {
     std::string tierName;
 };
 
-// L? DO CH?N: CustomerService l? ?i?m duy nh?t ?p d?ng c?c quy t?c ?u ??i,
-// qu?n l? v? ?? xu?t danh s?ch ?en, v? t?ng h?p ??nh gi? ch?t l??ng s?n.
+// LÝ DO CHỌN: CustomerService là điểm duy nhất áp dụng các quy tắc ưu đãi,
+// quản lý và đề xuất danh sách đen, và tổng hợp đánh giá chất lượng sân.
 class CustomerService {
 private:
     CustomerRepository& customer_repository_;
@@ -30,13 +30,13 @@ private:
 public:
     explicit CustomerService(CustomerRepository& customerRepository);
 
-    // ?u ??i
+    // Ưu đãi
     const std::vector<CustomerDiscountThreshold>& getDiscountThresholds() const;
     bool updateDiscountThreshold(int id, int minBookings, int percentage, std::string& error);
     int getCustomerDiscountPercentage(const std::string& userIdOrPhone, std::string& error) const;
     bool applyDiscountsToAll(std::string& error);
 
-    // Danh s?ch ?en
+    // Danh sách đen
     bool isBlacklisted(const std::string& userId, bool& outIsBlacklisted,
                        std::string& outReason, std::string& error) const;
     bool isBlacklisted(const std::string& userId, bool& outIsBlacklisted,
@@ -51,14 +51,14 @@ public:
                                 LinkedList<Customer>& outCandidates,
                                 std::string& error) const;
 
-    // ??nh gi?
+    // Đánh giá
     bool addReview(const Review& review, std::string& error);
     bool addOrUpdateReview(const Review& review, std::string& error);
     bool getAllReviews(LinkedList<Review>& outReviews, std::string& error) const;
     bool getAverageRatingOverall(float& outScore, std::string& error) const;
     bool getAverageRatingsMap(std::map<std::string, float>& outMap, std::string& error) const;
 
-    // Kh?ch h?ng & th?ng k?
+    // Khách hàng & thống kê
     bool recordSuccessfulBooking(const std::string& userId, std::string& error);
     bool recordCancellation(const std::string& userId, std::string& error);
     bool findAvailableDiscount(const std::string& userId, Discount& out,
