@@ -1,7 +1,11 @@
 #include "Service/AccountService.h"
 
+#include <cstdio>
+#include "Account/Customer.h"
+#include "Account/Owner.h"
 #include "Account/User.h"
 #include "Repository/AccountRepository.h"
+#include "Repository/CustomerRepository.h"
 
 AccountService::AccountService(AccountRepository& repository)
     : account_repository_(repository), accounts_() {}
@@ -37,6 +41,39 @@ bool AccountService::resetPassword(const std::string& phone,
     }
     error = "Khong tim thay tai khoan";
     return false;
+}
+
+std::string AccountService::generateNextUserId() const {
+    char buf[16];
+    std::snprintf(buf, sizeof(buf), "US%02d", static_cast<int>(accounts_.size() + 1));
+    return std::string(buf);
+}
+
+bool AccountService::registerCustomer(const std::string& name, const std::string& phone,
+                                      const std::string& pass, CustomerRepository& custRepo,
+                                      std::string& error) {
+    if (phone.empty() || pass.empty() || name.empty()) {
+        error = u8"Thông tin đăng ký không được để trống.";
+        return false;
+    }
+    std::string newId = generateNextUserId();
+    auto cust = std::make_shared<Customer>(newId, phone, pass, name, phone);
+    if (!registerUser(cust, error)) return false;
+    custRepo.saveCustomer(*cust, error);
+    return true;
+}
+
+bool AccountService::registerOwner(const std::string& name, const std::string& phone,
+                                   const std::string& pass, const std::string& facilityName,
+                                   const std::string& address, std::string& error) {
+    if (phone.empty() || pass.empty() || name.empty()) {
+        error = u8"Thông tin đăng ký không được để trống.";
+        return false;
+    }
+    std::string newId = generateNextUserId();
+    auto owner = std::make_shared<Owner>(newId, phone, pass, name, phone, facilityName, address,
+                                         u8"Quy định tiêu chuẩn cụm sân", "06:00", "23:00", name);
+    return registerUser(owner, error);
 }
 
 bool AccountService::registerUser(const std::shared_ptr<User>& user,

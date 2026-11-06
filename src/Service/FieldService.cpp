@@ -18,6 +18,52 @@ bool isValidSize(int size) {
 FieldService::FieldService(FieldRepository& fieldRepository)
     : field_repository_(fieldRepository) {}
 
+bool FieldService::createMultipleFields(const std::string& requesterOwnerId, int loaiSan,
+                                        int soLuong, const std::string& quyDinh,
+                                        LinkedList<std::string>& outMaSan, std::string& error) {
+    outMaSan.clear();
+    if (requesterOwnerId.empty()) {
+        error = u8"Không xác định được chủ sân yêu cầu.";
+        return false;
+    }
+    if (!isValidSize(loaiSan)) {
+        error = u8"Loại sân không hợp lệ.";
+        return false;
+    }
+    if (soLuong <= 0) {
+        error = u8"Số lượng sân cần tạo phải lớn hơn 0.";
+        return false;
+    }
+    LinkedList<VenueFieldRecord> fields;
+    if (!field_repository_.loadAll(fields, error)) return false;
+
+    int seq = 1;
+    const std::string prefix = "S" + std::to_string(loaiSan) + "-";
+    for (auto* n = fields.get_head(); n != nullptr; n = n->next) {
+        if (n->data.fieldId.rfind(prefix, 0) == 0) {
+            try {
+                int ex = std::stoi(n->data.fieldId.substr(prefix.size()));
+                if (ex >= seq) seq = ex + 1;
+            } catch (...) {}
+        }
+    }
+
+    VenueRepository repository;
+    VenueService service(repository);
+    for (int i = 0; i < soLuong; ++i) {
+        int stt = seq + i;
+        char maBuf[16];
+        std::snprintf(maBuf, sizeof(maBuf), "S%d-%02d", loaiSan, stt);
+        VenueFieldRecord newF{maBuf, requesterOwnerId,
+                              u8"Sân " + std::to_string(loaiSan) + u8" số " +
+                              (stt < 10 ? "0" : "") + std::to_string(stt),
+                              loaiSan, 0, quyDinh};
+        if (!service.createField(requesterOwnerId, newF, error)) return false;
+        outMaSan.push_back(maBuf);
+    }
+    return true;
+}
+
 bool FieldService::createField(const std::string& requesterOwnerId,
                                const VenueFieldRecord& field,
                                std::string& error) {

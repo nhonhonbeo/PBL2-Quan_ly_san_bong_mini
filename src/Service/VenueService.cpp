@@ -1,3 +1,4 @@
+#include <map>
 #include "Service/VenueService.h"
 
 #include <cstdio>
@@ -78,6 +79,73 @@ bool xungDot(int startA, int endA, int startB, int endB) {
 
 VenueService::VenueService(const VenueRepository& repository)
     : repository_(repository) {}
+
+int VenueService::getFacilitySlotDuration(const std::string& ownerId, std::string& error) const {
+    LinkedList<VenueFacilityRecord> facilities;
+    if (!getFacilities(facilities, error)) return 0;
+    for (auto* n = facilities.get_head(); n != nullptr; n = n->next) {
+        if (n->data.ownerId == ownerId) {
+            return n->data.allows90Minutes ? 90 : (n->data.allows60Minutes ? 60 : 0);
+        }
+    }
+    return 0;
+}
+
+bool VenueService::getFacilitySlots(const std::string& ownerId,
+                                    LinkedList<VenueSlotRecord>& outSlots,
+                                    std::string& error) const {
+    outSlots.clear();
+    LinkedList<VenueFacilityRecord> facilities;
+    if (!getFacilities(facilities, error)) return false;
+
+    std::string openTime, closeTime;
+    int dur = 0;
+    for (auto* n = facilities.get_head(); n != nullptr; n = n->next) {
+        if (n->data.ownerId == ownerId) {
+            openTime = n->data.openTime;
+            closeTime = n->data.closeTime;
+            dur = n->data.allows90Minutes ? 90 : (n->data.allows60Minutes ? 60 : 0);
+            break;
+        }
+    }
+    if (dur == 0) return true;
+
+    LinkedList<VenuePriceRecord> prices;
+    if (!repository_.loadPrices(prices, error)) return false;
+
+    const int op = phutSangSo(openTime), cl = phutSangSo(closeTime);
+    std::map<std::string, bool> starts;
+    for (auto* n = prices.get_head(); n != nullptr; n = n->next) {
+        if (n->data.ownerId != ownerId || n->data.durationMinutes != dur) continue;
+        int s = phutSangSo(n->data.startTime);
+        if (s >= op && s + dur <= cl) starts[n->data.startTime] = true;
+    }
+    for (const auto& item : starts) {
+        int s = phutSangSo(item.first);
+        VenueSlotRecord rec;
+        rec.startTime = item.first;
+        rec.endTime = gioTuPhut(s + dur);
+        rec.available = true;
+        outSlots.push_back(rec);
+    }
+    return true;
+}
+
+bool VenueService::getMatrixPrice(const std::string& ownerId, int fieldSize,
+                                  int durationMinutes, const std::string& startTime,
+                                  long long& outPrice, std::string& error) const {
+    outPrice = 0;
+    LinkedList<VenuePriceRecord> prices;
+    if (!repository_.loadPrices(prices, error)) return false;
+    for (auto* n = prices.get_head(); n != nullptr; n = n->next) {
+        if (n->data.ownerId == ownerId && n->data.fieldSize == fieldSize &&
+            n->data.durationMinutes == durationMinutes && n->data.startTime == startTime) {
+            outPrice = n->data.priceVnd;
+            return true;
+        }
+    }
+    return false;
+}
 
 bool VenueService::getFacilities(
     LinkedList<VenueFacilityRecord>& facilities,

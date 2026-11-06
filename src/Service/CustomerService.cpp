@@ -160,14 +160,25 @@ bool CustomerService::addReview(const Review& review, std::string& error) {
 
 bool CustomerService::addOrUpdateReview(const Review& review, std::string& error) {
     if (review.getRating() < 1 || review.getRating() > 5) {
-        error = "??nh gi? ph?i t? 1 ??n 5 sao.";
+        error = u8"Đánh giá phải từ 1 đến 5 sao.";
         return false;
     }
     if (review.getComment().empty()) {
-        error = "N?i dung ??nh gi? kh?ng ???c ?? tr?ng.";
+        error = u8"Nội dung đánh giá không được để trống.";
         return false;
     }
-    return customer_repository_.saveReview(review, error);
+    Review toSave = review;
+    if (toSave.getReviewId().empty()) {
+        LinkedList<Review> existing;
+        customer_repository_.loadAllReviews(existing, error);
+        char buf[32];
+        std::snprintf(buf, sizeof(buf), "RV%02d", existing.size() + 1);
+        toSave = Review(buf, review.getCustomerId(), review.getFieldId(),
+                        review.getBookingId(), review.getRating(),
+                        review.getCreatedAt(), review.getComment(),
+                        review.getCustomerName());
+    }
+    return customer_repository_.saveReview(toSave, error);
 }
 
 bool CustomerService::getAllReviews(LinkedList<Review>& outReviews,

@@ -31,6 +31,13 @@ class VenueService {
 public:
     explicit VenueService(const VenueRepository& repository);
 
+    int getFacilitySlotDuration(const std::string& ownerId, std::string& error) const;
+    bool getFacilitySlots(const std::string& ownerId,
+                          LinkedList<VenueSlotRecord>& outSlots,
+                          std::string& error) const;
+    bool getMatrixPrice(const std::string& ownerId, int fieldSize,
+                        int durationMinutes, const std::string& startTime,
+                        long long& outPrice, std::string& error) const;
     bool getFacilities(LinkedList<VenueFacilityRecord>& facilities,
                        std::string& error) const;
     bool getLowestPrice(const std::string& ownerId, long long& priceVnd,

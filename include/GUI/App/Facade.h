@@ -371,9 +371,7 @@ private:
 
     // Bộ nhớ quản lý sân bóng, khung giờ, bảng giá
     std::vector<SanBongInfo> danhSachSan_;
-    std::vector<KhungGioInfo> danhSachKhungGio_;
     std::vector<DonDatSanInfo> danhSachDonDat_;
-    LinkedList<VenuePriceRecord> bangGiaCoSo_;
 
     // Bộ nhớ quản lý khách hàng, ưu đãi, danh sách đen và đánh giá
     std::vector<KhachHangInfo> danhSachKhachHang_;
