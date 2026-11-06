@@ -9,11 +9,11 @@ private:
     int cancel_count;
 public:
     Customer(
-        const std::string& user_id,
-        const std::string& user_name,
-        const std::string& password,
-        const std::string& name,
-        const std::string& phone_number
+        const std::string& user_id = "",
+        const std::string& user_name = "",
+        const std::string& password = "",
+        const std::string& name = "",
+        const std::string& phone_number = ""
     );
     
     void show_menu() const override;

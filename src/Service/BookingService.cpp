@@ -1,3 +1,4 @@
+#include "Service/CustomerService.h"
 #include "Service/BookingService.h"
 
 #include "Booking/Booking.h"
@@ -44,6 +45,19 @@ bool BookingService::createBooking(const Booking& booking,
 bool BookingService::createBooking(const VenueBookingRequest& request,
                                    std::string& bookingId,
                                    std::string& error) {
+    bool isBlocked = false;
+    std::string blockReason;
+    std::string checkErr;
+    if (!customer_service_.isBlacklisted(request.customerId, isBlocked, blockReason, checkErr)) {
+        error = checkErr.empty() ? "Loi kiem tra danh sach den." : checkErr;
+        return false;
+    }
+    if (isBlocked) {
+        error = "Tai khoan cua ban dang bi khoa do vi pham" +
+                (blockReason.empty() ? "." : (": " + blockReason));
+        return false;
+    }
+
     VenueRepository repository;
     VenueService service(repository);
     return service.createBooking(request, bookingId, error);
@@ -61,6 +75,19 @@ bool BookingService::createBookings(
     }
 
     const VenueBookingRequest& first = requests.get_head()->data;
+    bool isBlocked = false;
+    std::string blockReason;
+    std::string checkErr;
+    if (!customer_service_.isBlacklisted(first.customerId, isBlocked, blockReason, checkErr)) {
+        error = checkErr.empty() ? "Loi kiem tra danh sach den." : checkErr;
+        return false;
+    }
+    if (isBlocked) {
+        error = "Tai khoan cua ban dang bi khoa do vi pham" +
+                (blockReason.empty() ? "." : (": " + blockReason));
+        return false;
+    }
+
     int previousEnd = -1;
     for (auto* node = requests.get_head(); node != nullptr; node = node->next) {
         const VenueBookingRequest& request = node->data;
@@ -121,7 +148,10 @@ bool BookingService::cancelBooking(const std::string& bookingId,
             return false;
         }
         booking.status = "CANCELLED";
-        return booking_repository_.saveAll(bookings, error);
+        if (!booking_repository_.saveAll(bookings, error)) return false;
+        std::string custErr;
+        customer_service_.recordCancellation(booking.customerId, custErr);
+        return true;
     }
     error = "Không tìm thấy đơn đặt sân cần hủy.";
     return false;
@@ -166,7 +196,10 @@ bool BookingService::completeBooking(const std::string& requesterOwnerId,
             return false;
         }
         booking.status = "COMPLETED";
-        return booking_repository_.saveAll(bookings, error);
+        if (!booking_repository_.saveAll(bookings, error)) return false;
+        std::string custErr;
+        customer_service_.recordSuccessfulBooking(booking.customerId, custErr);
+        return true;
     }
     error = "Không tìm thấy đơn đặt sân cần hoàn tất.";
     return false;

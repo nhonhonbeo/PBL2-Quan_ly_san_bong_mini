@@ -1,4 +1,4 @@
-#ifndef CUSTOMER_REPOSITORY_H
+﻿#ifndef CUSTOMER_REPOSITORY_H
 #define CUSTOMER_REPOSITORY_H
 
 #include <string>
@@ -29,6 +29,8 @@ public:
     bool saveBlacklist(const Blacklist& blacklist, std::string& error);
     bool saveDiscount(const Discount& discount, std::string& error);
     bool saveReview(const Review& review, std::string& error);
+    bool hasCompletedBooking(const std::string& customerId,
+                             const std::string& fieldId) const;
 };
 
 #endif

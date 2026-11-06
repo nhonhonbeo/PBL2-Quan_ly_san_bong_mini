@@ -1111,7 +1111,7 @@ KetQua Facade::themVaoDanhSachDen(const std::string& sdt, const std::string& lyD
 
     kh->biChan = true;
     kh->lyDoChan = lyDo.empty() ? u8"Hủy sân nhiều lần không thông báo trước" : lyDo;
-    kh->ngayChan = "17/10/2026";
+    kh->ngayChan = DateTime::today();
     kh->mucUuDaiPhanTram = 0; // Tước quyền ưu đãi khi bị chặn
 
     return {true, ""};
@@ -1745,7 +1745,7 @@ KetQua Facade::guiHoacSuaDanhGia(
     dgMoi.maSan = maSan;
     dgMoi.soSao = soSao;
     dgMoi.noiDung = noiDung;
-    dgMoi.ngayGui = "17/10/2026";
+    dgMoi.ngayGui = DateTime::today();
 
     danhSachDanhGia_.insert(danhSachDanhGia_.begin(), dgMoi);
     luuDuLieu();

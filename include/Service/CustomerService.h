@@ -1,4 +1,4 @@
-#ifndef CUSTOMER_SERVICE_H
+﻿#ifndef CUSTOMER_SERVICE_H
 #define CUSTOMER_SERVICE_H
 
 #include <string>
@@ -16,9 +16,12 @@ private:
 public:
     explicit CustomerService(CustomerRepository& customerRepository);
 
-    // TODO API: false hiện có thể là không bị blacklist hoặc lỗi chưa triển
-    // khai. Cần thống nhất hợp đồng thành công/thất bại trước khi Booking gọi.
-    bool isBlacklisted(const std::string& userId, std::string& reason) const;
+    // Phân biệt thành công kiểm tra với lỗi truy xuất file/hệ thống
+    bool isBlacklisted(const std::string& userId, bool& outIsBlacklisted,
+                       std::string& outReason, std::string& error) const;
+    bool isBlacklisted(const std::string& userId, bool& outIsBlacklisted,
+                       std::string& outReason) const;
+
     bool recordSuccessfulBooking(const std::string& userId,
                                  std::string& error);
     bool recordCancellation(const std::string& userId, std::string& error);
