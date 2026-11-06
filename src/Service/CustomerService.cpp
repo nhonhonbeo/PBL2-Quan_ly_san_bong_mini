@@ -144,15 +144,15 @@ bool CustomerService::getBlacklistCandidates(int minCancellations,
 
 bool CustomerService::addReview(const Review& review, std::string& error) {
     if (review.getRating() < 1 || review.getRating() > 5) {
-        error = "??nh gi? ph?i t? 1 ??n 5 sao.";
+        error = u8"Đánh giá phải từ 1 đến 5 sao.";
         return false;
     }
     if (review.getComment().empty()) {
-        error = "N?i dung ??nh gi? kh?ng ???c ?? tr?ng.";
+        error = u8"Nội dung đánh giá không được để trống.";
         return false;
     }
     if (!customer_repository_.hasCompletedBooking(review.getCustomerId(), review.getFieldId())) {
-        error = "Ch? c? th? ??nh gi? s?n sau khi ?? ho?n t?t ca thu? t?i s?n n?y.";
+        error = u8"Chỉ có thể đánh giá sân sau khi đã hoàn tất ca thuê tại sân này.";
         return false;
     }
     return customer_repository_.saveReview(review, error);
@@ -253,7 +253,7 @@ bool CustomerService::findAvailableDiscount(const std::string& userId,
     std::string blockReason;
     isBlacklisted(userId, blocked, blockReason);
     if (blocked) {
-        error = "Kh?ch h?ng b? ch?n kh?ng ???c h??ng ?u ??i.";
+        error = u8"Khách hàng bị chặn không được hưởng ưu đãi.";
         return false;
     }
 
@@ -271,7 +271,7 @@ bool CustomerService::findAvailableDiscount(const std::string& userId,
     } else if (bookings >= 5) {
         percentage = 5;
     } else {
-        error = "Ch?a ??t s? l?n ??t t?i thi?u ?? nh?n ?u ??i.";
+        error = u8"Chưa đạt số lần đặt tối thiểu để nhận ưu đãi.";
         return false;
     }
 

@@ -1,4 +1,4 @@
-#ifndef TOURNAMENT_H
+﻿#ifndef TOURNAMENT_H
 #define TOURNAMENT_H
 
 #include <string>
@@ -70,6 +70,13 @@ public:
     void confirm(const std::string& bookingId = "");
     void reject(const std::string& reason);
     void cancel();
+
+    // Nghiệp vụ tự thân của Giải đấu (Rich Domain Model)
+    bool isApproved() const;
+    bool isRejected() const;
+    bool isPending() const;
+    bool isFinished() const;
+    bool conflictsWithDate(const std::string& date) const;
 };
 
 #endif

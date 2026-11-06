@@ -1,4 +1,4 @@
-#include "Field/Field.h"
+﻿#include "Field/Field.h"
 
 Field::Field(const std::string& fieldId, const std::string& ownerUserId,
              const std::string& name, FieldSize size,
@@ -44,3 +44,28 @@ void Field::setOperatingHours(const std::string& openTime,
 }
 
 void Field::setStatus(FieldStatus status) { status_ = status; }
+
+bool Field::isAvailable() const {
+    return status_ == FieldStatus::ACTIVE;
+}
+
+bool Field::isUnderMaintenance() const {
+    return status_ == FieldStatus::MAINTENANCE;
+}
+
+void Field::toggleMaintenance() {
+    if (status_ == FieldStatus::MAINTENANCE) {
+        status_ = FieldStatus::ACTIVE;
+    } else {
+        status_ = FieldStatus::MAINTENANCE;
+    }
+}
+
+bool Field::supportsDuration(int durationMinutes) const {
+    return durationMinutes == 60 || durationMinutes == 90 || durationMinutes == 120;
+}
+
+long long Field::calculatePrice(int durationMinutes) const {
+    if (durationMinutes <= 0) return 0;
+    return (base_hourly_rate_vnd_ * durationMinutes) / 60;
+}

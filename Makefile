@@ -33,7 +33,8 @@ gui:
 	@test -f third_party/imgui/imgui.h || (echo "Loi: thieu third_party/imgui (Dear ImGui)."; exit 1)
 	@test -f third_party/glfw/include/GLFW/glfw3.h || (echo "Loi: thieu GLFW tai third_party/glfw/include."; exit 1)
 	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(GUI_CXXFLAGS) -o $(GUI_TARGET) $(BUSINESS_SOURCES) $(GUI_SOURCES) $(IMGUI_SOURCES) $(GLFW_LIB)
+	$(file >$(BUILD_DIR)/sources.rsp,$(BUSINESS_SOURCES) $(GUI_SOURCES) $(IMGUI_SOURCES))
+	$(CXX) $(GUI_CXXFLAGS) -o $(GUI_TARGET) @$(BUILD_DIR)/sources.rsp $(GLFW_LIB)
 
 run: gui
 	./$(GUI_TARGET)

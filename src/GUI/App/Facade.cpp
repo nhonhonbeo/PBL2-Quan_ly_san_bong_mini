@@ -58,9 +58,9 @@ DonDatSanInfo toBookingInfo(const ReportBookingRecord& record) {
 Facade::Facade()
     : file_manager_(), account_repository_(file_manager_), venue_repository_(),
       customer_repository_(file_manager_), booking_repository_(file_manager_),
-      report_repository_(), tournament_repository_(file_manager_), field_repository_(file_manager_),
+      report_repository_(), tournament_repository_(file_manager_), field_repository_(file_manager_), payment_repository_(file_manager_),
       account_service_(account_repository_), venue_service_(venue_repository_),
-      customer_service_(customer_repository_), booking_service_(booking_repository_, customer_service_),
+      customer_service_(customer_repository_), payment_service_(&payment_repository_), booking_service_(booking_repository_, customer_service_, &payment_service_),
       report_service_(), tournament_service_(tournament_repository_, booking_repository_),
       field_service_(field_repository_) {
     napDuLieu();

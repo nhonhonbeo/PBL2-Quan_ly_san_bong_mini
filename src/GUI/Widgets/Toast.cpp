@@ -1,4 +1,4 @@
-﻿#include "GUI/Widgets/Toast.h"
+#include "GUI/Widgets/Toast.h"
 
 #include <algorithm>
 #include <vector>
@@ -96,20 +96,20 @@ void RenderToasts() {
             switch (t.loai) {
                 case LoaiToast::ThanhCong:
                     themeColor = GUI::Theme::Colors::Success;
-                    headerText = u8"✓ Thành công";
+                    headerText = u8"Thành công";
                     break;
                 case LoaiToast::Loi:
                     themeColor = GUI::Theme::Colors::Danger;
-                    headerText = u8"✕ Lỗi xử lý";
+                    headerText = u8"Lỗi xử lý";
                     break;
                 case LoaiToast::CanhBao:
                     themeColor = GUI::Theme::Colors::Warning;
-                    headerText = u8"⚠ Cảnh báo";
+                    headerText = u8"Cảnh báo";
                     break;
                 case LoaiToast::ThongTin:
                 default:
                     themeColor = GUI::Theme::Colors::Info;
-                    headerText = u8"ℹ Thông báo";
+                    headerText = u8"Thông báo";
                     break;
             }
 

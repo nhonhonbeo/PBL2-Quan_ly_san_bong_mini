@@ -1,4 +1,5 @@
-#include "Tournament/Tournament.h"
+﻿#include "Tournament/Tournament.h"
+#include "Core/DateTime.h"
 
 Tournament::Tournament(const std::string& tournamentId,
                        const std::string& requesterUserId,
@@ -131,4 +132,29 @@ void Tournament::reject(const std::string& reason) {
 
 void Tournament::cancel() {
     status_ = TournamentStatus::CANCELLED;
+}
+
+bool Tournament::isApproved() const {
+    return status_ == TournamentStatus::CONFIRMED || status_ == TournamentStatus::IN_PROGRESS;
+}
+
+bool Tournament::isRejected() const {
+    return status_ == TournamentStatus::CANCELLED;
+}
+
+bool Tournament::isPending() const {
+    return status_ == TournamentStatus::REQUESTED;
+}
+
+bool Tournament::isFinished() const {
+    return status_ == TournamentStatus::FINISHED;
+}
+
+bool Tournament::conflictsWithDate(const std::string& date) const {
+    if (start_date_.empty() || end_date_.empty()) return false;
+    std::string isoDate = DateTime::toIsoDate(date);
+    std::string isoStart = DateTime::toIsoDate(start_date_);
+    std::string isoEnd = DateTime::toIsoDate(end_date_);
+    return (DateTime::compareDate(isoDate, isoStart) >= 0 &&
+            DateTime::compareDate(isoDate, isoEnd) <= 0);
 }

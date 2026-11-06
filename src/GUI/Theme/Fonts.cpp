@@ -1,4 +1,4 @@
-﻿#include "GUI/Theme/Fonts.h"
+#include "GUI/Theme/Fonts.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -151,8 +151,6 @@ void buildGlyphRanges(ImGuiIO& io, ImVector<ImWchar>& out) {
         0x20AB, 0x20AB,  // ₫
         0x2190, 0x2193,  // ← ↑ → ↓
         0x2264, 0x2265,  // ≤ ≥
-        0x2600, 0x26FF,  // Miscellaneous Symbols (⚽, 👤, 🕒, 🏆, etc.)
-        0x2700, 0x27BF,  // Dingbats
         0
     };
     builder.AddRanges(extraRanges);

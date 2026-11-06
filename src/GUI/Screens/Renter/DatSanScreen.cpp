@@ -1,4 +1,4 @@
-﻿#include "GUI/Screens/Renter/DatSanScreen.h"
+#include "GUI/Screens/Renter/DatSanScreen.h"
 
 #include <cstdio>
 #include <cstring>
@@ -229,7 +229,7 @@ void DatSanScreen::render() {
     }
     if (!loiTaiTaiDuLieu_.empty()) {
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::Danger);
-        ImGui::TextWrapped(u8"✕ %s", loiTaiTaiDuLieu_.c_str());
+        ImGui::TextWrapped(u8"[!] %s", loiTaiTaiDuLieu_.c_str());
         ImGui::PopStyleColor();
         ImGui::Spacing();
     }
@@ -301,7 +301,7 @@ void DatSanScreen::renderBuoc1ChonCoSo() {
                 : sizeof(search) - 1;
         std::memcpy(search, tuKhoaCoSo_.data(), count);
         ImGui::SetNextItemWidth(360.0f);
-        if (ImGui::InputTextWithHint("##search_facility", u8"🔍 Tìm theo tên cơ sở hoặc địa chỉ...", search, sizeof(search))) {
+        if (ImGui::InputTextWithHint("##search_facility", u8"Tìm theo tên cơ sở hoặc địa chỉ...", search, sizeof(search))) {
             tuKhoaCoSo_ = search;
         }
         ImGui::Spacing();
@@ -329,7 +329,7 @@ void DatSanScreen::renderBuoc1ChonCoSo() {
             if (titleFont != nullptr) ImGui::PopFont();
 
             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
-            ImGui::Text(u8"📍 Địa chỉ: %s", facility.address.c_str());
+            ImGui::Text(u8"Địa chỉ: %s", facility.address.c_str());
             ImGui::PopStyleColor();
 
             if (fieldCount == 0) {
@@ -522,11 +522,11 @@ void DatSanScreen::renderBuoc3ChonNgayVaKhungGio() {
 
         if (pastDate) {
             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::Danger);
-            ImGui::TextUnformatted(u8"✕ Không thể đặt sân cho ngày đã qua trong quá khứ.");
+            ImGui::TextUnformatted(u8"[!] Không thể đặt sân cho ngày đã qua trong quá khứ.");
             ImGui::PopStyleColor();
         } else if (!validDate) {
             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::Danger);
-            ImGui::TextUnformatted(u8"✕ Vui lòng nhập ngày hợp lệ theo định dạng dd/MM/yyyy.");
+            ImGui::TextUnformatted(u8"[!] Vui lòng nhập ngày hợp lệ theo định dạng dd/MM/yyyy.");
             ImGui::PopStyleColor();
         } else if (danhSachKhungGioTrong_.isEmpty()) {
             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
@@ -609,14 +609,14 @@ void DatSanScreen::renderBuoc3ChonNgayVaKhungGio() {
         ImGui::NewLine();
         if (!loiChonCa_.empty()) {
             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::Danger);
-            ImGui::Text(u8"✕ %s", loiChonCa_.c_str());
+            ImGui::Text(u8"[!] %s", loiChonCa_.c_str());
             ImGui::PopStyleColor();
         }
 
         if (!cacCaDangChon_.isEmpty()) {
             ImGui::Spacing();
             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextPrimary);
-            ImGui::Text(u8"✓ Ca đã chọn: %s", khungGioChon_.c_str());
+            ImGui::Text(u8"[Đã chọn] %s", khungGioChon_.c_str());
             ImGui::Text(u8"Giá gốc: %s  |  Ưu đãi VIP: %d%% (-%s)  |  Tổng thanh toán: %s",
                         dinhDangTien(giaGoc_).c_str(), phanTramGiam_,
                         dinhDangTien(soTienGiam_).c_str(), dinhDangTien(tongTien_).c_str());

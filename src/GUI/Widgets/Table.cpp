@@ -1,4 +1,4 @@
-﻿#include "GUI/Widgets/Table.h"
+#include "GUI/Widgets/Table.h"
 
 #include <algorithm>
 #include <cctype>
@@ -56,7 +56,7 @@ bool Table(
         "##table_search",
         state.tuKhoaTimKiem,
         nullptr,
-        u8"🔍 Tìm kiếm nhanh...",
+        u8"Tìm kiếm nhanh...",
         std::min(searchWidth, availWidth)
     );
 

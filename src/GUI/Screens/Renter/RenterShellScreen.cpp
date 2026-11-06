@@ -1,4 +1,4 @@
-﻿#include "GUI/Screens/Renter/RenterShellScreen.h"
+#include "GUI/Screens/Renter/RenterShellScreen.h"
 
 #include <vector>
 #include <imgui.h>
@@ -111,12 +111,12 @@ void RenterShellScreen::render() {
 
 void RenterShellScreen::renderSidebar() {
     std::vector<Widgets::SidebarItem> menuItems = {
-        {"0", u8"⚽", u8"Đặt sân trực tuyến"},
-        {"1", u8"📅", u8"Lịch đặt của tôi"},
-        {"2", u8"🏆", u8"Đăng ký tạo giải"},
-        {"3", u8"🎖️", u8"Ưu đãi thành viên"},
-        {"4", u8"⭐", u8"Đánh giá sân bóng"},
-        {"5", u8"👤", u8"Thông tin cá nhân"}
+        {"0", "", u8"Đặt sân trực tuyến"},
+        {"1", "", u8"Lịch đặt của tôi"},
+        {"2", "", u8"Đăng ký tạo giải"},
+        {"3", "", u8"Ưu đãi thành viên"},
+        {"4", "", u8"Đánh giá sân bóng"},
+        {"5", "", u8"Thông tin cá nhân"}
     };
 
     int prevTab = selectedTab_;

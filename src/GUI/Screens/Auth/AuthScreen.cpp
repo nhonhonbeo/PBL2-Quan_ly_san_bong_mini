@@ -1,4 +1,4 @@
-﻿#include "GUI/Screens/Auth/AuthScreen.h"
+#include "GUI/Screens/Auth/AuthScreen.h"
 
 #include <cmath>
 #include <algorithm>
@@ -76,7 +76,7 @@ void AuthScreen::render() {
 
 void AuthScreen::renderBanner(float width, float height) {
     ImGui::PushStyleColor(ImGuiCol_ChildBg, GUI::Theme::Colors::PrimaryDark);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(32.0f, 28.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(24.0f, 20.0f));
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0.0f);
 
@@ -91,51 +91,56 @@ void AuthScreen::renderBanner(float width, float height) {
         drawList->AddRectFilledMultiColor(bannerMin, bannerMax, colTop, colTop, colBottom, colBottom);
 
         // ==========================================
-        // 1. LOGO & HEADER THƯƠNG HIỆU
+        // 1. LOGO & TÊN DỰ ÁN (VIẾT TO VÀ ĐẸP, CĂN LỀ CHÍNH GIỮA)
         // ==========================================
-        ImVec2 crestCenter(bannerMin.x + 48.0f, bannerMin.y + 44.0f);
-        float crestR = 20.0f;
+        float centerX = width * 0.5f;
 
-        // Vẽ huy hiệu logo hình tròn có đường may quả bóng
-        drawList->AddCircleFilled(crestCenter, crestR, IM_COL32(255, 255, 255, 40));
-        drawList->AddCircle(crestCenter, crestR, IM_COL32(255, 255, 255, 200), 24, 2.0f);
+        // Vẽ huy hiệu logo hình tròn có vạch bóng thể thao đặt tại trung tâm
+        ImVec2 crestCenter(bannerMin.x + centerX, bannerMin.y + 36.0f);
+        float crestR = 20.0f;
+        drawList->AddCircleFilled(crestCenter, crestR, IM_COL32(255, 255, 255, 35));
+        drawList->AddCircle(crestCenter, crestR, IM_COL32(255, 255, 255, 220), 28, 2.0f);
         drawList->AddCircleFilled(crestCenter, 5.0f, IM_COL32_WHITE);
         for (int k = 0; k < 5; ++k) {
             float a = k * (3.14159f * 2.0f / 5.0f) - 1.57f;
             ImVec2 pEdge(crestCenter.x + crestR * std::cos(a), crestCenter.y + crestR * std::sin(a));
             ImVec2 pInner(crestCenter.x + 5.0f * std::cos(a), crestCenter.y + 5.0f * std::sin(a));
-            drawList->AddLine(pInner, pEdge, IM_COL32(255, 255, 255, 180), 1.5f);
+            drawList->AddLine(pInner, pEdge, IM_COL32(255, 255, 255, 200), 1.5f);
         }
 
-        ImGui::SetCursorPos(ImVec2(80.0f, 24.0f));
-        ImGui::BeginGroup();
-
+        // Tên dự án: viết to, đẹp và căn chính giữa
+        ImGui::SetCursorPosY(64.0f);
         ImFont* headingFont = GUI::Theme::getFonts().heading;
         if (headingFont != nullptr) ImGui::PushFont(headingFont);
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::Surface);
-        ImGui::TextUnformatted(u8"MINIFOOTBALL PRO");
+        const char* projectName = u8"QUẢN LÝ SÂN BÓNG MINI";
+        ImVec2 nameSize = ImGui::CalcTextSize(projectName);
+        ImGui::SetCursorPosX((width - nameSize.x) * 0.5f);
+        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 255, 255, 255));
+        ImGui::TextUnformatted(projectName);
         ImGui::PopStyleColor();
         if (headingFont != nullptr) ImGui::PopFont();
 
+        // Dòng phụ đề giới thiệu hệ thống (Căn chính giữa)
         ImFont* smallFont = GUI::Theme::getFonts().small;
         if (smallFont != nullptr) ImGui::PushFont(smallFont);
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.85f, 0.96f, 0.90f, 0.95f));
-        ImGui::TextUnformatted(u8"Hệ Thống Quản Lý Sân Bóng Mini Chuyên Nghiệp");
+        const char* subTitle = u8"Hệ Thống Quản Lý & Đặt Sân Bóng Đá Chuyên Nghiệp";
+        ImVec2 subSize = ImGui::CalcTextSize(subTitle);
+        ImGui::SetCursorPosX((width - subSize.x) * 0.5f);
+        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(205, 245, 228, 240));
+        ImGui::TextUnformatted(subTitle);
         ImGui::PopStyleColor();
         if (smallFont != nullptr) ImGui::PopFont();
 
-        ImGui::EndGroup();
-
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 18.0f);
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 12.0f);
 
         // ==========================================
-        // 2. VECTOR ILLUSTRATION: SÂN BÓNG MINI SẮC NÉT
+        // 2. VECTOR ILLUSTRATION: SÂN BÓNG MINI SẮC NÉT (CĂN GIỮA)
         // ==========================================
-        float availW = ImGui::GetContentRegionAvail().x;
-        float pitchW = std::min(availW, 370.0f);
-        float pitchH = pitchW * 0.58f; // Tỷ lệ chuẩn 16:9 cho sân mini
+        float availW = width - 48.0f;
+        float pitchW = std::min(availW, 360.0f);
+        float pitchH = pitchW * 0.54f;
 
-        float pitchStartX = ImGui::GetCursorScreenPos().x + (availW - pitchW) * 0.5f;
+        float pitchStartX = bannerMin.x + (width - pitchW) * 0.5f;
         float pitchStartY = ImGui::GetCursorScreenPos().y;
 
         ImVec2 p0(pitchStartX, pitchStartY);
@@ -150,24 +155,24 @@ void AuthScreen::renderBanner(float width, float height) {
         );
 
         // Nền mặt cỏ xanh sẫm
-        ImU32 grassBase = IM_COL32(15, 84, 56, 255); // #0F5438
+        ImU32 grassBase = IM_COL32(15, 84, 56, 255);
         drawList->AddRectFilled(p0, p1, grassBase, 8.0f);
 
-        // Vẽ 8 sọc cỏ xen kẽ màu sáng hơn
+        // Vẽ 8 sọc cỏ xen kẽ
         int numStripes = 8;
         float stripeW = pitchW / numStripes;
-        ImU32 stripeCol = IM_COL32(20, 108, 73, 255); // #146C49
+        ImU32 stripeCol = IM_COL32(20, 108, 73, 255);
         for (int i = 0; i < numStripes; i += 2) {
             ImVec2 s0(p0.x + i * stripeW, p0.y);
             ImVec2 s1(p0.x + (i + 1) * stripeW, p1.y);
             drawList->AddRectFilled(s0, s1, stripeCol);
         }
 
-        // Đường biên ngoài (Touchline & Goal Line)
+        // Đường biên ngoài
         ImU32 lineCol = IM_COL32(255, 255, 255, 225);
         drawList->AddRect(p0, p1, lineCol, 8.0f, 0, 2.0f);
 
-        // Đường giữa sân (Halfway Line)
+        // Đường giữa sân
         float midX = p0.x + pitchW * 0.5f;
         drawList->AddLine(ImVec2(midX, p0.y), ImVec2(midX, p1.y), lineCol, 2.0f);
 
@@ -184,14 +189,11 @@ void AuthScreen::renderBanner(float width, float height) {
 
         // Vùng cấm địa trái
         drawList->AddRect(ImVec2(p0.x, boxTop), ImVec2(p0.x + boxW, boxTop + boxH), lineCol, 0, 0, 2.0f);
-        // Khu 5m50 nhỏ trái
         float smallBoxW = boxW * 0.50f;
         float smallBoxH = boxH * 0.55f;
         float smallBoxTop = p0.y + (pitchH - smallBoxH) * 0.5f;
         drawList->AddRect(ImVec2(p0.x, smallBoxTop), ImVec2(p0.x + smallBoxW, smallBoxTop + smallBoxH), lineCol, 0, 0, 1.5f);
-        // Chấm phạt đền trái
         drawList->AddCircleFilled(ImVec2(p0.x + boxW * 0.72f, p0.y + pitchH * 0.5f), 2.5f, IM_COL32_WHITE);
-        // Cầu môn trái với lưới
         float goalH = pitchH * 0.30f;
         float goalTop = p0.y + (pitchH - goalH) * 0.5f;
         drawList->AddRect(ImVec2(p0.x - 7.0f, goalTop), ImVec2(p0.x, goalTop + goalH), lineCol, 0, 0, 2.0f);
@@ -201,17 +203,14 @@ void AuthScreen::renderBanner(float width, float height) {
 
         // Vùng cấm địa phải
         drawList->AddRect(ImVec2(p1.x - boxW, boxTop), ImVec2(p1.x, boxTop + boxH), lineCol, 0, 0, 2.0f);
-        // Khu 5m50 nhỏ phải
         drawList->AddRect(ImVec2(p1.x - smallBoxW, smallBoxTop), ImVec2(p1.x, smallBoxTop + smallBoxH), lineCol, 0, 0, 1.5f);
-        // Chấm phạt đền phải
         drawList->AddCircleFilled(ImVec2(p1.x - boxW * 0.72f, p0.y + pitchH * 0.5f), 2.5f, IM_COL32_WHITE);
-        // Cầu môn phải với lưới
         drawList->AddRect(ImVec2(p1.x, goalTop), ImVec2(p1.x + 7.0f, goalTop + goalH), lineCol, 0, 0, 2.0f);
         for (float gy = goalTop + 4.0f; gy < goalTop + goalH; gy += 5.0f) {
             drawList->AddLine(ImVec2(p1.x, gy), ImVec2(p1.x + 7.0f, gy), IM_COL32(255, 255, 255, 120), 1.0f);
         }
 
-        // 4 góc sân: Vòng cung phạt góc (Corner Arcs)
+        // 4 góc sân
         float cornerR = 8.0f;
         drawList->PathArcTo(p0, cornerR, 0.0f, 1.57f, 8);
         drawList->PathStroke(lineCol, 0, 1.5f);
@@ -222,44 +221,51 @@ void AuthScreen::renderBanner(float width, float height) {
         drawList->PathArcTo(ImVec2(p0.x, p1.y), cornerR, 4.71f, 6.28f, 8);
         drawList->PathStroke(lineCol, 0, 1.5f);
 
-        // Quả bóng đá vector đặt tại vị trí chiến thuật
+        // Quả bóng đá vector
         ImVec2 ballPos(midX + 22.0f, p0.y + pitchH * 0.42f);
-        float ballR = 9.0f;
+        float ballR = 8.5f;
         drawList->AddCircleFilled(ImVec2(ballPos.x + 1.0f, ballPos.y + 2.0f), ballR, IM_COL32(0, 0, 0, 50));
         drawList->AddCircleFilled(ballPos, ballR, IM_COL32(255, 255, 255, 255));
         drawList->AddCircle(ballPos, ballR, IM_COL32(30, 41, 59, 255), 18, 1.2f);
         drawList->AddCircleFilled(ballPos, 3.0f, IM_COL32(30, 41, 59, 255));
 
-        ImGui::Dummy(ImVec2(pitchW, pitchH + 16.0f));
+        ImGui::Dummy(ImVec2(pitchW, pitchH + 14.0f));
 
         // ==========================================
-        // 3. GIỚI THIỆU TÍNH NĂNG NỔI BẬT (FEATURE CARDS)
+        // 3. GIỚI THIỆU TÍNH NĂNG DỰ ÁN (CĂN LỀ VÀO NGAY CHÍNH GIỮA)
         // ==========================================
         auto veTheTinhNang = [width](const char* tieuDe, const char* moTa) {
+            float cardW = std::min(width - 56.0f, 380.0f);
+            float startX = (width - cardW) * 0.5f;
+
+            ImGui::SetCursorPosX(startX);
             ImVec2 c0 = ImGui::GetCursorScreenPos();
-            float cW = ImGui::GetContentRegionAvail().x;
-            ImVec2 c1(c0.x + cW, c0.y + 46.0f);
+            ImVec2 c1(c0.x + cardW, c0.y + 54.0f);
             ImDrawList* dl = ImGui::GetWindowDrawList();
 
-            dl->AddRectFilled(c0, c1, IM_COL32(255, 255, 255, 20), 6.0f);
-            dl->AddRect(c0, c1, IM_COL32(255, 255, 255, 35), 6.0f, 0, 1.0f);
+            // Nền thẻ kính mờ bo tròn mềm mại
+            dl->AddRectFilled(c0, c1, IM_COL32(255, 255, 255, 22), 8.0f);
+            dl->AddRect(c0, c1, IM_COL32(255, 255, 255, 38), 8.0f, 0, 1.0f);
 
-            // Vạch xanh ngọc chỉ báo
-            dl->AddRectFilled(c0, ImVec2(c0.x + 3.5f, c1.y), IM_COL32(34, 197, 94, 255), 6.0f, ImDrawFlags_RoundCornersLeft);
-
-            ImGui::SetCursorScreenPos(ImVec2(c0.x + 12.0f, c0.y + 6.0f));
-            ImGui::BeginGroup();
-            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::Surface);
+            // Dòng tiêu đề tính năng: căn lề chính giữa
+            ImFont* regFont = GUI::Theme::getFonts().regular;
+            if (regFont != nullptr) ImGui::PushFont(regFont);
+            ImVec2 szTitle = ImGui::CalcTextSize(tieuDe);
+            ImGui::SetCursorScreenPos(ImVec2(c0.x + (cardW - szTitle.x) * 0.5f, c0.y + 8.0f));
+            ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 255, 255, 255));
             ImGui::TextUnformatted(tieuDe);
             ImGui::PopStyleColor();
+            if (regFont != nullptr) ImGui::PopFont();
 
+            // Dòng mô tả chi tiết: căn lề chính giữa
             ImFont* sFont = GUI::Theme::getFonts().small;
             if (sFont != nullptr) ImGui::PushFont(sFont);
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.85f, 0.94f, 0.89f, 0.90f));
+            ImVec2 szDesc = ImGui::CalcTextSize(moTa);
+            ImGui::SetCursorScreenPos(ImVec2(c0.x + (cardW - szDesc.x) * 0.5f, c0.y + 30.0f));
+            ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(215, 245, 230, 230));
             ImGui::TextUnformatted(moTa);
             ImGui::PopStyleColor();
             if (sFont != nullptr) ImGui::PopFont();
-            ImGui::EndGroup();
 
             ImGui::SetCursorScreenPos(ImVec2(c0.x, c1.y + 8.0f));
         };
@@ -269,12 +275,15 @@ void AuthScreen::renderBanner(float width, float height) {
         veTheTinhNang(u8"Khách hàng thân thiết & Giải đấu phong trào", u8"Tích điểm nâng hạng VIP, ưu đãi tự động, quản lý cúp giao hữu.");
 
         // ==========================================
-        // 4. CHÂN BANNER & NÚT DEMO WIDGETS
+        // 4. CHÂN BANNER & NÚT DEMO WIDGETS (CĂN GIỮA)
         // ==========================================
-        float bottomPosY = height - 52.0f;
-        if (bottomPosY > ImGui::GetCursorPosY() + 10.0f) {
+        float bottomPosY = height - 50.0f;
+        if (bottomPosY > ImGui::GetCursorPosY() + 8.0f) {
             ImGui::SetCursorPosY(bottomPosY);
         }
+
+        float demoBtnW = std::min(width - 56.0f, 380.0f);
+        ImGui::SetCursorPosX((width - demoBtnW) * 0.5f);
 
         ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(255, 255, 255, 25));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(255, 255, 255, 45));
@@ -284,8 +293,7 @@ void AuthScreen::renderBanner(float width, float height) {
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
 
-        float demoButtonWidth = std::max(0.0f, ImGui::GetContentRegionAvail().x);
-        if (ImGui::Button(u8"Xem Thư viện Widget Demo UI", ImVec2(demoButtonWidth, 34.0f))) {
+        if (ImGui::Button(u8"Xem Thư viện Widget Demo UI", ImVec2(demoBtnW, 34.0f))) {
             GUI::App::ScreenManager::getInstance().push(std::make_unique<GUI::Screens::DemoScreen>());
         }
 
@@ -449,7 +457,7 @@ void AuthScreen::renderTabDangNhap() {
     // Thông báo lỗi nếu có
     if (!loginLoiChung_.empty()) {
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::Danger);
-        ImGui::TextWrapped(u8"✕ %s", loginLoiChung_.c_str());
+        ImGui::TextWrapped(u8"[!] %s", loginLoiChung_.c_str());
         ImGui::PopStyleColor();
         ImGui::Spacing();
     }

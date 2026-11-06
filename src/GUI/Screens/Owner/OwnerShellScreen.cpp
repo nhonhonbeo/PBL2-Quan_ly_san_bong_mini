@@ -1,4 +1,4 @@
-﻿#include "GUI/Screens/Owner/OwnerShellScreen.h"
+#include "GUI/Screens/Owner/OwnerShellScreen.h"
 
 #include <vector>
 #include <imgui.h>
@@ -117,11 +117,11 @@ void OwnerShellScreen::render() {
 
 void OwnerShellScreen::renderSidebar() {
     std::vector<Widgets::SidebarItem> menuItems = {
-        {"0", u8"📊", u8"Tổng quan cơ sở"},
-        {"1", u8"🏟️", u8"Quản lý sân bóng"},
-        {"2", u8"➕", u8"Khởi tạo sân mới"},
-        {"3", u8"👥", u8"Quản lý khách hàng"},
-        {"4", u8"🏆", u8"Quản lý giải đấu"}
+        {"0", "", u8"Tổng quan cơ sở"},
+        {"1", "", u8"Quản lý sân bóng"},
+        {"2", "", u8"Khởi tạo sân mới"},
+        {"3", "", u8"Quản lý khách hàng"},
+        {"4", "", u8"Quản lý giải đấu"}
     };
 
     int prevTab = selectedTab_;
