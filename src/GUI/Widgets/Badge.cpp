@@ -1,4 +1,4 @@
-﻿#include "GUI/Widgets/Badge.h"
+#include "GUI/Widgets/Badge.h"
 
 #include "GUI/Theme/Theme.h"
 
@@ -23,6 +23,8 @@ void Badge(const char* text, const ImVec4& bgMau, const ImVec4& textMau) {
     float rounding = badgeSize.y * 0.5f;
 
     drawList->AddRectFilled(p0, p1, GUI::Theme::Colors::toU32(bgMau), rounding);
+    // Viền nhẹ cùng tông chữ để đảm bảo phân tách rõ ràng trên mọi màn hình
+    drawList->AddRect(p0, p1, GUI::Theme::Colors::toU32(textMau, 0.35f), rounding, 0, 1.0f);
     drawList->AddText(ImVec2(p0.x + padX, p0.y + padY), GUI::Theme::Colors::toU32(textMau), text);
 
     ImGui::Dummy(badgeSize);
@@ -39,13 +41,14 @@ void BadgeDaDat(const char* text) {
 }
 
 void BadgeBaoTri(const char* text) {
-    // Nền vàng cam pastel, chữ cam đậm #D97706
-    Badge(text, ImVec4(0.996f, 0.953f, 0.886f, 1.0f), ImVec4(0.851f, 0.467f, 0.024f, 1.0f));
+    // LÝ DO CHỌN: Đạt chuẩn tương phản tiếp cận WCAG AAA (>7:1):
+    // Nền hổ phách ấm #FEF3C7, chữ nâu đen sẫm #78350F giúp đọc rõ nét tuyệt đối trên mọi màn hình.
+    Badge(text, ImVec4(0.996f, 0.953f, 0.780f, 1.0f), ImVec4(0.471f, 0.208f, 0.059f, 1.0f));
 }
 
 void BadgeVIP(const char* text) {
-    // Nền vàng hoàng gia ánh kim, chữ vàng sẫm #CA8A04
-    Badge(text, ImVec4(0.996f, 0.976f, 0.765f, 1.0f), ImVec4(0.792f, 0.541f, 0.016f, 1.0f));
+    // LÝ DO CHỌN: Nền vàng nhạt sáng #FEF9C3, chữ nâu vàng đậm #713F12 tương phản cao đạt chuẩn WCAG
+    Badge(text, ImVec4(0.996f, 0.976f, 0.765f, 1.0f), ImVec4(0.443f, 0.247f, 0.071f, 1.0f));
 }
 
 void BadgeDanhSachDen(const char* text) {

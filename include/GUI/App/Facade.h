@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <map>
 #include <memory>
 #include <string>
@@ -49,6 +49,7 @@ struct SanBongInfo {
     int giaThueGio = 0; // VNĐ / giờ
     bool dangBaoTri = false; // true: bảo trì, false: sẵn sàng
     std::string quyDinh;     // Quy định sử dụng sân
+    std::string hinhAnh;     // Đường dẫn ảnh sân bóng do chủ sân upload
 };
 // Cấu trúc dữ liệu Khung giờ
 struct KhungGioInfo {
@@ -196,6 +197,8 @@ public:
     KetQua suaSanBong(const std::string& maSan, const std::string& tenSan, int loaiSan, int giaThue);
     KetQua toggleBaoTriSan(const std::string& maSan);
     KetQua xoaSanBong(const std::string& maSan);
+    KetQua uploadAnhSan(const std::string& maSan, const std::string& duongDanAnh);
+    std::string getAnhSan(const std::string& maSan) const;
     // ==========================================
     // 5. KHUNG GIỜ VÀ GIÁ THUÊ MA TRẬN
     // ==========================================
@@ -313,6 +316,9 @@ private:
     mutable TournamentService tournament_service_;
     mutable FieldService field_service_;
     void dongBoTuCacService();
+    std::map<std::string, std::string> mapAnhSan_;
+    void loadAnhSan();
+    void saveAnhSan();
     // LÝ DO CHỌN: Toàn bộ dữ liệu nghiệp vụ do các Service/Repository quản lý và lưu bền vững.
     // Các vector bên dưới chỉ đóng vai trò bộ nhớ đệm hiển thị (ViewModel cache) chỉ-đọc cho ImGui,
     // tự động đồng bộ lại sau mỗi thao tác ghi, tuyệt đối không đọc file mỗi frame.

@@ -1,9 +1,10 @@
-#include "GUI/App/Facade.h"
+﻿#include "GUI/App/Facade.h"
 
 #include <algorithm>
 #include <cstdio>
 #include <iomanip>
 #include <iostream>
+#include <fstream>
 #include <sstream>
 
 #include "Core/DateTime.h"
@@ -90,12 +91,13 @@ void Facade::dongBoTuCacService() {
     venue_repository_.seedIfNeeded(err);
 
     danhSachSan_.clear();
+    loadAnhSan();
     LinkedList<ReportFieldRecord> repFields;
     if (report_repository_.loadFields(repFields, err)) {
         for (auto* n = repFields.get_head(); n; n = n->next) {
             danhSachSan_.push_back({n->data.fieldId, n->data.ownerUserId, n->data.name,
                                     n->data.size, static_cast<int>(n->data.hourlyRateVnd),
-                                    n->data.underMaintenance, n->data.rules});
+                                    n->data.underMaintenance, n->data.rules, getAnhSan(n->data.fieldId)});
         }
     }
 
@@ -318,6 +320,58 @@ KetQua Facade::xoaSanBong(const std::string& maSan) {
     if (!venue_service_.deleteField(owner->get_user_id(), maSan, error)) return {false, error};
     dongBoTuCacService();
     return {true, ""};
+}
+
+void Facade::loadAnhSan() {
+    mapAnhSan_.clear();
+    std::ifstream file("data/field_images.txt");
+    if (!file.is_open()) {
+        mapAnhSan_["S5-01"] = "assets/images/san_co_fifa_vip.jpg";
+        mapAnhSan_["S5-04"] = "assets/images/san_co_fifa_vip.jpg";
+        mapAnhSan_["S7-01"] = "assets/images/san_den_led_night.jpg";
+        mapAnhSan_["S11-01"] = "assets/images/san_ngoai_troi_view.jpg";
+        saveAnhSan();
+        return;
+    }
+    std::string line;
+    while (std::getline(file, line)) {
+        if (line.empty() || line[0] == '#') continue;
+        auto sep = line.find('|');
+        if (sep != std::string::npos) {
+            std::string id = line.substr(0, sep);
+            std::string path = line.substr(sep + 1);
+            mapAnhSan_[id] = path;
+        }
+    }
+}
+
+void Facade::saveAnhSan() {
+    std::ofstream file("data/field_images.txt");
+    if (!file.is_open()) return;
+    for (const auto& pair : mapAnhSan_) {
+        file << pair.first << "|" << pair.second << "\n";
+    }
+}
+
+KetQua Facade::uploadAnhSan(const std::string& maSan, const std::string& duongDanAnh) {
+    User* owner = Session::getInstance().getUser();
+    if (!owner || owner->get_account_type() != "Owner") {
+        return {false, u8"Vui lòng đăng nhập bằng tài khoản chủ sân để tải lên ảnh."};
+    }
+    auto* san = getSanBong(maSan);
+    if (!san) {
+        return {false, u8"Không tìm thấy sân bóng hoặc bạn không có quyền sửa sân này."};
+    }
+    san->hinhAnh = duongDanAnh;
+    mapAnhSan_[maSan] = duongDanAnh;
+    saveAnhSan();
+    return {true, ""};
+}
+
+std::string Facade::getAnhSan(const std::string& maSan) const {
+    auto it = mapAnhSan_.find(maSan);
+    if (it != mapAnhSan_.end()) return it->second;
+    return "";
 }
 
 std::vector<KhungGioInfo> Facade::getDanhSachKhungGio() const {

@@ -1,4 +1,4 @@
-#include "GUI/Screens/Owner/OwnerShellScreen.h"
+﻿#include "GUI/Screens/Owner/OwnerShellScreen.h"
 
 #include <vector>
 #include <imgui.h>
@@ -97,7 +97,7 @@ void OwnerShellScreen::render() {
         // Modal xác nhận đăng xuất
         Widgets::ModalXacNhan(
             u8"Xác nhận đăng xuất",
-            u8"Bạn có chắc chắn muốn đăng xuất khỏi phiên làm việc của Chủ sân không?\nMọi thay đổi chưa lưu sẽ được hệ thống tự động đồng bộ an toàn.",
+            u8"Xác nhận đăng xuất khỏi phiên làm việc của Chủ sân.\nMọi thay đổi chưa lưu sẽ được hệ thống tự động đồng bộ an toàn.",
             []() {
                 GUI::App::Session::getInstance().logout();
                 Widgets::ToastThongTin(u8"Đã đăng xuất tài khoản Chủ sân an toàn!");
@@ -163,7 +163,8 @@ void OwnerShellScreen::renderTopBar() {
         breadcrumbs,
         userName.c_str(),
         u8"Chủ sân",
-        60.0f
+        60.0f,
+        [this]() { yeuCauDangXuat_ = true; }
     );
 }
 

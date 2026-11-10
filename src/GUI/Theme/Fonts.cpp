@@ -151,6 +151,7 @@ void buildGlyphRanges(ImGuiIO& io, ImVector<ImWchar>& out) {
         0x20AB, 0x20AB,  // ₫
         0x2190, 0x2193,  // ← ↑ → ↓
         0x2264, 0x2265,  // ≤ ≥
+        0x2600, 0x27BF,  // ★ ☆ ⚽ ✓ ✕
         0
     };
     builder.AddRanges(extraRanges);

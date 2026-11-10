@@ -1,4 +1,4 @@
-﻿#include "GUI/Widgets/Sidebar.h"
+#include "GUI/Widgets/Sidebar.h"
 
 #include <imgui.h>
 #include "GUI/Theme/Fonts.h"
@@ -139,11 +139,21 @@ bool Sidebar(
         ImGui::PopStyleColor();
         ImGui::Spacing();
 
-        if (NutNguyHiem(u8"Đăng xuất tài khoản##sidebar_logout_btn", ImVec2(ImGui::GetContentRegionAvail().x, logoutBtnHeight))) {
+        // LÝ DO CHỌN: Dùng Ghost Button chữ xám tinh tế (#748078) thay vì nút đỏ cảnh báo,
+        // giúp người dùng tập trung vào các chức năng chính, tránh tâm lý mời người dùng rời app.
+        ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0, 0, 0, 0));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, GUI::Theme::Colors::GrayHover);
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.92f, 0.94f, 0.93f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Text,          GUI::Theme::Colors::TextSecondary);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.12f, 0.5f));
+        if (ImGui::Button(u8"Đăng xuất##sidebar_logout_btn", ImVec2(ImGui::GetContentRegionAvail().x, logoutBtnHeight))) {
             if (onDangXuat) {
                 onDangXuat();
             }
         }
+        ImGui::PopStyleVar(2);
+        ImGui::PopStyleColor(4);
     }
     ImGui::EndChild();
 

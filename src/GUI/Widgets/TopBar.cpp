@@ -1,9 +1,5 @@
 ﻿#include "GUI/Widgets/TopBar.h"
 
-#include <chrono>
-#include <ctime>
-#include <iomanip>
-#include <sstream>
 #include <imgui.h>
 
 #include "GUI/Theme/Fonts.h"
@@ -12,35 +8,13 @@
 
 namespace Widgets {
 
-namespace {
-
-std::string layGioVaNgayHeThong() {
-    auto now = std::chrono::system_clock::now();
-    std::time_t tt = std::chrono::system_clock::to_time_t(now);
-    std::tm localTm{};
-#if defined(_WIN32)
-    localtime_s(&localTm, &tt);
-#else
-    localtime_r(&tt, &localTm);
-#endif
-    std::ostringstream oss;
-    oss << std::setfill('0') << std::setw(2) << localTm.tm_hour << ":"
-        << std::setfill('0') << std::setw(2) << localTm.tm_min << ":"
-        << std::setfill('0') << std::setw(2) << localTm.tm_sec << "  "
-        << std::setfill('0') << std::setw(2) << localTm.tm_mday << "/"
-        << std::setfill('0') << std::setw(2) << (localTm.tm_mon + 1) << "/"
-        << (localTm.tm_year + 1900);
-    return oss.str();
-}
-
-}  // namespace
-
 void TopBar(
     const char* tieuDeManHinh,
     const std::vector<std::string>& breadcrumbs,
     const char* tenNguoiDung,
     const char* vaiTro,
-    float chieuCao
+    float chieuCao,
+    const std::function<void()>& onDangXuat
 ) {
     ImVec2 startPos = ImGui::GetCursorScreenPos();
     float totalWidth = ImGui::GetContentRegionAvail().x;
@@ -96,32 +70,22 @@ void TopBar(
     ImGui::EndGroup();
 
     // ==========================================
-    // 2. ĐỒNG HỒ HỆ THỐNG & USER CHIP BÊN PHẢI
+    // 2. USER CHIP & ĐĂNG XUẤT BÊN PHẢI (LOẠI BỎ ĐỒNG HỒ GIÂY GÂY XAO NHÃNG)
     // ==========================================
-    std::string timeStr = layGioVaNgayHeThong();
     std::string userStr = tenNguoiDung ? tenNguoiDung : u8"Người dùng";
     std::string roleStr = vaiTro ? vaiTro : "";
 
-    ImVec2 timeSize = ImGui::CalcTextSize(timeStr.c_str());
     ImVec2 userSize = ImGui::CalcTextSize(userStr.c_str());
     ImVec2 roleSize = ImGui::CalcTextSize(roleStr.c_str());
-    float rightBlockWidth = timeSize.x + userSize.x + roleSize.x + 110.0f;
+    float logoutTextWidth = onDangXuat ? 90.0f : 0.0f;
+    float rightBlockWidth = userSize.x + roleSize.x + logoutTextWidth + 90.0f;
 
     float rightPosX = barMax.x - rightBlockWidth - 20.0f;
+    if (rightPosX < startPos.x + 280.0f) {
+        rightPosX = startPos.x + 280.0f;
+    }
     ImGui::SetCursorScreenPos(ImVec2(rightPosX, startPos.y + 14.0f));
     ImGui::BeginGroup();
-
-    // Đồng hồ hệ thống dạng chip nhẹ
-    ImFont* smallFont = GUI::Theme::getFonts().small;
-    if (smallFont != nullptr) ImGui::PushFont(smallFont);
-
-    ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
-    ImGui::Text("%s", timeStr.c_str());
-    ImGui::PopStyleColor();
-
-    if (smallFont != nullptr) ImGui::PopFont();
-
-    ImGui::SameLine(0.0f, 20.0f);
 
     // Chấm xanh trạng thái trực tuyến
     ImVec2 curPos = ImGui::GetCursorScreenPos();
@@ -159,6 +123,23 @@ void TopBar(
         } else {
             Badge(roleStr.c_str(), ImVec4(0.910f, 0.949f, 0.980f, 1.0f), ImVec4(0.145f, 0.388f, 0.922f, 1.0f));
         }
+    }
+
+    // LÝ DO CHỌN: Text link Đăng xuất mờ nhạt đặt tại góc trên cùng bên phải cạnh hồ sơ người dùng,
+    // vừa đúng chuẩn UX hiện đại vừa không chiếm spotlight luồng thao tác chính.
+    if (onDangXuat) {
+        ImGui::SameLine(0.0f, 14.0f);
+        ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0, 0, 0, 0));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, GUI::Theme::Colors::GrayHover);
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.92f, 0.94f, 0.93f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Text,          GUI::Theme::Colors::TextSecondary);
+        if (ImGui::SmallButton(u8"Đăng xuất##topbar_logout")) {
+            onDangXuat();
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+        }
+        ImGui::PopStyleColor(4);
     }
 
     ImGui::EndGroup();

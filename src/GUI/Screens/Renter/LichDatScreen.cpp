@@ -1,4 +1,4 @@
-#include "GUI/Screens/Renter/LichDatScreen.h"
+﻿#include "GUI/Screens/Renter/LichDatScreen.h"
 
 #include <chrono>
 #include <ctime>
@@ -235,7 +235,7 @@ void LichDatScreen::renderTableDonDat() {
 void LichDatScreen::renderModalXacNhanHuy() {
     std::string noiDung = u8"Hủy nhiều lần sẽ vào danh sách đen, bạn đã hủy " +
                           std::to_string(soLanDaHuy_) +
-                          u8" lần.\nBạn có chắc chắn muốn hủy đơn đặt sân mã " + maDonCanHuy_ + u8" không?";
+                          u8" lần.\nXác nhận thao tác hủy đơn đặt sân mã " + maDonCanHuy_ + u8".";
 
     Widgets::ModalXacNhan(
         u8"Xác nhận hủy đặt sân",
