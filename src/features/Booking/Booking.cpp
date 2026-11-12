@@ -47,4 +47,65 @@ void Booking::addDetail(const BookingDetail& detail) {
     total_vnd_ += detail.getAmountVnd();
 }
 
+
 void Booking::setStatus(BookingStatus status) { status_ = status; }
+
+bool Booking::canBeCancelledBy(const std::string& customerId, std::string& error) const {
+    if (!customer_id_.empty() && customerId != customer_id_) {
+        error = u8"Không có quyền hủy đơn đặt sân của khách hàng khác.";
+        return false;
+    }
+    if (status_ == BookingStatus::COMPLETED || status_ == BookingStatus::CANCELLED) {
+        error = u8"Đơn đã hoàn tất hoặc đã hủy, không thể hủy thêm.";
+        return false;
+    }
+    return true;
+}
+
+bool Booking::cancel(const std::string& customerId, std::string& error) {
+    if (!canBeCancelledBy(customerId, error)) return false;
+    status_ = BookingStatus::CANCELLED;
+    return true;
+}
+
+bool Booking::canBeCompletedBy(const std::string& ownerId, std::string& error) const {
+    if (!owner_id_.empty() && ownerId != owner_id_) {
+        error = u8"Không có quyền xác nhận đơn của cơ sở khác.";
+        return false;
+    }
+    if (status_ == BookingStatus::CANCELLED) {
+        error = u8"Không thể hoàn tất đơn đã hủy.";
+        return false;
+    }
+    if (status_ == BookingStatus::COMPLETED) {
+        error = u8"Đơn này đã được xác nhận hoàn tất.";
+        return false;
+    }
+    return true;
+}
+
+bool Booking::complete(const std::string& ownerId, std::string& error) {
+    if (!canBeCompletedBy(ownerId, error)) return false;
+    status_ = BookingStatus::COMPLETED;
+    return true;
+}
+
+bool Booking::isActive() const {
+    return status_ == BookingStatus::CONFIRMED || status_ == BookingStatus::PENDING;
+}
+
+bool Booking::isCompleted() const {
+    return status_ == BookingStatus::COMPLETED;
+}
+
+bool Booking::isCancelled() const {
+    return status_ == BookingStatus::CANCELLED;
+}
+
+long long Booking::calculateTotalVnd() const {
+    long long sum = 0;
+    for (auto* n = details_.get_head(); n != nullptr; n = n->next) {
+        sum += n->data.getAmountVnd();
+    }
+    return sum;
+}
