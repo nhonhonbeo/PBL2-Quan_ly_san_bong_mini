@@ -91,7 +91,7 @@ void RenterShellScreen::render() {
         // Modal xác nhận đăng xuất
         Widgets::ModalXacNhan(
             u8"Xác nhận đăng xuất",
-            u8"Bạn có chắc chắn muốn đăng xuất tài khoản Người thuê không?\nThông tin đặt sân và ưu đãi đã lưu sẽ không bị mất.",
+            u8"Xác nhận đăng xuất tài khoản Người thuê.\nThông tin đặt sân và ưu đãi đã lưu sẽ không bị mất.",
             []() {
                 GUI::App::Session::getInstance().logout();
                 Widgets::ToastThongTin(u8"Đã đăng xuất tài khoản Người thuê an toàn!");
@@ -111,12 +111,12 @@ void RenterShellScreen::render() {
 
 void RenterShellScreen::renderSidebar() {
     std::vector<Widgets::SidebarItem> menuItems = {
-        {"0", u8"⚽", u8"Đặt sân trực tuyến"},
-        {"1", u8"📅", u8"Lịch đặt của tôi"},
-        {"2", u8"🏆", u8"Đăng ký tạo giải"},
-        {"3", u8"🎖️", u8"Ưu đãi thành viên"},
-        {"4", u8"⭐", u8"Đánh giá sân bóng"},
-        {"5", u8"👤", u8"Thông tin cá nhân"}
+        {"0", "", u8"Đặt sân trực tuyến"},
+        {"1", "", u8"Lịch đặt của tôi"},
+        {"2", "", u8"Đăng ký tạo giải"},
+        {"3", "", u8"Ưu đãi thành viên"},
+        {"4", "", u8"Đánh giá sân bóng"},
+        {"5", "", u8"Thông tin cá nhân"}
     };
 
     int prevTab = selectedTab_;
@@ -160,7 +160,8 @@ void RenterShellScreen::renderTopBar() {
         breadcrumbs,
         userName.c_str(),
         u8"Người thuê",
-        60.0f
+        60.0f,
+        [this]() { yeuCauDangXuat_ = true; }
     );
 }
 

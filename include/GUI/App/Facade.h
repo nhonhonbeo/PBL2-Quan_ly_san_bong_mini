@@ -1,35 +1,45 @@
-#pragma once
-
+﻿#pragma once
 #include <map>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
-
 #include "Account/Customer.h"
 #include "Account/Owner.h"
 #include "Account/User.h"
 #include "Core/LinkedList.h"
 #include "GUI/App/ScreenManager.h"
 #include "GUI/Widgets/SlotGrid.h"
+#include "Core/HashTable.h"
+#include "Repository/AccountRepository.h"
+#include "Repository/BookingRepository.h"
+#include "Repository/CustomerRepository.h"
+#include "Repository/FieldRepository.h"
+#include "Repository/ReportRepository.h"
+#include "Repository/TournamentRepository.h"
+#include "Repository/VenueRepository.h"
+#include "Repository/PaymentRepository.h"
+#include "Service/AccountService.h"
+#include "Service/BookingService.h"
+#include "Service/CustomerService.h"
+#include "Service/FieldService.h"
 #include "Service/ReportService.h"
+#include "Service/TournamentService.h"
 #include "Service/VenueService.h"
-
+#include "Service/PaymentService.h"
+#include "Storage/FileManager.h"
 namespace GUI::App {
-
 // LÝ DO CHỌN: Cấu trúc kết quả trả về chuẩn hóa cho mọi tác vụ nghiệp vụ
 struct KetQua {
     bool ok = false;
     std::string loi;
 };
-
 template <typename T>
 struct KetQuaDuLieu {
     bool ok = false;
     std::string loi;
     T duLieu{};
 };
-
 // Cấu trúc dữ liệu Sân bóng
 struct SanBongInfo {
     std::string maSan;       // ví dụ: "S5-01", "S5-02", "S7-01", "S11-01"
@@ -39,8 +49,8 @@ struct SanBongInfo {
     int giaThueGio = 0; // VNĐ / giờ
     bool dangBaoTri = false; // true: bảo trì, false: sẵn sàng
     std::string quyDinh;     // Quy định sử dụng sân
+    std::string hinhAnh;     // Đường dẫn ảnh sân bóng do chủ sân upload
 };
-
 // Cấu trúc dữ liệu Khung giờ
 struct KhungGioInfo {
     std::string id;
@@ -48,7 +58,6 @@ struct KhungGioInfo {
     std::string ketThuc;     // "07:30"
     bool laGioVang = false;  // 17:30 - 20:30
 };
-
 // Cấu trúc dữ liệu Đơn đặt sân
 struct DonDatSanInfo {
     std::string maDon;
@@ -63,7 +72,6 @@ struct DonDatSanInfo {
     int giaTien = 0;
     std::string trangThai;   // "Đã xác nhận", "Đã thanh toán", "Đã hủy"
 };
-
 // Cấu trúc dữ liệu Khách hàng
 struct KhachHangInfo {
     std::string id;
@@ -76,7 +84,6 @@ struct KhachHangInfo {
     std::string ngayChan;
     int mucUuDaiPhanTram = 0; // % giảm giá được hưởng
 };
-
 // Cấu trúc Ngưỡng ưu đãi tích lũy
 struct NguongUuDai {
     int id = 0;
@@ -84,7 +91,6 @@ struct NguongUuDai {
     int phanTramGiam = 5;
     std::string tenHang = u8"Thân thiết";
 };
-
 // Cấu trúc Đánh giá nhận xét
 struct DanhGiaInfo {
     std::string id;
@@ -95,7 +101,6 @@ struct DanhGiaInfo {
     std::string ngayGui;
     std::string noiDung;
 };
-
 // Trạng thái của giải đấu / sự kiện bóng đá
 enum class TrangThaiGiaiDau {
     ChoDuyet,      // Đang chờ chủ sân phê duyệt yêu cầu
@@ -104,7 +109,6 @@ enum class TrangThaiGiaiDau {
     DaKetThuc,     // Đã bế mạc kết thúc
     TuChoi         // Bị từ chối (trùng lịch sân hoặc quy định)
 };
-
 // Cấu trúc dữ liệu Giải đấu / Sự kiện sân bóng
 struct GiaiDauInfo {
     std::string maGiai;          // Ví dụ: "GD-01", "GD-02"
@@ -119,30 +123,25 @@ struct GiaiDauInfo {
     std::string ghiChuTuChoi;    // Lý do từ chối nếu có
     TrangThaiGiaiDau trangThai = TrangThaiGiaiDau::ChoDuyet;
 };
-
 // LÝ DO CHỌN: Facade là lớp trung gian độc lập duy nhất giữa GUI và nghiệp vụ,
 // chuyển tiếp báo cáo và thao tác quản lý mà không chứa phép tổng hợp của Dashboard.
 class Facade {
 public:
     static Facade& getInstance();
-
     // ==========================================
     // 1. KHỞI TẠO VÀ LƯU TRỮ DỮ LIỆU
     // ==========================================
     void napDuLieu();
     void luuDuLieu();
-
     // ==========================================
     // 2. XÁC THỰC & ĐĂNG KÝ
     // ==========================================
     KetQuaDuLieu<std::shared_ptr<User>> dangNhap(const std::string& sdt, const std::string& matKhau);
-
     KetQua dangKyNguoiThue(
         const std::string& hoTen,
         const std::string& sdt,
         const std::string& matKhau
     );
-
     KetQua dangKyChuSan(
         const std::string& hoTen,
         const std::string& sdt,
@@ -150,11 +149,8 @@ public:
         const std::string& tenCoSo,
         const std::string& diaChi
     );
-
     bool kiemTraSDTDaTonTai(const std::string& sdt) const;
-
     void moManHinhChinhChoUser(User* user, ScreenManager& sm);
-
     // ==========================================
     // 3. THỐNG KÊ DASHBOARD CHỦ SÂN
     // ==========================================
@@ -164,7 +160,6 @@ public:
         LinkedList<ReportBookingRecord>& luotDatGanDay,
         std::string& error
     ) const;
-
     bool getDanhSachCoSo(LinkedList<VenueFacilityRecord>& facilities,
                          std::string& error) const;
     bool getGiaThapNhatCoSo(const std::string& ownerId, long long& giaVnd,
@@ -187,36 +182,32 @@ public:
     bool capNhatGiaCoSo(int loaiSan, int thoiLuongPhut,
                         const std::string& gioBatDau, long long giaVnd,
                         std::string& error);
-
     // ==========================================
     // 4. QUẢN LÝ SÂN BÓNG (CRUD & WIZARD)
     // ==========================================
     std::vector<SanBongInfo> getDanhSachSanBong() const;
     std::vector<SanBongInfo> getDanhSachSanBongCuaChuSan() const;
     SanBongInfo* getSanBong(const std::string& maSan);
-
     KetQua taoNhieuSan(
         int loaiSan,
         int soLuong,
         const std::string& quyDinh,
         std::vector<std::string>& outMaSan
     );
-
     KetQua suaSanBong(const std::string& maSan, const std::string& tenSan, int loaiSan, int giaThue);
     KetQua toggleBaoTriSan(const std::string& maSan);
     KetQua xoaSanBong(const std::string& maSan);
-
+    KetQua uploadAnhSan(const std::string& maSan, const std::string& duongDanAnh);
+    std::string getAnhSan(const std::string& maSan) const;
     // ==========================================
     // 5. KHUNG GIỜ VÀ GIÁ THUÊ MA TRẬN
     // ==========================================
     std::vector<KhungGioInfo> getDanhSachKhungGio() const;
-
     KetQua sinhKhungGioTuDong(
         const std::string& gioMo,
         const std::string& gioDong,
         int buocPhut
     );
-
     int getGiaMaTran(const std::string& khungGioStr, int loaiSan) const;
     KetQua capNhatGiaMaTran(
         const std::string& khungGioStr,
@@ -224,9 +215,7 @@ public:
         int giaMoi,
         bool apDungTatCaCungLoai
     );
-
     std::map<std::pair<std::string, std::string>, Widgets::SlotInfo> getTinhTrangSlotTheoNgay(const std::string& ngay);
-
     // ==========================================
     // 6. QUẢN LÝ KHÁCH HÀNG, ƯU ĐÃI & DANH SÁCH ĐEN
     // ==========================================
@@ -234,31 +223,25 @@ public:
     std::vector<KhachHangInfo> getDanhSachKhachHang() const;
     std::vector<KhachHangInfo> getDanhSachKhachHangCuaChuSan() const;
     KhachHangInfo* timKhachHangTheoSDT(const std::string& sdt);
-
     // LÝ DO CHỌN LinkedList: Quản lý danh sách đen với thao tác chèn/xóa phần tử linh hoạt O(1)
     std::vector<KhachHangInfo> getDanhSachDen() const;
     std::vector<KhachHangInfo> getDeXuatChan(int soLanHuyToiThieu = 3) const;
-
     KetQua themVaoDanhSachDen(const std::string& sdt, const std::string& lyDo);
     KetQua goKhoiDanhSachDen(const std::string& sdt);
-
     // Ưu đãi
     std::vector<NguongUuDai> getNguongUuDai() const;
     KetQua capNhatNguongUuDai(int id, int soLanToiThieu, int phanTramGiam);
     KetQua apDungUuDaiChoKhach();
-
     // LÝ DO CHỌN LinkedList: Danh sách đánh giá mới nhất thêm vào đầu danh sách với O(1)
     std::vector<DanhGiaInfo> getDanhSachDanhGia() const;
     float getDiemTrungBinhToanCoSo() const;
     std::map<std::string, float> getDiemTrungBinhTungSan() const;
-
     // Lịch sử đặt/hủy và đánh giá của một khách hàng cụ thể
     std::vector<DonDatSanInfo> getLichSuDatCuaKhach(const std::string& sdt) const;
     std::vector<DanhGiaInfo> getDanhGiaCuaKhach(const std::string& sdt) const;
     // LÝ DO CHỌN: Chi tiết khách trong màn hình chủ sân chỉ gồm dữ liệu ở sân của chủ đó.
     std::vector<DonDatSanInfo> getLichSuDatCuaKhachCuaChuSan(const std::string& sdt) const;
     std::vector<DanhGiaInfo> getDanhGiaCuaKhachCuaChuSan(const std::string& sdt) const;
-
     // ==========================================
     // 7. QUẢN LÝ GIẢI ĐẤU & SỰ KIỆN SÂN BÓNG
     // ==========================================
@@ -267,22 +250,16 @@ public:
     std::vector<GiaiDauInfo> getYeuCauGiaiDauChoDuyet() const;
     int getSoLuongYeuCauChoDuyet() const;
     GiaiDauInfo* getGiaiDau(const std::string& maGiai);
-
     // Duyệt giải đấu (Nghiệp vụ tự động kiểm tra trùng lịch sân bóng)
     KetQua duyetGiaiDau(const std::string& maGiai);
-
     // Từ chối yêu cầu tổ chức giải đấu
     KetQua tuChoiGiaiDau(const std::string& maGiai, const std::string& lyDo);
-
     // Tạo giải đấu mới thủ công
     KetQua taoGiaiDauThuCong(const GiaiDauInfo& giaiMoi);
-
     // Cập nhật / sửa thông tin giải đấu
     KetQua suaGiaiDau(const GiaiDauInfo& giaiCapNhat);
-
     // Hủy giải đấu
     KetQua huyGiaiDau(const std::string& maGiai);
-
     // ==========================================
     // 8. NGHIỆP VỤ DÀNH CHO NGƯỜI THUÊ SÂN
     // ==========================================
@@ -290,31 +267,16 @@ public:
     int getSoLanHuyCuaKhach(const std::string& sdt) const;
     int getSoLanDatCuaKhach(const std::string& sdt) const;
     int getMucUuDaiCuaKhach(const std::string& sdt) const;
-
-    // Đặt sân mới và sinh mã đơn
-    KetQua datSanMoi(
-        const std::string& maSan,
-        const std::string& sdtKhach,
-        const std::string& tenKhach,
-        const std::string& ngay,
-        const std::string& khungGio,
-        int giaGoc,
-        int giaGiam,
-        std::string& outMaDon
-    );
     KetQua datNhieuCaMoi(const std::string& maSan, const std::string& sdtKhach,
                          const std::string& tenKhach, const std::string& ngay,
                          const LinkedList<std::string>& khungGio, int loaiSan,
                          std::string& outMaDon);
-
     // Hủy đơn đặt sân của khách
     KetQua huyDonDat(const std::string& maDon, const std::string& sdtKhach);
     KetQua xacNhanDaHoanThanhDon(const std::string& maDon);
-
     // Giải đấu do người thuê gửi yêu cầu
     std::vector<GiaiDauInfo> getGiaiDauCuaUser(const std::string& sdt) const;
     KetQua guiYeuCauTaoGiai(const GiaiDauInfo& giaiMoi);
-
     // Đánh giá của người thuê
     std::vector<SanBongInfo> getDanhSachSanDaThueXong(const std::string& sdt) const;
     KetQua guiHoacSuaDanhGia(
@@ -325,49 +287,53 @@ public:
         const std::string& noiDung,
         const std::string& danhGiaId = ""
     );
-
     // Cập nhật thông tin cá nhân & Đổi mật khẩu
     KetQua capNhatThongTinUser(const std::string& sdt, const std::string& hoTenMoi);
     KetQua capNhatThongTinUser(const std::string& sdtCu, const std::string& hoTenMoi,
                                const std::string& sdtMoi);
     KetQua doiMatKhauUser(const std::string& sdt, const std::string& matKhauCu, const std::string& matKhauMoi);
-
-    // ==========================================
-    // 9. CÁC HÀM NGHIỆP VỤ TODO
-    // ==========================================
-    KetQua datSan(const std::string& maSan, const std::string& ngay, const std::string& gio);
-    KetQua huyDatSan(const std::string& maDonDat);
-    KetQua themSanBong(const std::string& tenSan, int loaiSan, int giaThue);
-    KetQua capNhatKhungGioGia(const std::string& maSan, const std::string& gioMo, const std::string& gioDong, int giaMoi);
-    KetQua themGiaiDau(const std::string& tenGiai, const std::string& ngayBatDau, const std::string& ngayKetThuc);
-    KetQua guiDanhGiaSan(const std::string& maSan, int soSao, const std::string& noiDung);
-
 private:
     Facade();
     ~Facade() = default;
-
     Facade(const Facade&) = delete;
     Facade& operator=(const Facade&) = delete;
-
+    // Bộ thể hiện duy nhất của Repositories và Services
+    FileManager file_manager_;
+    AccountRepository account_repository_;
+    VenueRepository venue_repository_;
+    CustomerRepository customer_repository_;
+    BookingRepository booking_repository_;
+    ReportRepository report_repository_;
+    TournamentRepository tournament_repository_;
+    FieldRepository field_repository_;
+    PaymentRepository payment_repository_;
+    mutable AccountService account_service_;
+    mutable VenueService venue_service_;
+    mutable CustomerService customer_service_;
+    mutable PaymentService payment_service_;
+    mutable BookingService booking_service_;
+    mutable ReportService report_service_;
+    mutable TournamentService tournament_service_;
+    mutable FieldService field_service_;
+    void dongBoTuCacService();
+    std::map<std::string, std::string> mapAnhSan_;
+    void loadAnhSan();
+    void saveAnhSan();
+    // LÝ DO CHỌN: Toàn bộ dữ liệu nghiệp vụ do các Service/Repository quản lý và lưu bền vững.
+    // Các vector bên dưới chỉ đóng vai trò bộ nhớ đệm hiển thị (ViewModel cache) chỉ-đọc cho ImGui,
+    // tự động đồng bộ lại sau mỗi thao tác ghi, tuyệt đối không đọc file mỗi frame.
     std::vector<std::shared_ptr<User>> danhSachUser_;
-    std::unordered_map<std::string, std::string> mapMatKhau_;
     bool daNapDuLieu_ = false;
-
     // Bộ nhớ quản lý sân bóng, khung giờ, bảng giá
     std::vector<SanBongInfo> danhSachSan_;
-    std::vector<KhungGioInfo> danhSachKhungGio_;
     std::vector<DonDatSanInfo> danhSachDonDat_;
-    LinkedList<VenuePriceRecord> bangGiaCoSo_;
-
     // Bộ nhớ quản lý khách hàng, ưu đãi, danh sách đen và đánh giá
     std::vector<KhachHangInfo> danhSachKhachHang_;
     // LÝ DO CHỌN: HashTable lưu chỉ mục khách hàng theo SĐT để tra cứu siêu tốc O(1)
-    std::unordered_map<std::string, size_t> mapIndexKhachSDT_;
+    HashTable<std::string, size_t> mapIndexKhachSDT_;
     std::vector<NguongUuDai> danhSachNguongUuDai_;
     std::vector<DanhGiaInfo> danhSachDanhGia_;
-
     // Bộ nhớ quản lý giải đấu & sự kiện
     std::vector<GiaiDauInfo> danhSachGiaiDau_;
 };
-
 }  // namespace GUI::App

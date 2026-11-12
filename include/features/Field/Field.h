@@ -1,4 +1,4 @@
-#ifndef FIELD_H
+﻿#ifndef FIELD_H
 #define FIELD_H
 
 #include <string>
@@ -52,6 +52,13 @@ public:
     void setOperatingHours(const std::string& openTime,
                            const std::string& closeTime);
     void setStatus(FieldStatus status);
+
+    // Nghiệp vụ tự thân của Sân bóng (Rich Domain Model)
+    bool isAvailable() const;
+    bool isUnderMaintenance() const;
+    void toggleMaintenance();
+    bool supportsDuration(int durationMinutes) const;
+    long long calculatePrice(int durationMinutes) const;
 };
 
 #endif

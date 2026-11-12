@@ -1,4 +1,4 @@
-﻿#include "GUI/Screens/Owner/DashboardScreen.h"
+#include "GUI/Screens/Owner/DashboardScreen.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -48,7 +48,7 @@ void DashboardScreen::render() {
     ImGui::Dummy(ImVec2(0.0f, 4.0f));
     if (!loiBaoCao_.empty()) {
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::Danger);
-        ImGui::TextWrapped(u8"✕ Không thể tải báo cáo: %s", loiBaoCao_.c_str());
+        ImGui::TextWrapped(u8"[!] Không thể tải báo cáo: %s", loiBaoCao_.c_str());
         ImGui::PopStyleColor();
         ImGui::Spacing();
     }
@@ -90,7 +90,7 @@ void DashboardScreen::renderStatCards() {
         ImFont* smallFont = GUI::Theme::getFonts().small;
         if (smallFont != nullptr) ImGui::PushFont(smallFont);
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
-        ImGui::Text("%s  %s", icon, tieuDe);
+        if (icon && icon[0] != '\0') ImGui::Text("%s  %s", icon, tieuDe); else ImGui::TextUnformatted(tieuDe);
         ImGui::PopStyleColor();
         if (smallFont != nullptr) ImGui::PopFont();
 
@@ -121,7 +121,7 @@ void DashboardScreen::renderStatCards() {
     // Thẻ 1: Tổng số sân
     veTheKPI(
         "kpi_tong_san",
-        u8"🏟️",
+        "",
         u8"Tổng số sân bóng",
         (std::to_string(metrics_.totalFields) + u8" sân").c_str(),
         u8"Sân thuộc cơ sở của bạn",
@@ -132,7 +132,7 @@ void DashboardScreen::renderStatCards() {
     // Thẻ 2: Lượt đặt hôm nay
     veTheKPI(
         "kpi_luot_dat",
-        u8"⚡",
+        "",
         u8"Lượt đặt hôm nay",
         (std::to_string(metrics_.bookingsToday) + u8" lượt").c_str(),
         u8"Đơn sẵn sàng phục vụ",
@@ -144,7 +144,7 @@ void DashboardScreen::renderStatCards() {
     std::string dtStr = dinhDangTien(metrics_.monthlyRevenueVnd) + u8" đ";
     veTheKPI(
         "kpi_doanh_thu",
-        u8"💰",
+        "",
         u8"Doanh thu tháng này",
         dtStr.c_str(),
         u8"Đơn hoàn tất hoặc đã thanh toán",
@@ -155,7 +155,7 @@ void DashboardScreen::renderStatCards() {
     // Thẻ 4: Khách hàng mới
     veTheKPI(
         "kpi_khach_hang",
-        u8"👥",
+        "",
         u8"Khách hàng mới",
         (std::to_string(metrics_.newCustomersThisMonth) + u8" khách").c_str(),
         u8"Đăng ký trong tháng này",

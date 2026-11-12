@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <functional>
 #include <map>
@@ -34,6 +34,7 @@ private:
     void renderModalXoaSan();
     void renderModalSuaSan();
     void renderModalThemNhanh();
+    void renderModalUploadAnhSan();
 
     // ==========================================
     // DỮ LIỆU VIEWMODEL (Nạp ở onEnter & sau thao tác)
@@ -51,6 +52,9 @@ private:
     int loaiSanThemNhanh_ = 5;
     int soLuongSanThemNhanh_ = 1;
     std::string loiThemNhanh_;
+    std::string maSanUploadAnh_;
+    std::string tenSanUploadAnh_;
+    std::string duongDanAnhMoi_;
 
     // Tab b: Khung giờ
     std::string gioMoCua_ = "06:00";

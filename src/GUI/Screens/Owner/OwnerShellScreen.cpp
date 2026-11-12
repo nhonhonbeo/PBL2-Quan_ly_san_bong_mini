@@ -97,7 +97,7 @@ void OwnerShellScreen::render() {
         // Modal xác nhận đăng xuất
         Widgets::ModalXacNhan(
             u8"Xác nhận đăng xuất",
-            u8"Bạn có chắc chắn muốn đăng xuất khỏi phiên làm việc của Chủ sân không?\nMọi thay đổi chưa lưu sẽ được hệ thống tự động đồng bộ an toàn.",
+            u8"Xác nhận đăng xuất khỏi phiên làm việc của Chủ sân.\nMọi thay đổi chưa lưu sẽ được hệ thống tự động đồng bộ an toàn.",
             []() {
                 GUI::App::Session::getInstance().logout();
                 Widgets::ToastThongTin(u8"Đã đăng xuất tài khoản Chủ sân an toàn!");
@@ -117,11 +117,11 @@ void OwnerShellScreen::render() {
 
 void OwnerShellScreen::renderSidebar() {
     std::vector<Widgets::SidebarItem> menuItems = {
-        {"0", u8"📊", u8"Tổng quan cơ sở"},
-        {"1", u8"🏟️", u8"Quản lý sân bóng"},
-        {"2", u8"➕", u8"Khởi tạo sân mới"},
-        {"3", u8"👥", u8"Quản lý khách hàng"},
-        {"4", u8"🏆", u8"Quản lý giải đấu"}
+        {"0", "", u8"Tổng quan cơ sở"},
+        {"1", "", u8"Quản lý sân bóng"},
+        {"2", "", u8"Khởi tạo sân mới"},
+        {"3", "", u8"Quản lý khách hàng"},
+        {"4", "", u8"Quản lý giải đấu"}
     };
 
     int prevTab = selectedTab_;
@@ -163,7 +163,8 @@ void OwnerShellScreen::renderTopBar() {
         breadcrumbs,
         userName.c_str(),
         u8"Chủ sân",
-        60.0f
+        60.0f,
+        [this]() { yeuCauDangXuat_ = true; }
     );
 }
 

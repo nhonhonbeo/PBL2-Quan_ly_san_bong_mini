@@ -22,6 +22,7 @@ private:
     std::string used_booking_id_;
 
 public:
+    Discount();
     Discount(const std::string& discountId, const std::string& customerId,
              int percentage, int qualifiedBookingCount,
              const std::string& grantedAt,

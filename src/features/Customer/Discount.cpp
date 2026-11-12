@@ -1,5 +1,8 @@
 #include "Customer/Discount.h"
 
+Discount::Discount()
+    : percentage_(0), qualified_booking_count_(0), status_(DiscountStatus::AVAILABLE) {}
+
 Discount::Discount(const std::string& discountId,
                    const std::string& customerId, int percentage,
                    int qualifiedBookingCount, const std::string& grantedAt,

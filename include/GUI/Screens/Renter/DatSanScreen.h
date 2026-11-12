@@ -27,6 +27,7 @@ private:
     void renderThanhTienTrinh();
     void renderCanhBaoDanhSachDen();
     void renderBuoc1ChonCoSo();
+    void renderTheCumSan(const VenueFacilityRecord& facility, int fieldCount, long long lowestPrice);
     void renderBuoc2ChonSan();
     void renderBuoc3ChonNgayVaKhungGio();
     void renderBuoc4XacNhan();

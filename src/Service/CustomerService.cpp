@@ -1,56 +1,294 @@
 #include "Service/CustomerService.h"
 
-namespace {
+#include <algorithm>
 
-bool reportTodo(std::string& error, const char* responsibility) {
-    error = std::string("TODO CustomerService: ") + responsibility +
-            ". Sinh viên cần cài đặt quy tắc nghiệp vụ Customer.";
+#include "Account/Customer.h"
+#include "Core/DateTime.h"
+#include "Customer/Blacklist.h"
+#include "Customer/Discount.h"
+#include "Customer/Review.h"
+#include "Repository/CustomerRepository.h"
+
+CustomerService::CustomerService(CustomerRepository& customerRepository)
+    : customer_repository_(customerRepository),
+      discount_thresholds_{
+          {1, 5, 5, u8"Khách thân thiết"},
+          {2, 10, 10, u8"Khách hàng VIP Bạc"},
+          {3, 20, 15, u8"Khách hàng VIP Vàng"}
+      } {}
+
+const std::vector<CustomerDiscountThreshold>& CustomerService::getDiscountThresholds() const {
+    return discount_thresholds_;
+}
+
+bool CustomerService::updateDiscountThreshold(int id, int minBookings,
+                                             int percentage,
+                                             std::string& error) {
+    for (auto& t : discount_thresholds_) {
+        if (t.id == id) {
+            t.minBookings = minBookings;
+            t.percentage = percentage;
+            return true;
+        }
+    }
+    error = "Khong tim thay nguong uu dai can sua.";
     return false;
 }
 
-}  // namespace
+int CustomerService::getCustomerDiscountPercentage(const std::string& userIdOrPhone,
+                                                  std::string& error) const {
+    bool blocked = false;
+    std::string blockReason;
+    isBlacklisted(userIdOrPhone, blocked, blockReason);
+    if (blocked) {
+        return 0;
+    }
 
-CustomerService::CustomerService(CustomerRepository& customerRepository)
-    : customer_repository_(customerRepository) {}
+    Customer c("", "", "", "", "");
+    if (!customer_repository_.findCustomerByUserId(userIdOrPhone, c, error)) {
+        return 0;
+    }
+
+    auto sorted = discount_thresholds_;
+    std::sort(sorted.begin(), sorted.end(), [](const auto& a, const auto& b) {
+        return a.minBookings > b.minBookings;
+    });
+
+    for (const auto& t : sorted) {
+        if (c.getBookingCount() >= t.minBookings) {
+            return t.percentage;
+        }
+    }
+    return 0;
+}
+
+bool CustomerService::applyDiscountsToAll(std::string& error) {
+    LinkedList<Customer> list;
+    if (!customer_repository_.loadAllCustomers(list, error)) {
+        return false;
+    }
+    return true;
+}
 
 bool CustomerService::isBlacklisted(const std::string& userId,
-                                    std::string& reason) const {
-    (void)userId;
-    // TODO: Khi hoàn thiện phải phân biệt được khách không bị chặn với lỗi truy
-    // xuất. Chữ ký hiện tại chưa đủ thông tin để BookingService dùng an toàn.
-    reason = "TODO CustomerService: chưa cài đặt kiểm tra blacklist.";
-    return false;
+                                    bool& outIsBlacklisted,
+                                    std::string& outReason,
+                                    std::string& error) const {
+    outIsBlacklisted = false;
+    outReason.clear();
+    Blacklist bl("", "", "", false);
+    std::string repoErr;
+    if (customer_repository_.findActiveBlacklist(userId, bl, repoErr)) {
+        if (bl.isActive()) {
+            outIsBlacklisted = true;
+            outReason = bl.getReason();
+        }
+    }
+    (void)error;
+    return true;
+}
+
+bool CustomerService::isBlacklisted(const std::string& userId,
+                                    bool& outIsBlacklisted,
+                                    std::string& outReason) const {
+    std::string err;
+    return isBlacklisted(userId, outIsBlacklisted, outReason, err);
+}
+
+bool CustomerService::addToBlacklist(const std::string& customerIdOrPhone,
+                                    const std::string& reason,
+                                    std::string& error) {
+    Blacklist bl(
+        customerIdOrPhone,
+        reason.empty() ? u8"Hủy sân nhiều lần không thông báo trước" : reason,
+        DateTime::today(),
+        true
+    );
+    return customer_repository_.saveBlacklist(bl, error);
+}
+
+bool CustomerService::removeFromBlacklist(const std::string& customerIdOrPhone,
+                                         std::string& error) {
+    return customer_repository_.removeBlacklist(customerIdOrPhone, error);
+}
+
+bool CustomerService::getAllBlacklists(LinkedList<Blacklist>& outList,
+                                      std::string& error) const {
+    return customer_repository_.loadAllBlacklists(outList, error);
+}
+
+bool CustomerService::getBlacklistCandidates(int minCancellations,
+                                             LinkedList<Customer>& outCandidates,
+                                             std::string& error) const {
+    outCandidates.clear();
+    LinkedList<Customer> list;
+    if (!customer_repository_.loadAllCustomers(list, error)) {
+        return false;
+    }
+
+    for (auto* node = list.get_head(); node != nullptr; node = node->next) {
+        if (node->data.getCancelCount() >= minCancellations) {
+            bool blocked = false;
+            std::string reason;
+            isBlacklisted(node->data.get_phone_number(), blocked, reason);
+            if (!blocked && !node->data.getUserId().empty()) {
+                isBlacklisted(node->data.getUserId(), blocked, reason);
+            }
+            if (!blocked) {
+                outCandidates.push_back(node->data);
+            }
+        }
+    }
+    return true;
+}
+
+bool CustomerService::addReview(const Review& review, std::string& error) {
+    if (review.getRating() < 1 || review.getRating() > 5) {
+        error = u8"Đánh giá phải từ 1 đến 5 sao.";
+        return false;
+    }
+    if (review.getComment().empty()) {
+        error = u8"Nội dung đánh giá không được để trống.";
+        return false;
+    }
+    if (!customer_repository_.hasCompletedBooking(review.getCustomerId(), review.getFieldId())) {
+        error = u8"Chỉ có thể đánh giá sân sau khi đã hoàn tất ca thuê tại sân này.";
+        return false;
+    }
+    return customer_repository_.saveReview(review, error);
+}
+
+bool CustomerService::addOrUpdateReview(const Review& review, std::string& error) {
+    if (review.getRating() < 1 || review.getRating() > 5) {
+        error = u8"Đánh giá phải từ 1 đến 5 sao.";
+        return false;
+    }
+    if (review.getComment().empty()) {
+        error = u8"Nội dung đánh giá không được để trống.";
+        return false;
+    }
+    Review toSave = review;
+    if (toSave.getReviewId().empty()) {
+        LinkedList<Review> existing;
+        customer_repository_.loadAllReviews(existing, error);
+        char buf[32];
+        std::snprintf(buf, sizeof(buf), "RV%02d", existing.size() + 1);
+        toSave = Review(buf, review.getCustomerId(), review.getFieldId(),
+                        review.getBookingId(), review.getRating(),
+                        review.getCreatedAt(), review.getComment(),
+                        review.getCustomerName());
+    }
+    return customer_repository_.saveReview(toSave, error);
+}
+
+bool CustomerService::getAllReviews(LinkedList<Review>& outReviews,
+                                   std::string& error) const {
+    return customer_repository_.loadAllReviews(outReviews, error);
+}
+
+bool CustomerService::getAverageRatingOverall(float& outScore,
+                                             std::string& error) const {
+    LinkedList<Review> list;
+    if (!customer_repository_.loadAllReviews(list, error)) {
+        return false;
+    }
+    if (list.size() == 0) {
+        outScore = 0.0f;
+        return true;
+    }
+    float sum = 0.0f;
+    for (auto* node = list.get_head(); node != nullptr; node = node->next) {
+        sum += node->data.getRating();
+    }
+    outScore = sum / static_cast<float>(list.size());
+    return true;
+}
+
+bool CustomerService::getAverageRatingsMap(std::map<std::string, float>& outMap,
+                                          std::string& error) const {
+    outMap.clear();
+    LinkedList<Review> list;
+    if (!customer_repository_.loadAllReviews(list, error)) {
+        return false;
+    }
+    std::map<std::string, std::pair<float, int>> counts;
+    for (auto* node = list.get_head(); node != nullptr; node = node->next) {
+        counts[node->data.getFieldId()].first += node->data.getRating();
+        counts[node->data.getFieldId()].second++;
+    }
+    for (const auto& item : counts) {
+        if (item.second.second > 0) {
+            outMap[item.first] = item.second.first / static_cast<float>(item.second.second);
+        } else {
+            outMap[item.first] = 0.0f;
+        }
+    }
+    return true;
 }
 
 bool CustomerService::recordSuccessfulBooking(const std::string& userId,
                                               std::string& error) {
-    (void)userId;
-    // TODO: Chỉ gọi sau khi BookingRepository lưu thành công; cập nhật thống kê
-    // CustomerProfile rồi lưu lại, hoặc trả false kèm lỗi.
-    return reportTodo(error, "ghi nhận lượt đặt sân");
+    Customer customer("", "", "", "", "");
+    if (!customer_repository_.findCustomerByUserId(userId, customer, error)) {
+        return false;
+    }
+    customer.recordBooking();
+    return customer_repository_.updateCustomer(customer, error);
 }
 
 bool CustomerService::recordCancellation(const std::string& userId,
                                          std::string& error) {
-    (void)userId;
-    // TODO: Chỉ gọi sau khi hủy booking thành công; cập nhật bộ đếm và áp dụng
-    // ngưỡng blacklist sau khi quy tắc này được xác nhận.
-    return reportTodo(error, "ghi nhận lượt hủy sân");
-}
-
-bool CustomerService::addReview(const Review& review, std::string& error) {
-    (void)review;
-    // TODO: Kiểm tra booking, khách, sân, rating và giới hạn review trước khi
-    // gọi CustomerRepository::saveReview.
-    return reportTodo(error, "thêm đánh giá");
+    Customer customer("", "", "", "", "");
+    if (!customer_repository_.findCustomerByUserId(userId, customer, error)) {
+        return false;
+    }
+    customer.recordCancellation();
+    return customer_repository_.updateCustomer(customer, error);
 }
 
 bool CustomerService::findAvailableDiscount(const std::string& userId,
                                             Discount& out,
                                             std::string& error) const {
-    (void)userId;
-    (void)out;
-    // TODO: Tìm Discount AVAILABLE theo chính sách được duyệt; không tự tạo
-    // Discount để giả lập kết quả thành công.
-    return reportTodo(error, "tìm ưu đãi khả dụng");
+    bool blocked = false;
+    std::string blockReason;
+    isBlacklisted(userId, blocked, blockReason);
+    if (blocked) {
+        error = u8"Khách hàng bị chặn không được hưởng ưu đãi.";
+        return false;
+    }
+
+    Customer customer("", "", "", "", "");
+    if (!customer_repository_.findCustomerByUserId(userId, customer, error)) {
+        return false;
+    }
+
+    const int bookings = customer.getBookingCount();
+    int percentage = 0;
+    if (bookings >= 20) {
+        percentage = 15;
+    } else if (bookings >= 10) {
+        percentage = 10;
+    } else if (bookings >= 5) {
+        percentage = 5;
+    } else {
+        error = u8"Chưa đạt số lần đặt tối thiểu để nhận ưu đãi.";
+        return false;
+    }
+
+    char idBuf[64];
+    std::snprintf(idBuf, sizeof(idBuf), "DC-%s-%d", userId.c_str(), percentage);
+    out = Discount(idBuf, userId, percentage, bookings,
+                   DateTime::today(), DiscountStatus::AVAILABLE);
+    return customer_repository_.saveDiscount(out, error);
+}
+
+bool CustomerService::getAllCustomers(LinkedList<Customer>& outList,
+                                      std::string& error) const {
+    return customer_repository_.loadAllCustomers(outList, error);
+}
+
+bool CustomerService::findCustomer(const std::string& idOrPhone,
+                                   Customer& out,
+                                   std::string& error) const {
+    return customer_repository_.findCustomerByUserId(idOrPhone, out, error);
 }

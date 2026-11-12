@@ -1,4 +1,4 @@
-#include "GUI/Screens/Owner/FieldManagementScreen.h"
+﻿#include "GUI/Screens/Owner/FieldManagementScreen.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -32,7 +32,7 @@ void FieldManagementScreen::onEnter() {
         {u8"Loại sân", 100.0f, ImGuiTableColumnFlags_WidthFixed},
         {u8"Giá thuê (VNĐ/h)", 130.0f, ImGuiTableColumnFlags_WidthFixed},
         {u8"Trạng thái", 120.0f, ImGuiTableColumnFlags_WidthFixed},
-        {u8"Hành động", 250.0f, ImGuiTableColumnFlags_WidthFixed}
+        {u8"Hành động", 310.0f, ImGuiTableColumnFlags_WidthFixed}
     };
 
     reloadViewModel();
@@ -125,6 +125,7 @@ void FieldManagementScreen::render() {
     renderModalXoaSan();
     renderModalSuaSan();
     renderModalThemNhanh();
+    renderModalUploadAnhSan();
 }
 
 void FieldManagementScreen::renderTabDanhSachSan() {
@@ -474,7 +475,7 @@ void FieldManagementScreen::renderModalThemNhanh() {
 void FieldManagementScreen::renderModalXoaSan() {
     Widgets::ModalXacNhan(
         u8"Xác nhận xóa sân bóng",
-        (u8"Bạn có chắc chắn muốn xóa vĩnh viễn sân bóng '" + maSanCanXoa_ + u8"' khỏi cơ sở không?\nMọi dữ liệu liên quan đến sân này sẽ bị xóa bỏ.").c_str(),
+        (u8"Xác nhận xóa vĩnh viễn sân bóng '" + maSanCanXoa_ + u8"' khỏi cơ sở.\nMọi dữ liệu liên quan đến sân này sẽ bị xóa bỏ.").c_str(),
         [this]() {
             auto kq = GUI::App::Facade::getInstance().xoaSanBong(maSanCanXoa_);
             if (kq.ok) {
@@ -526,6 +527,88 @@ void FieldManagementScreen::renderModalSuaSan() {
 
         ImGui::SameLine();
         if (Widgets::NutPhu(u8"Hủy bỏ", ImVec2(100.0f, 34.0f))) {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+}
+
+void FieldManagementScreen::renderModalUploadAnhSan() {
+    Widgets::KiemTraVaMoModal(u8"Cập nhật ảnh sân bóng");
+
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(520.0f, 0.0f), ImGuiCond_Appearing);
+
+    if (ImGui::BeginPopupModal(u8"Cập nhật ảnh sân bóng", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Spacing();
+        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::Primary);
+        ImGui::Text(u8"Sân bóng: %s - %s", maSanUploadAnh_.c_str(), tenSanUploadAnh_.c_str());
+        ImGui::PopStyleColor();
+        ImGui::Spacing();
+
+        ImGui::TextWrapped(u8"Tải lên hoặc chọn ảnh sân bóng để khách hàng thấy được mặt cỏ, không gian và cơ sở vật chất khi đặt sân trực tuyến.");
+        ImGui::Spacing();
+
+        Widgets::InputText(u8"Đường dẫn file ảnh (hoặc URL):", "input_field_img_path", duongDanAnhMoi_);
+        ImGui::Spacing();
+
+        ImGui::TextUnformatted(u8"Hoặc chọn nhanh từ thư viện ảnh sân bóng tiêu chuẩn:");
+        ImGui::Spacing();
+
+        auto nutPreset = [this](const char* label, const char* path) {
+            if (ImGui::Button(label, ImVec2(240.0f, 30.0f))) {
+                duongDanAnhMoi_ = path;
+            }
+        };
+
+        nutPreset(u8"Sân cỏ chuẩn FIFA Pro", "assets/images/san_co_fifa_vip.jpg");
+        ImGui::SameLine(0.0f, 10.0f);
+        nutPreset(u8"Sân đêm dàn đèn LED", "assets/images/san_den_led_night.jpg");
+
+        nutPreset(u8"Sân ngoài trời thoáng mát", "assets/images/san_ngoai_troi_view.jpg");
+        ImGui::SameLine(0.0f, 10.0f);
+        nutPreset(u8"Sân mái che cao cấp", "assets/images/san_mai_che_premium.jpg");
+
+        ImGui::Spacing();
+
+        if (!duongDanAnhMoi_.empty()) {
+            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::Success);
+            ImGui::Text(u8"Ảnh đã chọn: %s", duongDanAnhMoi_.c_str());
+            ImGui::PopStyleColor();
+        } else {
+            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
+            ImGui::TextUnformatted(u8"Chưa chọn ảnh (sân sẽ dùng ảnh sa bàn mặc định).");
+            ImGui::PopStyleColor();
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        if (Widgets::NutChinh(u8"Lưu ảnh sân", ImVec2(130.0f, 34.0f))) {
+            auto kq = GUI::App::Facade::getInstance().uploadAnhSan(maSanUploadAnh_, duongDanAnhMoi_);
+            if (kq.ok) {
+                reloadViewModel();
+                Widgets::ToastThanhCong(u8"Đã cập nhật ảnh sân bóng thành công!");
+                ImGui::CloseCurrentPopup();
+            } else {
+                Widgets::ToastLoi(kq.loi);
+            }
+        }
+
+        ImGui::SameLine(0.0f, 10.0f);
+        if (Widgets::NutPhu(u8"Xóa ảnh", ImVec2(90.0f, 34.0f))) {
+            duongDanAnhMoi_.clear();
+            GUI::App::Facade::getInstance().uploadAnhSan(maSanUploadAnh_, "");
+            reloadViewModel();
+            Widgets::ToastThanhCong(u8"Đã xóa ảnh sân bóng!");
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::SameLine(0.0f, 10.0f);
+        if (Widgets::NutPhu(u8"Đóng", ImVec2(90.0f, 34.0f))) {
             ImGui::CloseCurrentPopup();
         }
 

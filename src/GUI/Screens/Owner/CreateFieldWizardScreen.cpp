@@ -1,4 +1,4 @@
-#include "GUI/Screens/Owner/CreateFieldWizardScreen.h"
+﻿#include "GUI/Screens/Owner/CreateFieldWizardScreen.h"
 
 #include <cstring>
 #include <imgui.h>
@@ -81,10 +81,10 @@ void CreateFieldWizardScreen::renderProgressBar() {
     float ratio = currentStep_ * 0.25f;
     const char* stepLabels[] = {
         "",
-        u8"Bước 1 / 4: Chọn loại sân bóng",
-        u8"Bước 2 / 4: Thiết lập số lượng sân",
-        u8"Bước 3 / 4: Ban hành quy định sử dụng",
-        u8"Bước 4 / 4: Xác nhận thông tin & Hoàn tất"
+        u8"1. Chọn loại sân bóng",
+        u8"2. Thiết lập số lượng sân",
+        u8"3. Ban hành quy định sử dụng",
+        u8"4. Xác nhận thông tin & Hoàn tất"
     };
 
     Widgets::ProgressBar(ratio, stepLabels[currentStep_], ImVec2(-1.0f, 30.0f));

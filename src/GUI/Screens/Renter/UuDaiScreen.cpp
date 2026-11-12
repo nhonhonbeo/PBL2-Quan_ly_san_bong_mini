@@ -1,4 +1,4 @@
-#include "GUI/Screens/Renter/UuDaiScreen.h"
+﻿#include "GUI/Screens/Renter/UuDaiScreen.h"
 
 #include <cstdio>
 #include <string>
@@ -159,7 +159,7 @@ void UuDaiScreen::renderThongKeUuDai() {
             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::GrassGreen);
             ImGui::TextUnformatted(u8"Chúc mừng! Bạn đã đạt hạng thành viên cao nhất (VIP Vàng) của cụm sân.");
             ImGui::PopStyleColor();
-            Widgets::ProgressBar(1.0f, u8"100% Hoàn thành", ImVec2(-1.0f, 32.0f), GUI::Theme::Colors::GoldAccent);
+            Widgets::ProgressBar(1.0f, u8"Đã hoàn thành mốc cao nhất", ImVec2(-1.0f, 32.0f), GUI::Theme::Colors::GoldAccent);
         }
     });
 }

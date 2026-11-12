@@ -26,4 +26,14 @@ public:
     BookingStatus getStatus() const; long long getTotalVnd() const;
     const LinkedList<BookingDetail>& getDetails() const;
     void addDetail(const BookingDetail& detail); void setStatus(BookingStatus status);
+
+    // Nghiệp vụ tự thân của Đơn đặt sân (Rich Domain Model)
+    bool canBeCancelledBy(const std::string& customerId, std::string& error) const;
+    bool cancel(const std::string& customerId, std::string& error);
+    bool canBeCompletedBy(const std::string& ownerId, std::string& error) const;
+    bool complete(const std::string& ownerId, std::string& error);
+    bool isActive() const;
+    bool isCompleted() const;
+    bool isCancelled() const;
+    long long calculateTotalVnd() const;
 };

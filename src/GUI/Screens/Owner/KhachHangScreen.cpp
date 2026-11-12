@@ -1,4 +1,4 @@
-#include "GUI/Screens/Owner/KhachHangScreen.h"
+﻿#include "GUI/Screens/Owner/KhachHangScreen.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -787,7 +787,7 @@ void KhachHangScreen::renderTabDanhGia() {
 
 void KhachHangScreen::renderModalXacNhanChan() {
     std::string noiDung = u8"Bạn có chắc chắn muốn đưa khách hàng có SĐT " + sdtCanChan_ +
-                          u8" vào danh sách đen không?\nKhách hàng này sẽ bị khóa tài khoản đặt sân.";
+                          u8" vào danh sách đen.\nKhách hàng này sẽ bị khóa tài khoản đặt sân.";
 
     Widgets::ModalXacNhan(
         u8"Xác nhận đưa vào danh sách đen",
@@ -808,7 +808,7 @@ void KhachHangScreen::renderModalXacNhanChan() {
 
 void KhachHangScreen::renderModalXacNhanGoChan() {
     std::string noiDung = u8"Bạn có chắc chắn muốn gỡ bỏ khách hàng có SĐT " + sdtCanGoChan_ +
-                          u8" khỏi danh sách đen không?\nKhách hàng sẽ được khôi phục quyền đặt sân.";
+                          u8" khỏi danh sách đen.\nKhách hàng sẽ được khôi phục quyền đặt sân.";
 
     Widgets::ModalXacNhan(
         u8"Xác nhận gỡ khỏi danh sách đen",
@@ -830,7 +830,7 @@ void KhachHangScreen::renderModalXacNhanGoChan() {
 void KhachHangScreen::renderModalApDungUuDai() {
     Widgets::ModalXacNhan(
         u8"Xác nhận áp dụng ưu đãi",
-        u8"Hệ thống sẽ tự động quét toàn bộ lịch sử đặt sân của tất cả khách hàng và áp dụng mức giảm giá VIP tương ứng.\nBạn có muốn tiếp tục không?",
+        u8"Hệ thống sẽ tự động quét toàn bộ lịch sử đặt sân của tất cả khách hàng và áp dụng mức giảm giá VIP tương ứng.\nVui lòng xác nhận để tiếp tục.",
         [this]() {
             auto kq = GUI::App::Facade::getInstance().apDungUuDaiChoKhach();
             if (kq.ok) {

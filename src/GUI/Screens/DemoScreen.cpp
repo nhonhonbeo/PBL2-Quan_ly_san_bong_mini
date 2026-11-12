@@ -1,4 +1,4 @@
-#include "GUI/Screens/DemoScreen.h"
+﻿#include "GUI/Screens/DemoScreen.h"
 
 #include <cstdio>
 #include <iomanip>
@@ -389,7 +389,7 @@ void DemoScreen::renderFeedbackSection() {
         ImGui::Spacing();
 
         // ProgressBar
-        ImGui::TextUnformatted(u8"Thanh tiến trình (ProgressBar có nhãn phần trăm):");
+        ImGui::TextUnformatted(u8"Thanh tiến trình (ProgressBar chia 4 thanh nhỏ đại diện các bước):");
         ImGui::Spacing();
         Widgets::ProgressBar(
             progressTiLe_,
@@ -399,7 +399,7 @@ void DemoScreen::renderFeedbackSection() {
         ImGui::Spacing();
 
         // Thanh slider điều chỉnh tỷ lệ demo
-        ImGui::SliderFloat(u8"Thử nghiệm kéo % tiến độ", &progressTiLe_, 0.0f, 1.0f, "%.2f");
+        ImGui::SliderFloat(u8"Thử nghiệm kéo tiến độ", &progressTiLe_, 0.0f, 1.0f, "%.2f");
 
         ImGui::Spacing();
         ImGui::Separator();
@@ -453,7 +453,7 @@ void DemoScreen::renderTableSection() {
 void DemoScreen::renderModalSection() {
     Widgets::ModalXacNhan(
         u8"Xác nhận xóa sân",
-        u8"Bạn có chắc chắn muốn xóa sân bóng mini này khỏi cơ sở dữ liệu không?\nHành động này mang tính phá hủy và không thể khôi phục lại.",
+        u8"Xác nhận xóa sân bóng mini này khỏi cơ sở dữ liệu.\nHành động này mang tính phá hủy và không thể khôi phục lại.",
         []() {
         },
         u8"Xác nhận xóa",

@@ -21,6 +21,9 @@ private:
 public:
     explicit FieldService(FieldRepository& fieldRepository);
 
+    bool createMultipleFields(const std::string& requesterOwnerId, int loaiSan,
+                              int soLuong, const std::string& quyDinh,
+                              LinkedList<std::string>& outMaSan, std::string& error);
     bool createField(const std::string& requesterOwnerId,
                      const VenueFieldRecord& field, std::string& error);
     bool updateField(const std::string& requesterOwnerId,
