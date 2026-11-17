@@ -15,16 +15,18 @@ private:
 
 public:
     explicit PaymentRepository(FileManager& fileManager);
+    virtual ~PaymentRepository() = default;
 
     // Hóa đơn (data/invoices.txt)
-    bool loadAllInvoices(LinkedList<Invoice>& out, std::string& error) const;
-    bool saveAllInvoices(const LinkedList<Invoice>& invoices, std::string& error) const;
-    bool saveInvoice(const Invoice& invoice, std::string& error);
-    bool findInvoiceByBookingId(const std::string& bookingId, Invoice& out, std::string& error) const;
+    virtual bool loadAllInvoices(LinkedList<Invoice>& out, std::string& error) const;
+    virtual bool saveAllInvoices(const LinkedList<Invoice>& invoices, std::string& error) const;
+    virtual bool saveInvoice(const Invoice& invoice, std::string& error);
+    virtual bool removeInvoice(const std::string& invoiceIdOrBookingId, std::string& error);
+    virtual bool findInvoiceByBookingId(const std::string& bookingId, Invoice& out, std::string& error) const;
 
     // Giao dịch thanh toán (data/payments.txt)
-    bool loadAllPayments(LinkedList<Payment>& out, std::string& error) const;
-    bool saveAllPayments(const LinkedList<Payment>& payments, std::string& error) const;
-    bool savePayment(const Payment& payment, std::string& error);
-    bool findPaymentByInvoiceId(const std::string& invoiceId, Payment& out, std::string& error) const;
+    virtual bool loadAllPayments(LinkedList<Payment>& out, std::string& error) const;
+    virtual bool saveAllPayments(const LinkedList<Payment>& payments, std::string& error) const;
+    virtual bool savePayment(const Payment& payment, std::string& error);
+    virtual bool findPaymentByInvoiceId(const std::string& invoiceId, Payment& out, std::string& error) const;
 };

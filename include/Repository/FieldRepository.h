@@ -1,4 +1,4 @@
-#ifndef FIELD_REPOSITORY_H
+﻿#ifndef FIELD_REPOSITORY_H
 #define FIELD_REPOSITORY_H
 
 #include <string>
@@ -9,14 +9,16 @@
 class Field;
 class FileManager;
 
-// LÝ DO CHỌN: Repository chỉ lưu/truy xuất Field; validation và quyền sở hữu
-// thuộc FieldService, còn lịch đặt thuộc BookingService.
+// LÝ DO CHỌN: FieldRepository hoạt động như một persistence adapter chuẩn hóa giữa
+// domain model Field và bảng lưu trữ VenueFieldRecord, nhận VenueRepository qua DI.
 class FieldRepository {
 private:
     FileManager& file_manager_;
+    VenueRepository* venue_repository_;
+    VenueRepository default_venue_repo_;
 
 public:
-    explicit FieldRepository(FileManager& fileManager);
+    explicit FieldRepository(FileManager& fileManager, VenueRepository* venueRepo = nullptr);
 
     bool findById(const std::string& fieldId, Field& out,
                   std::string& error) const;

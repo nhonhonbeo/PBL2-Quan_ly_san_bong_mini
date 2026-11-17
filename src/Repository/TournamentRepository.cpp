@@ -1,10 +1,34 @@
 #include "Repository/TournamentRepository.h"
 
+#include <limits>
 #include <sstream>
+#include <stdexcept>
+#include <utility>
 
 #include "Storage/FileManager.h"
 
 namespace {
+
+bool tachSoKhongAm(const std::string& value, int& result) {
+    if (value.empty()) return false;
+    for (const char digit : value) {
+        if (digit < '0' || digit > '9') return false;
+    }
+    try {
+        size_t read = 0;
+        const long long parsed = std::stoll(value, &read);
+        if (read != value.size() ||
+            parsed > std::numeric_limits<int>::max()) {
+            return false;
+        }
+        result = static_cast<int>(parsed);
+        return true;
+    } catch (const std::invalid_argument&) {
+        return false;
+    } catch (const std::out_of_range&) {
+        return false;
+    }
+}
 
 void tachTruong(const std::string& line, LinkedList<std::string>& tokens) {
     tokens.clear();
@@ -13,6 +37,7 @@ void tachTruong(const std::string& line, LinkedList<std::string>& tokens) {
     while (std::getline(ss, token, '|')) {
         tokens.push_back(token);
     }
+    if (!line.empty() && line.back() == '|') tokens.push_back("");
 }
 
 const std::string* layTruong(const LinkedList<std::string>& tokens, size_t index) {
@@ -37,11 +62,14 @@ bool TournamentRepository::loadAll(LinkedList<Tournament>& tournaments,
         return false;
     }
 
-    tournaments.clear();
+    LinkedList<Tournament> loaded;
     for (auto* node = lines.get_head(); node != nullptr; node = node->next) {
         LinkedList<std::string> parts;
         tachTruong(node->data, parts);
-        if (parts.size() < 7) continue;
+        if (parts.size() < 7 || parts.size() > 11) {
+            error = "Bản ghi giải đấu trong data/tournaments.txt sai số trường.";
+            return false;
+        }
 
         const std::string* id = layTruong(parts, 0);
         const std::string* name = layTruong(parts, 1);
@@ -56,13 +84,19 @@ bool TournamentRepository::loadAll(LinkedList<Tournament>& tournaments,
         const std::string* statusStr = layTruong(parts, 10);
 
         TournamentStatus st = TournamentStatus::REQUESTED;
-        if (statusStr) {
-            try {
-                int code = std::stoi(*statusStr);
-                if (code >= 0 && code <= 4) {
-                    st = static_cast<TournamentStatus>(code);
-                }
-            } catch (...) {}
+        if (id == nullptr || name == nullptr || reqName == nullptr ||
+            reqPhone == nullptr || startDate == nullptr || endDate == nullptr ||
+            fieldId == nullptr) {
+            error = "Bản ghi giải đấu trong data/tournaments.txt thiếu trường.";
+            return false;
+        }
+        if (statusStr != nullptr) {
+            int code = 0;
+            if (!tachSoKhongAm(*statusStr, code) || code > 4) {
+                error = "Trạng thái giải đấu trong data/tournaments.txt không hợp lệ.";
+                return false;
+            }
+            st = static_cast<TournamentStatus>(code);
         }
 
         Tournament t(
@@ -79,8 +113,9 @@ bool TournamentRepository::loadAll(LinkedList<Tournament>& tournaments,
             timeSlot ? *timeSlot : "",
             rejectReason ? *rejectReason : ""
         );
-        tournaments.push_back(t);
+        loaded.push_back(t);
     }
+    tournaments = std::move(loaded);
     return true;
 }
 
@@ -90,6 +125,11 @@ bool TournamentRepository::saveAll(const LinkedList<Tournament>& tournaments,
     LinkedList<std::string> lines;
     for (auto* node = tournaments.get_head(); node != nullptr; node = node->next) {
         const Tournament& t = node->data;
+        const int status = static_cast<int>(t.getStatus());
+        if (status < 0 || status > 4) {
+            error = "Không thể lưu giải đấu có trạng thái không hợp lệ.";
+            return false;
+        }
         std::string line =
             FileManager::join(t.getTournamentId()) + "|" +
             FileManager::join(t.getName()) + "|" +
@@ -101,7 +141,7 @@ bool TournamentRepository::saveAll(const LinkedList<Tournament>& tournaments,
             FileManager::join(t.getTimeSlot()) + "|" +
             FileManager::join(t.getNote()) + "|" +
             FileManager::join(t.getRejectReason()) + "|" +
-            std::to_string(static_cast<int>(t.getStatus()));
+            std::to_string(status);
         lines.push_back(line);
     }
     return file_manager_.writeAllLines("data/tournaments.txt", lines, error);
@@ -109,14 +149,14 @@ bool TournamentRepository::saveAll(const LinkedList<Tournament>& tournaments,
 
 bool TournamentRepository::save(const Tournament& tournament, std::string& error) {
     LinkedList<Tournament> list;
-    loadAll(list, error);
+    if (!loadAll(list, error)) return false;
     list.push_back(tournament);
     return saveAll(list, error);
 }
 
 bool TournamentRepository::update(const Tournament& tournament, std::string& error) {
     LinkedList<Tournament> list;
-    loadAll(list, error);
+    if (!loadAll(list, error)) return false;
     bool found = false;
     for (auto* node = list.get_head(); node != nullptr; node = node->next) {
         if (node->data.getTournamentId() == tournament.getTournamentId()) {
@@ -133,7 +173,7 @@ bool TournamentRepository::update(const Tournament& tournament, std::string& err
 
 bool TournamentRepository::remove(const std::string& tournamentId, std::string& error) {
     LinkedList<Tournament> list;
-    loadAll(list, error);
+    if (!loadAll(list, error)) return false;
     LinkedList<Tournament> filtered;
     for (auto* node = list.get_head(); node != nullptr; node = node->next) {
         if (node->data.getTournamentId() != tournamentId) {
@@ -159,16 +199,19 @@ bool TournamentRepository::findById(const std::string& tournamentId,
 }
 
 bool TournamentRepository::loadTeams(LinkedList<Team>& out, std::string& error) const {
-    out.clear();
     // LÝ DO CHỌN: LinkedList nạp danh sách đội bóng tham gia giải đấu từ data/teams.txt.
     LinkedList<std::string> lines;
     if (!file_manager_.readAllLines("data/teams.txt", lines, error)) {
         return false;
     }
+    LinkedList<Team> loaded;
     for (auto* node = lines.get_head(); node != nullptr; node = node->next) {
         LinkedList<std::string> parts;
         tachTruong(node->data, parts);
-        if (parts.size() < 3) continue;
+        if (parts.size() < 3 || parts.size() > 5) {
+            error = "Bản ghi đội bóng trong data/teams.txt sai số trường.";
+            return false;
+        }
         const std::string* id = layTruong(parts, 0);
         const std::string* tourId = layTruong(parts, 1);
         const std::string* name = layTruong(parts, 2);
@@ -176,13 +219,16 @@ bool TournamentRepository::loadTeams(LinkedList<Team>& out, std::string& error) 
         const std::string* countStr = layTruong(parts, 4);
 
         int count = 7;
-        if (countStr) {
-            try { count = std::stoi(*countStr); } catch (...) {}
+        if (id == nullptr || tourId == nullptr || name == nullptr ||
+            (countStr != nullptr && !tachSoKhongAm(*countStr, count))) {
+            error = "Bản ghi đội bóng trong data/teams.txt không hợp lệ.";
+            return false;
         }
         Team t(id ? *id : "", tourId ? *tourId : "", name ? *name : "",
                phone ? *phone : "", count);
-        out.push_back(t);
+        loaded.push_back(t);
     }
+    out = std::move(loaded);
     return true;
 }
 
@@ -191,6 +237,10 @@ bool TournamentRepository::saveTeams(const LinkedList<Team>& teams, std::string&
     LinkedList<std::string> lines;
     for (auto* node = teams.get_head(); node != nullptr; node = node->next) {
         const Team& t = node->data;
+        if (t.getMemberCount() < 0) {
+            error = "Không thể lưu đội bóng có số thành viên âm.";
+            return false;
+        }
         std::string line =
             FileManager::join(t.getTeamId()) + "|" +
             FileManager::join(t.getTournamentId()) + "|" +
@@ -204,7 +254,7 @@ bool TournamentRepository::saveTeams(const LinkedList<Team>& teams, std::string&
 
 bool TournamentRepository::saveTeam(const Team& team, std::string& error) {
     LinkedList<Team> list;
-    loadTeams(list, error);
+    if (!loadTeams(list, error)) return false;
     bool found = false;
     for (auto* node = list.get_head(); node != nullptr; node = node->next) {
         if (node->data.getTeamId() == team.getTeamId()) {
@@ -220,16 +270,19 @@ bool TournamentRepository::saveTeam(const Team& team, std::string& error) {
 }
 
 bool TournamentRepository::loadMatches(LinkedList<TournamentMatch>& out, std::string& error) const {
-    out.clear();
     // LÝ DO CHỌN: LinkedList nạp danh sách lịch thi đấu từ data/matches.txt tuần tự.
     LinkedList<std::string> lines;
     if (!file_manager_.readAllLines("data/matches.txt", lines, error)) {
         return false;
     }
+    LinkedList<TournamentMatch> loaded;
     for (auto* node = lines.get_head(); node != nullptr; node = node->next) {
         LinkedList<std::string> parts;
         tachTruong(node->data, parts);
-        if (parts.size() < 7) continue;
+        if (parts.size() < 7 || parts.size() > 10) {
+            error = "Bản ghi trận đấu trong data/matches.txt sai số trường.";
+            return false;
+        }
         const std::string* id = layTruong(parts, 0);
         const std::string* tourId = layTruong(parts, 1);
         const std::string* home = layTruong(parts, 2);
@@ -241,17 +294,29 @@ bool TournamentRepository::loadMatches(LinkedList<TournamentMatch>& out, std::st
         const std::string* awayScStr = layTruong(parts, 8);
         const std::string* playedStr = layTruong(parts, 9);
 
-        int round = roundStr ? std::stoi(*roundStr) : 1;
-        int homeSc = homeScStr ? std::stoi(*homeScStr) : 0;
-        int awaySc = awayScStr ? std::stoi(*awayScStr) : 0;
-        bool played = playedStr ? (*playedStr == "1" || *playedStr == "true") : false;
+        int round = 1;
+        int homeSc = 0;
+        int awaySc = 0;
+        if (id == nullptr || tourId == nullptr || home == nullptr ||
+            away == nullptr || roundStr == nullptr ||
+            !tachSoKhongAm(*roundStr, round) || round == 0 ||
+            (homeScStr != nullptr && !tachSoKhongAm(*homeScStr, homeSc)) ||
+            (awayScStr != nullptr && !tachSoKhongAm(*awayScStr, awaySc)) ||
+            (playedStr != nullptr && *playedStr != "0" && *playedStr != "1" &&
+             *playedStr != "true" && *playedStr != "false")) {
+            error = "Bản ghi trận đấu trong data/matches.txt không hợp lệ.";
+            return false;
+        }
+        const bool played = playedStr != nullptr &&
+                            (*playedStr == "1" || *playedStr == "true");
 
         TournamentMatch m(id ? *id : "", tourId ? *tourId : "",
                           home ? *home : "", away ? *away : "",
                           round, date ? *date : "", time ? *time : "",
                           homeSc, awaySc, played);
-        out.push_back(m);
+        loaded.push_back(m);
     }
+    out = std::move(loaded);
     return true;
 }
 
@@ -260,6 +325,11 @@ bool TournamentRepository::saveMatches(const LinkedList<TournamentMatch>& matche
     LinkedList<std::string> lines;
     for (auto* node = matches.get_head(); node != nullptr; node = node->next) {
         const TournamentMatch& m = node->data;
+        if (m.getRound() <= 0 || m.getHomeScore() < 0 ||
+            m.getAwayScore() < 0) {
+            error = "Không thể lưu trận đấu có vòng hoặc tỷ số không hợp lệ.";
+            return false;
+        }
         std::string line =
             FileManager::join(m.getMatchId()) + "|" +
             FileManager::join(m.getTournamentId()) + "|" +
@@ -278,7 +348,7 @@ bool TournamentRepository::saveMatches(const LinkedList<TournamentMatch>& matche
 
 bool TournamentRepository::saveMatch(const TournamentMatch& match, std::string& error) {
     LinkedList<TournamentMatch> list;
-    loadMatches(list, error);
+    if (!loadMatches(list, error)) return false;
     bool found = false;
     for (auto* node = list.get_head(); node != nullptr; node = node->next) {
         if (node->data.getMatchId() == match.getMatchId()) {

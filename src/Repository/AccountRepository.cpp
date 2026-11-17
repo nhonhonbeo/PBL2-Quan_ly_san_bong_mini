@@ -7,18 +7,10 @@ AccountRepository::AccountRepository(FileManager& manager)
 
 bool AccountRepository::load(std::vector<std::shared_ptr<User>>& accounts,
                              std::string& error) const {
-    if (!FileManager::docDanhSachUser(accounts)) {
-        error = "Khong the nap danh sach tai khoan";
-        return false;
-    }
-    return true;
+    return FileManager::docDanhSachUser(accounts, "data/accounts.txt", error);
 }
 
 bool AccountRepository::save(const std::vector<std::shared_ptr<User>>& accounts,
                              std::string& error) const {
-    if (!FileManager::ghiDanhSachUser(accounts)) {
-        error = "Khong the luu danh sach tai khoan";
-        return false;
-    }
-    return true;
+    return FileManager::ghiDanhSachUser(accounts, "data/accounts.txt", error);
 }

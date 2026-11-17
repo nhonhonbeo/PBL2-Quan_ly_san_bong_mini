@@ -131,8 +131,14 @@ public:
     // ==========================================
     // 1. KHỞI TẠO VÀ LƯU TRỮ DỮ LIỆU
     // ==========================================
-    void napDuLieu();
-    void luuDuLieu();
+        void loadData();
+    void refreshCache();
+    void saveData();
+
+    // Tuong thich nguoc
+    void napDuLieu() { loadData(); }
+    void luuDuLieu() { saveData(); }
+    void dongBoTuCacService() { refreshCache(); }
     // ==========================================
     // 2. XÁC THỰC & ĐĂNG KÝ
     // ==========================================
@@ -315,7 +321,6 @@ private:
     mutable ReportService report_service_;
     mutable TournamentService tournament_service_;
     mutable FieldService field_service_;
-    void dongBoTuCacService();
     std::map<std::string, std::string> mapAnhSan_;
     void loadAnhSan();
     void saveAnhSan();
@@ -337,3 +342,5 @@ private:
     std::vector<GiaiDauInfo> danhSachGiaiDau_;
 };
 }  // namespace GUI::App
+
+

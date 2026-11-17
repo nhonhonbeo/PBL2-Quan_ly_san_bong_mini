@@ -117,38 +117,9 @@ bool atomicWrite(const std::string& path,
                  const LinkedList<std::string>& lines,
                  std::string& error) {
     FileManager manager;
-    const std::string tempPath = path + ".tmp";
-    if (!manager.writeAllLines(tempPath, lines, error)) {
-        return false;
-    }
-    std::error_code ec;
-    std::filesystem::remove(path + ".replace", ec);
-    ec.clear();
-    if (std::filesystem::exists(path, ec)) {
-        std::filesystem::copy_file(
-            path,
-            path + ".replace",
-            std::filesystem::copy_options::overwrite_existing,
-            ec
-        );
-        if (ec) {
-            error = "Không thể sao lưu dữ liệu trước khi cập nhật: " + path;
-            std::filesystem::remove(tempPath, ec);
-            return false;
-        }
-        std::filesystem::remove(path, ec);
-        if (ec) {
-            error = "Không thể thay thế dữ liệu: " + path;
-            std::filesystem::remove(tempPath, ec);
-            return false;
-        }
-    }
-    std::filesystem::rename(tempPath, path, ec);
-    if (ec) {
-        error = "Không thể hoàn tất cập nhật dữ liệu: " + path;
-        return false;
-    }
-    return true;
+    // LÝ DO CHỌN: Duy trì bản .replace nhưng giao việc thay thế nguyên tử
+    // cho FileManager để không xóa file chính trước khi thay thế thành công.
+    return manager.writeAllLinesWithBackup(path, lines, path + ".replace", error);
 }
 
 }  // Kết thúc không gian tên ẩn danh

@@ -14,15 +14,17 @@ private:
 
 public:
     explicit PaymentService(PaymentRepository* repository = nullptr);
+    virtual ~PaymentService() = default;
 
-    bool createInvoice(const std::string& bookingId, long long amountVnd,
-                       std::string& outInvoiceId, std::string& error);
-    bool processPayment(const std::string& invoiceId, long long amountVnd,
-                        PaymentMethod method, std::string& outPaymentId,
-                        std::string& error);
-    bool cancelInvoice(const std::string& bookingId, std::string& error);
-    bool getInvoiceByBookingId(const std::string& bookingId, Invoice& out,
-                               std::string& error) const;
-    bool validatePayment(const Invoice& invoice, const Payment& payment,
-                         std::string& error) const;
+    virtual bool createInvoice(const std::string& bookingId, long long amountVnd,
+                               std::string& outInvoiceId, std::string& error);
+    virtual bool processPayment(const std::string& invoiceId, long long amountVnd,
+                                PaymentMethod method, std::string& outPaymentId,
+                                std::string& error);
+    virtual bool cancelInvoice(const std::string& bookingId, std::string& error);
+    virtual bool rollbackInvoice(const std::string& bookingId, std::string& error);
+    virtual bool getInvoiceByBookingId(const std::string& bookingId, Invoice& out,
+                                       std::string& error) const;
+    virtual bool validatePayment(const Invoice& invoice, const Payment& payment,
+                                 std::string& error) const;
 };

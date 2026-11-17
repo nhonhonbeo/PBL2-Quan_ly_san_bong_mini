@@ -53,7 +53,7 @@ void setWindowIcon(GLFWwindow* window) {
 
 // Callback khi người dùng nhấn nút đóng cửa sổ: đảm bảo lưu trữ toàn bộ dữ liệu an toàn
 void windowCloseCallback(GLFWwindow* /*window*/) {
-    GUI::App::Facade::getInstance().luuDuLieu();
+    GUI::App::Facade::getInstance().saveData();
 }
 
 }  // namespace
@@ -120,7 +120,7 @@ bool Application::init() {
     GUI::Theme::loadFonts();
 
     // LÝ DO CHỌN: Nạp dữ liệu từ FileManager qua Facade khi ứng dụng khởi động
-    GUI::App::Facade::getInstance().napDuLieu();
+    GUI::App::Facade::getInstance().loadData();
 
     // Thiết lập màn hình khởi động vào ScreenManager
     if (runDemo_) {
@@ -177,7 +177,7 @@ void Application::shutdown() {
     }
 
     // LÝ DO CHỌN: Lưu lại toàn bộ dữ liệu tài khoản và nghiệp vụ trước khi thoát ứng dụng
-    GUI::App::Facade::getInstance().luuDuLieu();
+    GUI::App::Facade::getInstance().saveData();
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -187,3 +187,4 @@ void Application::shutdown() {
     glfwTerminate();
     initialized_ = false;
 }
+

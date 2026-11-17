@@ -1,23 +1,24 @@
-#ifndef OWNER_H
+﻿#ifndef OWNER_H
 #define OWNER_H
-#include<string>
+
+#include <string>
 #include "User.h"
 
-class Owner: public User{
-private: 
-    //field
-    std::string field_name;
+// LÝ DO CHỌN: Tách thông tin cụm cơ sở thành Value Object FacilityConfig,
+// áp dụng Composition over inheritance thay vì nhồi nhét trực tiếp vào Owner entity.
+struct FacilityConfig {
+    std::string facility_name;
     std::string field_address;
     std::string field_rules;
-    std::string field_count;
+    std::string open_time = "06:00";
+    std::string close_time = "23:00";
+    bool allows_60_minute_slots = true;
+    bool allows_90_minute_slots = true;
+};
 
-    //time
-    std::string open_time;
-    std::string close_time;
-    bool allows_60_minute_slots;
-    bool allows_90_minute_slots;
-    
-    //personal information
+class Owner : public User {
+private:
+    FacilityConfig facility_;
     std::string owner_name;
 
 public:
@@ -36,7 +37,10 @@ public:
     );
 
     void show_menu() const override;
-    std::string get_account_type() const override; 
+    std::string get_account_type() const override;
+
+    const FacilityConfig& getFacilityConfig() const;
+    void setFacilityConfig(const FacilityConfig& config);
 
     std::string get_field_name() const;
     void set_field_name(const std::string& field_names);
@@ -59,6 +63,6 @@ public:
 
     std::string get_owner_name() const;
     void set_owner_name(const std::string& new_owner_name);
-
 };
+
 #endif

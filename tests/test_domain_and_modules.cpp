@@ -1,3 +1,5 @@
+﻿#include "Account/Owner.h"
+#include "Repository/VenueRepository.h"
 #include <cassert>
 #include <iostream>
 #include <string>
@@ -26,7 +28,12 @@ int main() {
     assert(Core::runSelfCheck());
     assert(std::string(Core::getVersion()) == "1.0.0-pbl2");
 
-    std::cout << "[TEST] 2. Customer rich domain rules...\n";
+    std::cout << "[TEST] 2. Owner composition and Customer rich domain rules...\n";
+    Owner owner("US01", "owner01", "123456", "Nguyen Van Chu", "0901234567",
+                "Cum san Sao Vang", "123 Nguyen Hue", "Quy dinh", "06:00", "23:00", "Nguyen Van Chu");
+    assert(owner.getFacilityConfig().facility_name == "Cum san Sao Vang");
+    assert(owner.get_field_name() == "Cum san Sao Vang");
+    assert(owner.allows60MinuteSlots() == true);
     Customer cust("KH-01", "kh01", "123456", "Nguyen Van A", "0901112223");
     cust.setStatistics(6, 4);
     assert(cust.isBlacklistCandidate(3) == true);
@@ -104,7 +111,7 @@ int main() {
     assert(payService.getInvoiceByBookingId("BK-UNITTEST", loadedInv, err));
     assert(loadedInv.isPaid() == true);
 
-    // Dọn dẹp bản ghi kiểm thử
+    // Dá»n dáº¹p báº£n ghi kiá»ƒm thá»­
     LinkedList<Invoice> allInvs;
     if (payRepo.loadAllInvoices(allInvs, err)) {
         LinkedList<Invoice> cleanInvs;

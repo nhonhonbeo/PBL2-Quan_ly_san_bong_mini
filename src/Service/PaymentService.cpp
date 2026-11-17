@@ -15,7 +15,7 @@ bool PaymentService::createInvoice(const std::string& bookingId, long long amoun
         error = "Chua khoi tao kho luu tru thanh toan.";
         return false;
     }
-    if (bookingId.empty() || amountVnd < 0) {
+    if (bookingId.empty() || amountVnd <= 0) {
         error = "Thong tin don dat san hoac gia tien khong hop le.";
         return false;
     }
@@ -82,6 +82,11 @@ bool PaymentService::cancelInvoice(const std::string& bookingId, std::string& er
         return repository_->saveAllInvoices(invoices, error);
     }
     return true;
+}
+
+bool PaymentService::rollbackInvoice(const std::string& bookingId, std::string& error) {
+    if (!repository_) return true;
+    return repository_->removeInvoice(bookingId, error);
 }
 
 bool PaymentService::getInvoiceByBookingId(const std::string& bookingId, Invoice& out,

@@ -1,11 +1,45 @@
-#include "Service/AccountService.h"
+﻿#include "Service/AccountService.h"
 
+#include <cctype>
 #include <cstdio>
+#include <algorithm>
 #include "Account/Customer.h"
 #include "Account/Owner.h"
 #include "Account/User.h"
 #include "Repository/AccountRepository.h"
 #include "Repository/CustomerRepository.h"
+
+namespace {
+
+// LÝ DO CHỌN: Validation số điện thoại và mật khẩu ở tầng Service đảm bảo tính toàn vẹn dữ liệu
+// ngay cả khi gọi ngoài GUI (kiến trúc độc lập).
+bool kiemTraSdtHopLe(const std::string& phone, std::string& error) {
+    if (phone.empty()) {
+        error = u8"Số điện thoại không được để trống.";
+        return false;
+    }
+    if (phone.length() != 10 || phone[0] != '0') {
+        error = u8"Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng số 0.";
+        return false;
+    }
+    for (char c : phone) {
+        if (!std::isdigit(static_cast<unsigned char>(c))) {
+            error = u8"Số điện thoại chỉ được chứa ký tự số.";
+            return false;
+        }
+    }
+    return true;
+}
+
+bool kiemTraMatKhauHopLe(const std::string& pass, std::string& error) {
+    if (pass.length() < 6) {
+        error = u8"Mật khẩu phải có ít nhất 6 ký tự.";
+        return false;
+    }
+    return true;
+}
+
+} // namespace
 
 AccountService::AccountService(AccountRepository& repository)
     : account_repository_(repository), accounts_() {}
@@ -33,6 +67,7 @@ std::shared_ptr<User> AccountService::authenticate(const std::string& phone,
 bool AccountService::resetPassword(const std::string& phone,
                                    const std::string& password,
                                    std::string& error) {
+    if (!kiemTraMatKhauHopLe(password, error)) return false;
     for (const auto& account : accounts_) {
         if (account && account->get_phone_number() == phone) {
             account->update_pw(password);
@@ -43,19 +78,35 @@ bool AccountService::resetPassword(const std::string& phone,
     return false;
 }
 
+// LÝ DO CHỌN: Quét mã số lớn nhất (max sequence) của các User ID có tiền tố "US"
+// thay vì chỉ đếm accounts_.size() + 1, chống hoàn toàn nguy cơ trùng lặp ID khi xóa tài khoản.
 std::string AccountService::generateNextUserId() const {
+    int maxSeq = 0;
+    for (const auto& u : accounts_) {
+        if (!u) continue;
+        const std::string& id = u->get_user_id();
+        if (id.rfind("US", 0) == 0 && id.length() > 2) {
+            try {
+                int seq = std::stoi(id.substr(2));
+                if (seq > maxSeq) maxSeq = seq;
+            } catch (...) {}
+        }
+    }
     char buf[16];
-    std::snprintf(buf, sizeof(buf), "US%02d", static_cast<int>(accounts_.size() + 1));
+    std::snprintf(buf, sizeof(buf), "US%02d", maxSeq + 1);
     return std::string(buf);
 }
 
 bool AccountService::registerCustomer(const std::string& name, const std::string& phone,
                                       const std::string& pass, CustomerRepository& custRepo,
                                       std::string& error) {
-    if (phone.empty() || pass.empty() || name.empty()) {
-        error = u8"Thông tin đăng ký không được để trống.";
+    if (name.empty()) {
+        error = u8"Họ tên không được để trống.";
         return false;
     }
+    if (!kiemTraSdtHopLe(phone, error)) return false;
+    if (!kiemTraMatKhauHopLe(pass, error)) return false;
+
     std::string newId = generateNextUserId();
     auto cust = std::make_shared<Customer>(newId, phone, pass, name, phone);
     if (!registerUser(cust, error)) return false;
@@ -66,10 +117,13 @@ bool AccountService::registerCustomer(const std::string& name, const std::string
 bool AccountService::registerOwner(const std::string& name, const std::string& phone,
                                    const std::string& pass, const std::string& facilityName,
                                    const std::string& address, std::string& error) {
-    if (phone.empty() || pass.empty() || name.empty()) {
-        error = u8"Thông tin đăng ký không được để trống.";
+    if (name.empty()) {
+        error = u8"Họ tên chủ sân không được để trống.";
         return false;
     }
+    if (!kiemTraSdtHopLe(phone, error)) return false;
+    if (!kiemTraMatKhauHopLe(pass, error)) return false;
+
     std::string newId = generateNextUserId();
     auto owner = std::make_shared<Owner>(newId, phone, pass, name, phone, facilityName, address,
                                          u8"Quy định tiêu chuẩn cụm sân", "06:00", "23:00", name);
@@ -87,6 +141,14 @@ bool AccountService::registerUser(const std::shared_ptr<User>& user,
             error = "So dien thoai da duoc su dung";
             return false;
         }
+        if (existing && existing->get_user_id() == user->get_user_id()) {
+            error = "Ma nguoi dung da ton tai";
+            return false;
+        }
+        if (existing && existing->get_user_name() == user->get_user_name()) {
+            error = "Ten dang nhap da duoc su dung";
+            return false;
+        }
     }
     accounts_.push_back(user);
     return account_repository_.save(accounts_, error);
@@ -96,10 +158,7 @@ bool AccountService::updateUser(const std::string& oldPhone,
                                 const std::string& newName,
                                 const std::string& newPhone,
                                 std::string& error) {
-    if (newPhone.empty()) {
-        error = "So dien thoai khong duoc de trong";
-        return false;
-    }
+    if (!kiemTraSdtHopLe(newPhone, error)) return false;
     if (oldPhone != newPhone) {
         for (const auto& existing : accounts_) {
             if (existing && existing->get_phone_number() == newPhone) {

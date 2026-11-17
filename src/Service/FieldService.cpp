@@ -1,5 +1,6 @@
-#include "Service/FieldService.h"
+﻿#include "Service/FieldService.h"
 
+#include <cstdio>
 #include "Core/DateTime.h"
 #include "Field/Field.h"
 #include "Field/TimeSlot.h"
@@ -13,10 +14,24 @@ bool isValidSize(int size) {
     return size == 5 || size == 7 || size == 11;
 }
 
-}  // Kết thúc không gian tên ẩn danh
+}  // namespace
 
-FieldService::FieldService(FieldRepository& fieldRepository)
-    : field_repository_(fieldRepository) {}
+FieldService::FieldService(FieldRepository& fieldRepository,
+                           VenueService* venueService,
+                           VenueRepository* venueRepository)
+    : field_repository_(fieldRepository),
+      venue_service_(venueService),
+      venue_repository_(venueRepository),
+      default_venue_repo_(),
+      default_venue_service_(default_venue_repo_) {
+    if (!venue_repository_) venue_repository_ = &default_venue_repo_;
+    if (!venue_service_) venue_service_ = &default_venue_service_;
+}
+
+void FieldService::setVenueDependencies(VenueService* venueService, VenueRepository* venueRepository) {
+    venue_service_ = venueService ? venueService : &default_venue_service_;
+    venue_repository_ = venueRepository ? venueRepository : &default_venue_repo_;
+}
 
 bool FieldService::createMultipleFields(const std::string& requesterOwnerId, int loaiSan,
                                         int soLuong, const std::string& quyDinh,
@@ -48,8 +63,6 @@ bool FieldService::createMultipleFields(const std::string& requesterOwnerId, int
         }
     }
 
-    VenueRepository repository;
-    VenueService service(repository);
     for (int i = 0; i < soLuong; ++i) {
         int stt = seq + i;
         char maBuf[16];
@@ -58,7 +71,7 @@ bool FieldService::createMultipleFields(const std::string& requesterOwnerId, int
                               u8"Sân " + std::to_string(loaiSan) + u8" số " +
                               (stt < 10 ? "0" : "") + std::to_string(stt),
                               loaiSan, 0, quyDinh};
-        if (!service.createField(requesterOwnerId, newF, error)) return false;
+        if (!venue_service_->createField(requesterOwnerId, newF, error)) return false;
         outMaSan.push_back(maBuf);
     }
     return true;
@@ -67,17 +80,19 @@ bool FieldService::createMultipleFields(const std::string& requesterOwnerId, int
 bool FieldService::createField(const std::string& requesterOwnerId,
                                const VenueFieldRecord& field,
                                std::string& error) {
-    VenueRepository repository;
-    VenueService service(repository);
-    return service.createField(requesterOwnerId, field, error);
+    return venue_service_->createField(requesterOwnerId, field, error);
 }
 
 bool FieldService::updateField(const std::string& requesterOwnerId,
                                const VenueFieldRecord& field,
                                std::string& error) {
-    VenueRepository repository;
-    VenueService service(repository);
-    return service.updateField(requesterOwnerId, field, error);
+    return venue_service_->updateField(requesterOwnerId, field, error);
+}
+
+bool FieldService::deleteField(const std::string& requesterOwnerId,
+                               const std::string& fieldId,
+                               std::string& error) {
+    return venue_service_->deleteField(requesterOwnerId, fieldId, error);
 }
 
 bool FieldService::setFieldStatus(const std::string& requesterOwnerId,
@@ -94,8 +109,7 @@ bool FieldService::setFieldStatus(const std::string& requesterOwnerId,
             return false;
         }
         field.status = static_cast<int>(status);
-        VenueRepository repository;
-        return repository.saveFields(fields, error);
+        return venue_repository_->saveFields(fields, error);
     }
     error = "Không tìm thấy sân cần cập nhật trạng thái.";
     return false;
@@ -109,9 +123,7 @@ bool FieldService::getFields(const std::string& ownerId, int fieldSize,
         error = "Loại sân không hợp lệ.";
         return false;
     }
-    VenueRepository repository;
-    VenueService service(repository);
-    return service.getFields(ownerId, fieldSize, includeUnavailable, fields, error);
+    return venue_service_->getFields(ownerId, fieldSize, includeUnavailable, fields, error);
 }
 
 bool FieldService::setPrice(const std::string& requesterOwnerId,
@@ -120,9 +132,7 @@ bool FieldService::setPrice(const std::string& requesterOwnerId,
                             const std::string& startTime,
                             long long priceVnd,
                             std::string& error) const {
-    VenueRepository repository;
-    VenueService service(repository);
-    return service.setFieldPrice(
+    return venue_service_->setFieldPrice(
         requesterOwnerId, fieldSize, durationMinutes, startTime, priceVnd, error
     );
 }
@@ -146,3 +156,4 @@ bool FieldService::validateOperatingSlot(const Field& field,
     }
     return true;
 }
+

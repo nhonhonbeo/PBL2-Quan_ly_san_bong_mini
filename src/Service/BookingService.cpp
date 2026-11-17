@@ -1,5 +1,5 @@
+﻿#include "Service/BookingService.h"
 #include "Service/CustomerService.h"
-#include "Service/BookingService.h"
 #include "Service/PaymentService.h"
 
 #include "Booking/Booking.h"
@@ -15,10 +15,38 @@ BookingService::BookingService(BookingRepository& bookingRepository,
                                PaymentService* paymentService)
     : booking_repository_(bookingRepository),
       customer_service_(customerService),
-      payment_service_(paymentService) {}
+      venue_service_(nullptr),
+      venue_repository_(nullptr),
+      payment_service_(paymentService),
+      default_venue_repo_(),
+      default_venue_service_(default_venue_repo_) {
+    venue_repository_ = &default_venue_repo_;
+    venue_service_ = &default_venue_service_;
+}
+
+BookingService::BookingService(BookingRepository& bookingRepository,
+                               CustomerService& customerService,
+                               VenueService* venueService,
+                               VenueRepository* venueRepository,
+                               PaymentService* paymentService)
+    : booking_repository_(bookingRepository),
+      customer_service_(customerService),
+      venue_service_(venueService),
+      venue_repository_(venueRepository),
+      payment_service_(paymentService),
+      default_venue_repo_(),
+      default_venue_service_(default_venue_repo_) {
+    if (!venue_repository_) venue_repository_ = &default_venue_repo_;
+    if (!venue_service_) venue_service_ = &default_venue_service_;
+}
 
 void BookingService::setPaymentService(PaymentService* paymentService) {
     payment_service_ = paymentService;
+}
+
+void BookingService::setVenueDependencies(VenueService* venueService, VenueRepository* venueRepository) {
+    venue_service_ = venueService ? venueService : &default_venue_service_;
+    venue_repository_ = venueRepository ? venueRepository : &default_venue_repo_;
 }
 
 bool BookingService::createBooking(const Booking& booking,
@@ -29,10 +57,9 @@ bool BookingService::createBooking(const Booking& booking,
         error = "Chỉ hỗ trợ đặt đúng một khung giờ cho mỗi đơn.";
         return false;
     }
-    VenueRepository repository;
     std::string customerName;
     std::string customerPhone;
-    if (!repository.getCustomerDetails(
+    if (!venue_repository_->getCustomerDetails(
             booking.getCustomerId(), customerName, customerPhone, error)) {
         return false;
     }
@@ -65,26 +92,45 @@ bool BookingService::createBooking(const VenueBookingRequest& request,
         return false;
     }
 
-    VenueRepository repository;
-    VenueService service(repository);
-    bool ok = service.createBooking(request, bookingId, error);
-    if (ok && payment_service_) {
-        // Lập hóa đơn tương ứng cho đơn đặt sân vừa tạo
-        LinkedList<VenueBookingRecord> allB;
+    LinkedList<VenueBookingRecord> originalBookings;
+    if (!booking_repository_.loadAll(originalBookings, error)) {
+        return false;
+    }
+
+    bool ok = venue_service_->createBooking(request, bookingId, error);
+    if (!ok) {
+        return false;
+    }
+
+    if (payment_service_) {
+        // Lấy giá tiền chính xác của đơn đặt sân vừa tạo
+        LinkedList<VenueBookingRecord> currentBookings;
         std::string loadErr;
         long long price = 0;
-        if (booking_repository_.loadAll(allB, loadErr)) {
-            for (auto* n = allB.get_head(); n != nullptr; n = n->next) {
+        if (booking_repository_.loadAll(currentBookings, loadErr)) {
+            for (auto* n = currentBookings.get_head(); n != nullptr; n = n->next) {
                 if (n->data.bookingId == bookingId) {
                     price = n->data.priceVnd;
                     break;
                 }
             }
         }
+
         std::string invId, invErr;
-        payment_service_->createInvoice(bookingId, price, invId, invErr);
+        if (!payment_service_->createInvoice(bookingId, price, invId, invErr)) {
+            // Rollback đơn đặt sân nếu tạo hóa đơn thất bại để tránh dữ liệu mồ côi
+            std::string rollbackErr;
+            if (!booking_repository_.saveAll(originalBookings, rollbackErr)) {
+                error = "Tao hoa don that bai: " + invErr +
+                        ". Khong the khoi phuc don dat san: " + rollbackErr;
+            } else {
+                error = "Tao hoa don that bai: " + invErr;
+            }
+            bookingId.clear();
+            return false;
+        }
     }
-    return ok;
+    return true;
 }
 
 bool BookingService::createBookings(
@@ -112,12 +158,12 @@ bool BookingService::createBookings(
         return false;
     }
 
+    // 1. Kiểm tra tính hợp lệ cơ bản của chuỗi ca liên tiếp
     int previousEnd = -1;
     for (auto* node = requests.get_head(); node != nullptr; node = node->next) {
         const VenueBookingRequest& request = node->data;
         if (request.fieldId != first.fieldId ||
-            DateTime::toIsoDate(request.date) !=
-                DateTime::toIsoDate(first.date) ||
+            DateTime::toIsoDate(request.date) != DateTime::toIsoDate(first.date) ||
             request.customerId != first.customerId ||
             request.durationMinutes != first.durationMinutes ||
             !DateTime::isValidTime(request.startTime)) {
@@ -133,27 +179,67 @@ bool BookingService::createBookings(
         previousEnd = start + request.durationMinutes;
     }
 
-    VenueRepository repository;
+    // 2. Tải bản sao trạng thái ban đầu của Bookings để rollback khi gặp lỗi
     LinkedList<VenueBookingRecord> originalBookings;
-    if (!repository.loadBookings(originalBookings, error)) return false;
+    if (!booking_repository_.loadAll(originalBookings, error)) {
+        return false;
+    }
 
-    VenueService service(repository);
+    // 3. Tiến hành đặt từng ca kèm theo dõi danh sách để rollback nguyên khối nếu bất kỳ bước nào thất bại
+    LinkedList<std::string> createdBookingIds;
+    LinkedList<std::string> createdInvoiceIds;
+    bool allSuccess = true;
+
     for (auto* node = requests.get_head(); node != nullptr; node = node->next) {
-        std::string bookingId;
-        if (!service.createBooking(node->data, bookingId, error)) {
-            std::string rollbackError;
-            if (!repository.saveBookings(originalBookings, rollbackError)) {
-                error += " Không thể khôi phục dữ liệu sau lỗi: " + rollbackError;
-            }
-            bookingIds.clear();
-            return false;
+        std::string currentBookingId;
+        if (!venue_service_->createBooking(node->data, currentBookingId, error)) {
+            allSuccess = false;
+            break;
         }
-        bookingIds.push_back(bookingId);
+        createdBookingIds.push_back(currentBookingId);
+
         if (payment_service_) {
+            // Xác định chính xác giá tiền của đơn vừa ghi nhận
+            LinkedList<VenueBookingRecord> currentBookings;
+            std::string loadErr;
+            long long price = 0;
+            if (booking_repository_.loadAll(currentBookings, loadErr)) {
+                for (auto* bNode = currentBookings.get_head(); bNode != nullptr; bNode = bNode->next) {
+                    if (bNode->data.bookingId == currentBookingId) {
+                        price = bNode->data.priceVnd;
+                        break;
+                    }
+                }
+            }
+
             std::string invId, invErr;
-            payment_service_->createInvoice(bookingId, 0, invId, invErr);
+            if (!payment_service_->createInvoice(currentBookingId, price, invId, invErr)) {
+                error = "Tao hoa don that bai: " + invErr;
+                allSuccess = false;
+                break;
+            }
+            createdInvoiceIds.push_back(currentBookingId);
         }
     }
+
+    if (!allSuccess) {
+        // Rollback toàn bộ đơn đặt sân
+        std::string rollbackErr;
+        if (!booking_repository_.saveAll(originalBookings, rollbackErr)) {
+            error += ". Loi nghiem trong: Khong the khoi phuc trang thai bookings: " + rollbackErr;
+        }
+        // Rollback toàn bộ hóa đơn đã phát hành
+        if (payment_service_) {
+            for (auto* invNode = createdInvoiceIds.get_head(); invNode != nullptr; invNode = invNode->next) {
+                std::string delErr;
+                if (!payment_service_->rollbackInvoice(invNode->data, delErr)) { error += ". Khong the huy hoa don: " + delErr; }
+            }
+        }
+        bookingIds.clear();
+        return false;
+    }
+
+    bookingIds = createdBookingIds;
     return true;
 }
 
@@ -167,25 +253,18 @@ bool BookingService::cancelBooking(const std::string& bookingId,
         if (booking.bookingId != bookingId) continue;
 
         // Nghiệp vụ tự thân của Đơn đặt sân (Rich Domain Model)
-        Booking domainBooking(booking.bookingId, booking.customerId, booking.ownerId,
-                              booking.fieldId, BookingStatus::CONFIRMED, booking.date);
+        Booking domainBooking = Booking::fromRecord(booking);
         std::string domainErr;
-        if (!domainBooking.canBeCancelledBy(customerId, domainErr)) {
+        if (!domainBooking.cancel(customerId, domainErr)) {
             error = domainErr;
             return false;
         }
-        if (booking.status == "COMPLETED" || booking.status == "CANCELLED" ||
-            booking.status == u8"Đã hoàn tất" ||
-            booking.status == u8"Đã hủy") {
-            error = "Đơn đã hoàn tất hoặc đã hủy, không thể hủy thêm.";
-            return false;
-        }
 
-        booking.status = "CANCELLED";
+        booking.status = Booking::statusToText(domainBooking.getStatus());
         if (!booking_repository_.saveAll(bookings, error)) return false;
 
         std::string custErr;
-        customer_service_.recordCancellation(booking.customerId, custErr);
+        customer_service_.recordCancellation(booking.customerId, booking.bookingId, custErr);
 
         if (payment_service_) {
             std::string payErr;
@@ -207,21 +286,10 @@ bool BookingService::completeBooking(const std::string& requesterOwnerId,
         if (booking.bookingId != bookingId) continue;
 
         // Nghiệp vụ tự thân của Đơn đặt sân (Rich Domain Model)
-        Booking domainBooking(booking.bookingId, booking.customerId, booking.ownerId,
-                              booking.fieldId, BookingStatus::CONFIRMED, booking.date);
+        Booking domainBooking = Booking::fromRecord(booking);
         std::string domainErr;
         if (!domainBooking.canBeCompletedBy(requesterOwnerId, domainErr)) {
             error = domainErr;
-            return false;
-        }
-        if (booking.status == "CANCELLED" ||
-            booking.status == u8"Đã hủy") {
-            error = "Không thể hoàn tất đơn đã hủy.";
-            return false;
-        }
-        if (booking.status == "COMPLETED" ||
-            booking.status == u8"Đã hoàn thành") {
-            error = "Đơn này đã được xác nhận hoàn tất.";
             return false;
         }
 
@@ -242,11 +310,12 @@ bool BookingService::completeBooking(const std::string& requesterOwnerId,
             return false;
         }
 
-        booking.status = "COMPLETED";
+        domainBooking.complete(requesterOwnerId, domainErr);
+        booking.status = Booking::statusToText(domainBooking.getStatus());
         if (!booking_repository_.saveAll(bookings, error)) return false;
 
         std::string custErr;
-        customer_service_.recordSuccessfulBooking(booking.customerId, custErr);
+        customer_service_.recordSuccessfulBooking(booking.customerId, booking.bookingId, custErr);
 
         if (payment_service_) {
             std::string invId = "INV-" + booking.bookingId;
@@ -258,3 +327,6 @@ bool BookingService::completeBooking(const std::string& requesterOwnerId,
     error = "Không tìm thấy đơn đặt sân cần hoàn tất.";
     return false;
 }
+
+
+

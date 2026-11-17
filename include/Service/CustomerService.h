@@ -1,4 +1,4 @@
-#ifndef CUSTOMER_SERVICE_H
+﻿#ifndef CUSTOMER_SERVICE_H
 #define CUSTOMER_SERVICE_H
 
 #include <map>
@@ -35,6 +35,12 @@ public:
     bool updateDiscountThreshold(int id, int minBookings, int percentage, std::string& error);
     int getCustomerDiscountPercentage(const std::string& userIdOrPhone, std::string& error) const;
     bool applyDiscountsToAll(std::string& error);
+    bool findAvailableDiscount(const std::string& userId, Discount& out,
+                               std::string& error) const;
+    bool validateDiscount(const Discount& discount, const std::string& customerId,
+                          std::string& error) const;
+    bool useDiscount(const std::string& discountId, const std::string& customerId,
+                     const std::string& bookingId, std::string& error);
 
     // Danh sách đen
     bool isBlacklisted(const std::string& userId, bool& outIsBlacklisted,
@@ -58,11 +64,12 @@ public:
     bool getAverageRatingOverall(float& outScore, std::string& error) const;
     bool getAverageRatingsMap(std::map<std::string, float>& outMap, std::string& error) const;
 
-    // Khách hàng & thống kê
+    // Khách hàng & thống kê (chống ghi nhận trùng lặp bằng bookingId)
     bool recordSuccessfulBooking(const std::string& userId, std::string& error);
+    bool recordSuccessfulBooking(const std::string& userId, const std::string& bookingId, std::string& error);
     bool recordCancellation(const std::string& userId, std::string& error);
-    bool findAvailableDiscount(const std::string& userId, Discount& out,
-                               std::string& error) const;
+    bool recordCancellation(const std::string& userId, const std::string& bookingId, std::string& error);
+
     bool getAllCustomers(LinkedList<Customer>& outList, std::string& error) const;
     bool findCustomer(const std::string& idOrPhone, Customer& out, std::string& error) const;
 };

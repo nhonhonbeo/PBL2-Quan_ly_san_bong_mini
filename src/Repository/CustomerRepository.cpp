@@ -1,4 +1,4 @@
-#include "Repository/CustomerRepository.h"
+﻿#include "Repository/CustomerRepository.h"
 
 #include <sstream>
 
@@ -114,34 +114,38 @@ bool CustomerRepository::loadAllCustomers(LinkedList<Customer>& out, std::string
     out.clear();
     // LÃ DO CHá»ŒN: LinkedList náº¡p danh sÃ¡ch khÃ¡ch hÃ ng tá»« táº­p tin customers.txt tuáº§n tá»±.
     LinkedList<std::string> lines;
-    if (file_manager_.readAllLines("data/customers.txt", lines, error) && lines.size() > 0) {
-        for (auto* node = lines.get_head(); node != nullptr; node = node->next) {
-            LinkedList<std::string> parts;
-            tachTruong(node->data, parts);
-            const std::string* id = layTruong(parts, 0);
-            const std::string* uName = layTruong(parts, 1);
-            const std::string* pwd = layTruong(parts, 2);
-            const std::string* name = layTruong(parts, 3);
-            const std::string* phone = layTruong(parts, 4);
-            const std::string* bCount = layTruong(parts, 5);
-            const std::string* cCount = layTruong(parts, 6);
-            if (id && uName && pwd && name && phone) {
-                Customer c(*id, *uName, *pwd, *name, *phone);
-                int bc = bCount ? std::stoi(*bCount) : 0;
-                int cc = cCount ? std::stoi(*cCount) : 0;
-                c.setStatistics(bc, cc);
-                out.push_back(c);
-            }
+    if (!file_manager_.readAllLines("data/customers.txt", lines, error)) {
+        return false;
+    }
+    for (auto* node = lines.get_head(); node != nullptr; node = node->next) {
+        LinkedList<std::string> parts;
+        tachTruong(node->data, parts);
+        if (parts.size() < 7) continue;
+        const std::string* id = layTruong(parts, 0);
+        const std::string* uName = layTruong(parts, 1);
+        const std::string* pwd = layTruong(parts, 2);
+        const std::string* name = layTruong(parts, 3);
+        const std::string* phone = layTruong(parts, 4);
+        const std::string* bCount = layTruong(parts, 5);
+        const std::string* cCount = layTruong(parts, 6);
+        if (id && uName && pwd && name && phone) {
+            Customer c(*id, *uName, *pwd, *name, *phone);
+            int bc = bCount ? std::stoi(*bCount) : 0;
+            int cc = cCount ? std::stoi(*cCount) : 0;
+            c.setStatistics(bc, cc);
+            out.push_back(c);
         }
-        return true;
     }
 
+    // Náº¡p thÃªm khÃ¡ch hÃ ng tá»« accounts.txt náº¿u chÆ°a cÃ³ trong customers.txt
     LinkedList<std::string> accLines;
     if (file_manager_.readAllLines("data/accounts.txt", accLines, error)) {
         for (auto* node = accLines.get_head(); node != nullptr; node = node->next) {
             LinkedList<std::string> parts;
             tachTruong(node->data, parts);
+            if (parts.size() < 8) continue;
             const std::string* kind = layTruong(parts, 0);
+            if (!kind || *kind != "CUSTOMER") continue;
             const std::string* id = layTruong(parts, 1);
             const std::string* uName = layTruong(parts, 2);
             const std::string* pwd = layTruong(parts, 3);
@@ -149,7 +153,15 @@ bool CustomerRepository::loadAllCustomers(LinkedList<Customer>& out, std::string
             const std::string* phone = layTruong(parts, 5);
             const std::string* bCount = layTruong(parts, 6);
             const std::string* cCount = layTruong(parts, 7);
-            if (kind && *kind == "CUSTOMER" && id && uName && pwd && name && phone) {
+
+            bool existed = false;
+            for (auto* cNode = out.get_head(); cNode != nullptr; cNode = cNode->next) {
+                if (id && cNode->data.getUserId() == *id) {
+                    existed = true;
+                    break;
+                }
+            }
+            if (!existed && id && uName && pwd && name && phone) {
                 Customer c(*id, *uName, *pwd, *name, *phone);
                 int bc = bCount ? std::stoi(*bCount) : 0;
                 int cc = cCount ? std::stoi(*cCount) : 0;
@@ -157,14 +169,15 @@ bool CustomerRepository::loadAllCustomers(LinkedList<Customer>& out, std::string
                 out.push_back(c);
             }
         }
-        return true;
     }
-    return false;
+    return true;
 }
 
 bool CustomerRepository::saveCustomer(const Customer& customer, std::string& error) {
     LinkedList<std::string> lines;
-    file_manager_.readAllLines("data/customers.txt", lines, error);
+    if (!file_manager_.readAllLines("data/customers.txt", lines, error)) {
+        return false;
+    }
     std::string serialized =
         FileManager::join(customer.getUserId()) + "|" +
         FileManager::join(customer.get_user_name()) + "|" +
@@ -179,7 +192,9 @@ bool CustomerRepository::saveCustomer(const Customer& customer, std::string& err
 
 bool CustomerRepository::updateCustomer(const Customer& customer, std::string& error) {
     LinkedList<std::string> lines;
-    file_manager_.readAllLines("data/customers.txt", lines, error);
+    if (!file_manager_.readAllLines("data/customers.txt", lines, error)) {
+        return false;
+    }
     std::string serialized =
         FileManager::join(customer.getUserId()) + "|" +
         FileManager::join(customer.get_user_name()) + "|" +
@@ -203,7 +218,9 @@ bool CustomerRepository::updateCustomer(const Customer& customer, std::string& e
     if (!found) {
         lines.push_back(serialized);
     }
-    file_manager_.writeAllLines("data/customers.txt", lines, error);
+    if (!file_manager_.writeAllLines("data/customers.txt", lines, error)) {
+        return false;
+    }
 
     // Äá»“ng bá»™ sá»‘ liá»‡u sang accounts.txt
     LinkedList<std::string> accLines;
@@ -225,7 +242,9 @@ bool CustomerRepository::updateCustomer(const Customer& customer, std::string& e
                 break;
             }
         }
-        file_manager_.writeAllLines("data/accounts.txt", accLines, error);
+        if (!file_manager_.writeAllLines("data/accounts.txt", accLines, error)) {
+            return false;
+        }
     }
     return true;
 }
@@ -233,6 +252,7 @@ bool CustomerRepository::updateCustomer(const Customer& customer, std::string& e
 bool CustomerRepository::findActiveBlacklist(const std::string& customerId,
                                             Blacklist& out,
                                             std::string& error) const {
+    error.clear();
     LinkedList<std::string> lines;
     if (!file_manager_.readAllLines("data/blacklist.txt", lines, error)) {
         return false;
@@ -257,7 +277,7 @@ bool CustomerRepository::findActiveBlacklist(const std::string& customerId,
             return true;
         }
     }
-    error = "Khong tim thay blacklist";
+    error.clear();
     return false;
 }
 
@@ -285,7 +305,9 @@ bool CustomerRepository::loadAllBlacklists(LinkedList<Blacklist>& out, std::stri
 
 bool CustomerRepository::saveBlacklist(const Blacklist& blacklist, std::string& error) {
     LinkedList<std::string> lines;
-    file_manager_.readAllLines("data/blacklist.txt", lines, error);
+    if (!file_manager_.readAllLines("data/blacklist.txt", lines, error)) {
+        return false;
+    }
     std::string serialized =
         FileManager::join(blacklist.getCustomerId()) + "|" +
         FileManager::join(blacklist.getReason()) + "|" +
@@ -316,7 +338,9 @@ bool CustomerRepository::removeBlacklist(const std::string& customerId, std::str
 
 bool CustomerRepository::saveDiscount(const Discount& discount, std::string& error) {
     LinkedList<std::string> lines;
-    file_manager_.readAllLines("data/discounts.txt", lines, error);
+    if (!file_manager_.readAllLines("data/discounts.txt", lines, error)) {
+        return false;
+    }
     std::string serialized =
         FileManager::join(discount.getDiscountId()) + "|" +
         FileManager::join(discount.getCustomerId()) + "|" +
@@ -340,12 +364,12 @@ bool CustomerRepository::saveDiscount(const Discount& discount, std::string& err
     if (!found) {
         lines.push_back(serialized);
     }
-        return file_manager_.writeAllLines("data/discounts.txt", lines, error);
+    return file_manager_.writeAllLines("data/discounts.txt", lines, error);
 }
 
 bool CustomerRepository::loadAllDiscounts(LinkedList<Discount>& out, std::string& error) const {
     out.clear();
-    // LÝ DO CHỌN: LinkedList nạp danh sách ưu đãi tích lũy từ discounts.txt tuần tự.
+    // LÃ DO CHá»ŒN: LinkedList náº¡p danh sÃ¡ch Æ°u Ä‘Ã£i tá»« discounts.txt tuáº§n tá»±.
     LinkedList<std::string> lines;
     if (!file_manager_.readAllLines("data/discounts.txt", lines, error)) {
         return false;
@@ -391,7 +415,9 @@ bool CustomerRepository::findDiscountsByCustomerId(const std::string& customerId
 
 bool CustomerRepository::saveReview(const Review& review, std::string& error) {
     LinkedList<std::string> lines;
-    file_manager_.readAllLines("data/reviews.txt", lines, error);
+    if (!file_manager_.readAllLines("data/reviews.txt", lines, error)) {
+        return false;
+    }
 
     std::string custName = review.getCustomerName();
     if (custName.empty()) {
@@ -478,18 +504,15 @@ bool CustomerRepository::hasCompletedBooking(const std::string& customerId,
     if (findCustomerByUserId(customerId, c, ignoredErr)) {
         phone = c.get_phone_number();
     }
-
     for (auto* node = lines.get_head(); node != nullptr; node = node->next) {
         LinkedList<std::string> parts;
         tachTruong(node->data, parts);
+        if (parts.size() < 6) continue;
         const std::string* cId = layTruong(parts, 1);
-        const std::string* cPhone = layTruong(parts, 3);
-        const std::string* fId = layTruong(parts, 4);
-        const std::string* status = layTruong(parts, 9);
-        if (cId && cPhone && fId && status) {
-            if (*fId == fieldId &&
-                (*cId == customerId || *cPhone == customerId || *cId == phone || *cPhone == phone) &&
-                (*status == "COMPLETED" || *status == u8"ÄÃ£ hoÃ n thÃ nh")) {
+        const std::string* fId = layTruong(parts, 3);
+        const std::string* st = layTruong(parts, 4);
+        if (cId && fId && st) {
+            if ((*cId == customerId || *cId == phone) && *fId == fieldId && *st == "2") {
                 return true;
             }
         }
@@ -497,3 +520,34 @@ bool CustomerRepository::hasCompletedBooking(const std::string& customerId,
     return false;
 }
 
+bool CustomerRepository::isBookingRecorded(const std::string& bookingId) const {
+    if (bookingId.empty()) return false;
+    LinkedList<std::string> lines;
+    std::string err;
+    if (!file_manager_.readAllLines("data/recorded_bookings.txt", lines, err)) {
+        return false;
+    }
+    for (auto* node = lines.get_head(); node != nullptr; node = node->next) {
+        LinkedList<std::string> parts;
+        tachTruong(node->data, parts);
+        const std::string* id = layTruong(parts, 0);
+        if (id && *id == bookingId) return true;
+    }
+    return false;
+}
+
+bool CustomerRepository::recordBookingId(const std::string& bookingId,
+                                         const std::string& customerId,
+                                         const std::string& type,
+                                         std::string& error) {
+    if (bookingId.empty()) return true;
+    LinkedList<std::string> lines;
+    if (!file_manager_.readAllLines("data/recorded_bookings.txt", lines, error)) {
+        return false;
+    }
+    std::string line = FileManager::join(bookingId) + "|" +
+                       FileManager::join(customerId) + "|" +
+                       FileManager::join(type);
+    lines.push_back(line);
+    return file_manager_.writeAllLines("data/recorded_bookings.txt", lines, error);
+}

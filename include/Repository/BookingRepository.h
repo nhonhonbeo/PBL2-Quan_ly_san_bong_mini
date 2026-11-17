@@ -8,11 +8,12 @@ class BookingRepository {
     FileManager& file_manager_;
 public:
     explicit BookingRepository(FileManager& fileManager);
-    bool save(const Booking& booking, std::string& error);
-    bool update(const Booking& booking, std::string& error);
-    bool findById(const std::string& bookingId, Booking& out, std::string& error) const;
-    bool loadAll(LinkedList<VenueBookingRecord>& bookings,
+    virtual ~BookingRepository() = default;
+    virtual bool save(const Booking& booking, std::string& error);
+    virtual bool update(const Booking& booking, std::string& error);
+    virtual bool findById(const std::string& bookingId, Booking& out, std::string& error) const;
+    virtual bool loadAll(LinkedList<VenueBookingRecord>& bookings,
                  std::string& error) const;
-    bool saveAll(const LinkedList<VenueBookingRecord>& bookings,
+    virtual bool saveAll(const LinkedList<VenueBookingRecord>& bookings,
                  std::string& error) const;
 };
