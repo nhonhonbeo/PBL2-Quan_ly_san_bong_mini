@@ -80,8 +80,7 @@ void ensureLegacyField(LinkedList<VenueFieldRecord>& fields,
     fields.push_back(field);
 }
 
-std::string timCustomerIdTheoSDT(const std::string& phone) {
-    FileManager manager;
+std::string timCustomerIdTheoSDT(FileManager& manager, const std::string& phone) {
     LinkedList<std::string> accounts;
     std::string ignoredError;
     if (!manager.readAllLines("data/accounts.txt", accounts, ignoredError)) {
@@ -113,10 +112,9 @@ std::string tenTrangThai(int status) {
     return "ACTIVE";
 }
 
-bool atomicWrite(const std::string& path,
+bool atomicWrite(FileManager& manager, const std::string& path,
                  const LinkedList<std::string>& lines,
                  std::string& error) {
-    FileManager manager;
     // LÝ DO CHỌN: Duy trì bản .replace nhưng giao việc thay thế nguyên tử
     // cho FileManager để không xóa file chính trước khi thay thế thành công.
     return manager.writeAllLinesWithBackup(path, lines, path + ".replace", error);
@@ -124,11 +122,14 @@ bool atomicWrite(const std::string& path,
 
 }  // Kết thúc không gian tên ẩn danh
 
+VenueRepository::VenueRepository(FileManager& fileManager)
+    : file_manager_(fileManager) {}
+
 bool VenueRepository::loadFacilities(
     LinkedList<VenueFacilityRecord>& records,
     std::string& error
 ) const {
-    FileManager manager;
+    FileManager& manager = file_manager_;
     LinkedList<std::string> lines;
     if (!manager.readAllLines("data/accounts.txt", lines, error)) return false;
     records.clear();
@@ -170,7 +171,7 @@ bool VenueRepository::loadFields(
     LinkedList<VenueFieldRecord>& records,
     std::string& error
 ) const {
-    FileManager manager;
+    FileManager& manager = file_manager_;
     LinkedList<std::string> lines;
     if (!manager.readAllLines("data/fields.txt", lines, error)) return false;
     records.clear();
@@ -229,14 +230,14 @@ bool VenueRepository::saveFields(
             FileManager::join(field.rules)
         );
     }
-    return atomicWrite("data/fields.txt", lines, error);
+    return atomicWrite(file_manager_, "data/fields.txt", lines, error);
 }
 
 bool VenueRepository::loadPrices(
     LinkedList<VenuePriceRecord>& records,
     std::string& error
 ) const {
-    FileManager manager;
+    FileManager& manager = file_manager_;
     LinkedList<std::string> lines;
     if (!manager.readAllLines("data/prices.txt", lines, error)) return false;
     records.clear();
@@ -279,7 +280,7 @@ bool VenueRepository::savePrices(
             std::to_string(price.priceVnd)
         );
     }
-    return atomicWrite("data/prices.txt", lines, error);
+    return atomicWrite(file_manager_, "data/prices.txt", lines, error);
 }
 
 bool VenueRepository::updateFacilityHours(
@@ -290,18 +291,19 @@ bool VenueRepository::updateFacilityHours(
     bool allows90Minutes,
     std::string& error
 ) const {
-    FileManager manager;
+    FileManager& manager = file_manager_;
     LinkedList<std::string> accounts;
     if (!manager.readAllLines("data/accounts.txt", accounts, error)) return false;
     bool found = false;
-    for (auto* node = accounts.get_head(); node != nullptr; node = node->next) {
+    accounts.forEach([&](std::string& accountLine) {
+        if (found) return;
         LinkedList<std::string> fields;
-        tachTruong(node->data, fields);
+        tachTruong(accountLine, fields);
         const std::string* kind = truongTai(fields, 0);
         const std::string* id = truongTai(fields, 1);
         if (kind == nullptr || *kind != "OWNER" || id == nullptr ||
             *id != ownerId) {
-            continue;
+            return;
         }
         LinkedList<std::string> updatedFields;
         const int lastIndex = fields.size() > 13 ? fields.size() - 1 : 13;
@@ -329,22 +331,21 @@ bool VenueRepository::updateFacilityHours(
             line += FileManager::join(field->data);
             first = false;
         }
-        node->data = line;
+        accountLine = line;
         found = true;
-        break;
-    }
+    });
     if (!found) {
         error = "Không có quyền thay đổi giờ hoạt động của cơ sở này.";
         return false;
     }
-    return atomicWrite("data/accounts.txt", accounts, error);
+    return atomicWrite(file_manager_, "data/accounts.txt", accounts, error);
 }
 
 bool VenueRepository::loadBookings(
     LinkedList<VenueBookingRecord>& records,
     std::string& error
 ) const {
-    FileManager manager;
+    FileManager& manager = file_manager_;
     LinkedList<std::string> lines;
     if (!manager.readAllLines("data/bookings.txt", lines, error)) return false;
     records.clear();
@@ -401,7 +402,7 @@ bool VenueRepository::loadBookings(
             booking.ownerId = parts.size() == 9
                 ? *truongTai(parts, 8)
                 : defaultOwner;
-            booking.customerId = timCustomerIdTheoSDT(booking.customerPhone);
+            booking.customerId = timCustomerIdTheoSDT(file_manager_, booking.customerPhone);
         } else {
             error = "Bản ghi đặt sân trong data/bookings.txt không đúng định dạng.";
             return false;
@@ -433,7 +434,7 @@ bool VenueRepository::saveBookings(
             FileManager::join(booking.status)
         );
     }
-    return atomicWrite("data/bookings.txt", lines, error);
+    return atomicWrite(file_manager_, "data/bookings.txt", lines, error);
 }
 
 bool VenueRepository::migrateLegacyData(std::string& error) const {
@@ -442,7 +443,7 @@ bool VenueRepository::migrateLegacyData(std::string& error) const {
     if (!loadFields(fields, error) || !loadBookings(bookings, error)) return false;
 
     bool needsMigration = false;
-    FileManager manager;
+    FileManager& manager = file_manager_;
     LinkedList<std::string> fieldLines;
     LinkedList<std::string> bookingLines;
     if (!manager.readAllLines("data/fields.txt", fieldLines, error) ||
@@ -469,15 +470,12 @@ bool VenueRepository::migrateLegacyData(std::string& error) const {
         return false;
     }
 
-    for (auto* bookingNode = bookings.get_head();
-         bookingNode != nullptr;
-         bookingNode = bookingNode->next) {
-        VenueBookingRecord& booking = bookingNode->data;
+    bookings.forEach([&](VenueBookingRecord& booking) {
         if (booking.ownerId.empty()) booking.ownerId = defaultOwner;
         if (booking.customerId == booking.customerPhone)
-            booking.customerId = timCustomerIdTheoSDT(booking.customerPhone);
+            booking.customerId = timCustomerIdTheoSDT(file_manager_, booking.customerPhone);
         ensureLegacyField(fields, booking.fieldId, booking.ownerId);
-    }
+    });
 
     for (const char* source : {"data/reviews.txt", "data/tournaments.txt"}) {
         LinkedList<std::string> sourceLines;
@@ -492,13 +490,11 @@ bool VenueRepository::migrateLegacyData(std::string& error) const {
         }
     }
 
-    for (auto* fieldNode = fields.get_head();
-         fieldNode != nullptr;
-         fieldNode = fieldNode->next) {
-        if (fieldNode->data.ownerId.empty()) {
-            fieldNode->data.ownerId = defaultOwner;
+    fields.forEach([&](VenueFieldRecord& field) {
+        if (field.ownerId.empty()) {
+            field.ownerId = defaultOwner;
         }
-    }
+    });
 
     for (const char* path : {"data/fields.txt", "data/bookings.txt"}) {
         std::error_code ec;
@@ -524,7 +520,7 @@ bool VenueRepository::seedIfNeeded(std::string& error) const {
     LinkedList<VenueFacilityRecord> facilities;
     LinkedList<VenueFieldRecord> fields;
     LinkedList<VenuePriceRecord> prices;
-    FileManager manager;
+    FileManager& manager = file_manager_;
     LinkedList<std::string> seedMarker;
     if (!loadFacilities(facilities, error) ||
         !loadFields(fields, error) ||
@@ -639,56 +635,43 @@ bool VenueRepository::seedIfNeeded(std::string& error) const {
     return true;
 }
 
-bool VenueRepository::isCustomerBlacklisted(
-    const std::string& customerId,
-    const std::string& phone,
-    std::string& reason,
+bool VenueRepository::loadFieldImages(
+    LinkedList<VenueFieldImageRecord>& records,
     std::string& error
 ) const {
-    FileManager manager;
     LinkedList<std::string> lines;
-    if (!manager.readAllLines("data/blacklist.txt", lines, error)) return false;
+    const FileReadStatus status = file_manager_.readAllLinesWithStatus(
+        "data/field_images.txt", lines, error
+    );
+    if (status == FileReadStatus::Error) return false;
+
+    LinkedList<VenueFieldImageRecord> loaded;
     for (auto* node = lines.get_head(); node != nullptr; node = node->next) {
-        LinkedList<std::string> parts;
-        tachTruong(node->data, parts);
-        const std::string* idOrPhone = truongTai(parts, 0);
-        const std::string* text = truongTai(parts, 1);
-        const std::string* active = truongTai(parts, 3);
-        if (idOrPhone != nullptr && text != nullptr && active != nullptr &&
-            *active == "1" &&
-            (*idOrPhone == customerId || *idOrPhone == phone)) {
-            reason = *text;
-            return true;
+        if (node->data.empty() || node->data[0] == '#') continue;
+        const std::size_t separator = node->data.find('|');
+        if (separator == std::string::npos || separator == 0) {
+            error = "Bản ghi ảnh sân trong data/field_images.txt không hợp lệ.";
+            return false;
         }
+        loaded.push_back({node->data.substr(0, separator),
+                          node->data.substr(separator + 1)});
     }
-    reason.clear();
-    return false;
+    records = std::move(loaded);
+    return true;
 }
 
-bool VenueRepository::getCustomerDetails(
-    const std::string& customerId,
-    std::string& name,
-    std::string& phone,
+bool VenueRepository::saveFieldImages(
+    const LinkedList<VenueFieldImageRecord>& records,
     std::string& error
 ) const {
-    FileManager manager;
     LinkedList<std::string> lines;
-    if (!manager.readAllLines("data/accounts.txt", lines, error)) return false;
-    for (auto* node = lines.get_head(); node != nullptr; node = node->next) {
-        LinkedList<std::string> parts;
-        tachTruong(node->data, parts);
-        const std::string* kind = truongTai(parts, 0);
-        const std::string* id = truongTai(parts, 1);
-        const std::string* accountName = truongTai(parts, 4);
-        const std::string* accountPhone = truongTai(parts, 5);
-        if (kind != nullptr && *kind == "CUSTOMER" && id != nullptr &&
-            accountName != nullptr && accountPhone != nullptr &&
-            *id == customerId) {
-            name = *accountName;
-            phone = *accountPhone;
-            return true;
+    for (auto* node = records.get_head(); node != nullptr; node = node->next) {
+        if (node->data.fieldId.empty()) {
+            error = "Mã sân lưu ảnh không được để trống.";
+            return false;
         }
+        lines.push_back(FileManager::join(node->data.fieldId) + "|" +
+                        FileManager::join(node->data.path));
     }
-    error = "Không tìm thấy tài khoản người thuê.";
-    return false;
+    return file_manager_.writeAllLines("data/field_images.txt", lines, error);
 }

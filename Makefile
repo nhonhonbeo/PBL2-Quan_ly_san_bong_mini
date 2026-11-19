@@ -65,11 +65,29 @@ test-customer:
 	$(CXX) $(CXXFLAGS) tests/test_customer.cpp @$(BUILD_DIR)/biz_sources.rsp -o $(BUILD_DIR)/test_customer$(EXE_EXT)
 	$(BUILD_DIR)/test_customer$(EXE_EXT)
 
+test-customer-index:
+	@mkdir -p $(BUILD_DIR)
+	$(file >$(BUILD_DIR)/biz_sources.rsp,$(BUSINESS_SOURCES))
+	$(CXX) $(CXXFLAGS) tests/test_customer_repository_index.cpp @$(BUILD_DIR)/biz_sources.rsp -o $(BUILD_DIR)/test_customer_index$(EXE_EXT)
+	$(BUILD_DIR)/test_customer_index$(EXE_EXT)
+
 test-file-manager:
 	@mkdir -p $(BUILD_DIR)
 	$(file >$(BUILD_DIR)/biz_sources.rsp,$(BUSINESS_SOURCES))
 	$(CXX) $(CXXFLAGS) tests/test_file_manager.cpp @$(BUILD_DIR)/biz_sources.rsp -o $(BUILD_DIR)/test_file_manager$(EXE_EXT)
 	$(BUILD_DIR)/test_file_manager$(EXE_EXT)
+
+test-payment:
+	@mkdir -p $(BUILD_DIR)
+	$(file >$(BUILD_DIR)/biz_sources.rsp,$(BUSINESS_SOURCES))
+	$(CXX) $(CXXFLAGS) tests/test_payment_consistency.cpp @$(BUILD_DIR)/biz_sources.rsp -o $(BUILD_DIR)/test_payment_consistency$(EXE_EXT)
+	$(BUILD_DIR)/test_payment_consistency$(EXE_EXT)
+
+test-venue-images:
+	@mkdir -p $(BUILD_DIR)
+	$(file >$(BUILD_DIR)/biz_sources.rsp,$(BUSINESS_SOURCES))
+	$(CXX) $(CXXFLAGS) tests/test_venue_images.cpp @$(BUILD_DIR)/biz_sources.rsp -o $(BUILD_DIR)/test_venue_images$(EXE_EXT)
+	$(BUILD_DIR)/test_venue_images$(EXE_EXT)
 
 GUI_NO_MAIN := $(filter-out src/main_gui.cpp,$(GUI_SOURCES))
 
@@ -79,7 +97,59 @@ test-facade:
 	$(CXX) $(GUI_CXXFLAGS) tests/test_facade.cpp @$(BUILD_DIR)/facade_sources.rsp $(GLFW_LIB) -o $(BUILD_DIR)/test_facade$(EXE_EXT)
 	$(BUILD_DIR)/test_facade$(EXE_EXT)
 
-clean:
-	rm -f $(GUI_TARGET) $(GUI_TARGET).exe
+test-domain:
+	@mkdir -p $(BUILD_DIR)
+	$(file >$(BUILD_DIR)/biz_sources.rsp,$(BUSINESS_SOURCES))
+	$(CXX) $(CXXFLAGS) tests/test_domain_and_modules.cpp @$(BUILD_DIR)/biz_sources.rsp -o $(BUILD_DIR)/test_domain_and_modules$(EXE_EXT)
+	$(BUILD_DIR)/test_domain_and_modules$(EXE_EXT)
 
-.PHONY: all gui run run-gui test-core test-booking test-customer test-file-manager test-facade clean
+test-service-responsibilities:
+	@mkdir -p $(BUILD_DIR)
+	$(file >$(BUILD_DIR)/biz_sources.rsp,$(BUSINESS_SOURCES))
+	$(CXX) $(CXXFLAGS) tests/test_service_responsibilities.cpp @$(BUILD_DIR)/biz_sources.rsp -o $(BUILD_DIR)/test_service_responsibilities$(EXE_EXT)
+	$(BUILD_DIR)/test_service_responsibilities$(EXE_EXT)
+
+test-single-source:
+	@mkdir -p $(BUILD_DIR)
+	$(file >$(BUILD_DIR)/biz_sources.rsp,$(BUSINESS_SOURCES))
+	$(CXX) $(CXXFLAGS) tests/test_single_source.cpp @$(BUILD_DIR)/biz_sources.rsp -o $(BUILD_DIR)/test_single_source$(EXE_EXT)
+	$(BUILD_DIR)/test_single_source$(EXE_EXT)
+
+test-task07-validation:
+	@mkdir -p $(BUILD_DIR)
+	$(file >$(BUILD_DIR)/biz_sources.rsp,$(BUSINESS_SOURCES))
+	$(CXX) $(CXXFLAGS) tests/test_task07_validation.cpp @$(BUILD_DIR)/biz_sources.rsp -o $(BUILD_DIR)/test_task07_validation$(EXE_EXT)
+	$(BUILD_DIR)/test_task07_validation$(EXE_EXT)
+
+test-task08-di:
+	@mkdir -p $(BUILD_DIR)
+	$(file >$(BUILD_DIR)/biz_sources.rsp,$(BUSINESS_SOURCES))
+	$(CXX) $(CXXFLAGS) tests/test_task08_di.cpp @$(BUILD_DIR)/biz_sources.rsp -o $(BUILD_DIR)/test_task08_di$(EXE_EXT)
+	$(BUILD_DIR)/test_task08_di$(EXE_EXT)
+
+test-tournament:
+	@mkdir -p $(BUILD_DIR)
+	$(file >$(BUILD_DIR)/biz_sources.rsp,$(BUSINESS_SOURCES))
+	$(CXX) $(CXXFLAGS) tests/test_tournament.cpp @$(BUILD_DIR)/biz_sources.rsp -o $(BUILD_DIR)/test_tournament$(EXE_EXT)
+	$(BUILD_DIR)/test_tournament$(EXE_EXT)
+
+test:
+	$(MAKE) test-core
+	$(MAKE) test-booking
+	$(MAKE) test-customer
+	$(MAKE) test-customer-index
+	$(MAKE) test-domain
+	$(MAKE) test-facade
+	$(MAKE) test-file-manager
+	$(MAKE) test-payment
+	$(MAKE) test-service-responsibilities
+	$(MAKE) test-single-source
+	$(MAKE) test-task07-validation
+	$(MAKE) test-task08-di
+	$(MAKE) test-tournament
+	$(MAKE) test-venue-images
+
+clean:
+	rm -f $(BUILD_DIR)/*.o $(BUILD_DIR)/*.obj $(BUILD_DIR)/*.exe $(BUILD_DIR)/*.rsp
+
+.PHONY: all gui run run-gui test test-core test-booking test-customer test-customer-index test-file-manager test-payment test-venue-images test-facade test-domain test-service-responsibilities test-single-source test-task07-validation test-task08-di test-tournament clean

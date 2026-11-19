@@ -157,14 +157,11 @@ bool TournamentRepository::save(const Tournament& tournament, std::string& error
 bool TournamentRepository::update(const Tournament& tournament, std::string& error) {
     LinkedList<Tournament> list;
     if (!loadAll(list, error)) return false;
-    bool found = false;
-    for (auto* node = list.get_head(); node != nullptr; node = node->next) {
-        if (node->data.getTournamentId() == tournament.getTournamentId()) {
-            node->data = tournament;
-            found = true;
-            break;
-        }
-    }
+    const bool found = list.replaceFirstIf(
+        [&tournament](const Tournament& existing) {
+            return existing.getTournamentId() == tournament.getTournamentId();
+        },
+        tournament);
     if (!found) {
         list.push_back(tournament);
     }
@@ -255,14 +252,11 @@ bool TournamentRepository::saveTeams(const LinkedList<Team>& teams, std::string&
 bool TournamentRepository::saveTeam(const Team& team, std::string& error) {
     LinkedList<Team> list;
     if (!loadTeams(list, error)) return false;
-    bool found = false;
-    for (auto* node = list.get_head(); node != nullptr; node = node->next) {
-        if (node->data.getTeamId() == team.getTeamId()) {
-            node->data = team;
-            found = true;
-            break;
-        }
-    }
+    const bool found = list.replaceFirstIf(
+        [&team](const Team& existing) {
+            return existing.getTeamId() == team.getTeamId();
+        },
+        team);
     if (!found) {
         list.push_back(team);
     }
@@ -349,14 +343,11 @@ bool TournamentRepository::saveMatches(const LinkedList<TournamentMatch>& matche
 bool TournamentRepository::saveMatch(const TournamentMatch& match, std::string& error) {
     LinkedList<TournamentMatch> list;
     if (!loadMatches(list, error)) return false;
-    bool found = false;
-    for (auto* node = list.get_head(); node != nullptr; node = node->next) {
-        if (node->data.getMatchId() == match.getMatchId()) {
-            node->data = match;
-            found = true;
-            break;
-        }
-    }
+    const bool found = list.replaceFirstIf(
+        [&match](const TournamentMatch& existing) {
+            return existing.getMatchId() == match.getMatchId();
+        },
+        match);
     if (!found) {
         list.push_back(match);
     }

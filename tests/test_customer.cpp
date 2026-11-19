@@ -8,8 +8,12 @@
 #include "Customer/Review.h"
 #include "Repository/BookingRepository.h"
 #include "Repository/CustomerRepository.h"
+#include "Repository/PaymentRepository.h"
+#include "Repository/VenueRepository.h"
 #include "Service/BookingService.h"
 #include "Service/CustomerService.h"
+#include "Service/PaymentService.h"
+#include "Service/VenueService.h"
 #include "Storage/FileManager.h"
 
 // Giả lập FileManager gặp lỗi đọc tệp (I/O error, permission denied, file hỏng)
@@ -93,6 +97,11 @@ int main() {
     FailingFileManager failingFileManager;
     CustomerRepository failingFileRepo(failingFileManager);
     CustomerService failingFileCustomerService(failingFileRepo);
+    Customer unavailableCustomer;
+    std::string customerLookupError;
+    assert(!failingFileRepo.findCustomerByUserId(
+        "US02", unavailableCustomer, customerLookupError));
+    assert(customerLookupError == "Loi doc tap tin he thong: I/O failure");
     isBlocked = true;
     reason = "initial";
     std::string fileErr;
@@ -113,8 +122,14 @@ int main() {
     assert(repoErr == "Loi ket noi co so du lieu khach hang"); // Error truyền lên chính xác
 
     // 2.7. Đảm bảo BookingService KHÔNG cho phép đặt sân khi không thể xác minh blacklist
-    BookingRepository bookingRepo(fileManager);
-    BookingService bookingServiceWithFailingCustomer(bookingRepo, failingFileCustomerService);
+    VenueRepository venueRepository(fileManager);
+    VenueService venueService(venueRepository);
+    PaymentRepository paymentRepository(fileManager);
+    PaymentService paymentService(paymentRepository);
+    BookingRepository bookingRepo(venueRepository);
+    BookingService bookingServiceWithFailingCustomer(
+        bookingRepo, failingFileCustomerService, venueService, paymentService
+    );
     VenueBookingRequest req;
     req.customerId = "US02";
     req.customerName = "Tran Van Thue";
@@ -130,7 +145,9 @@ int main() {
     assert(bookingErr.find("Loi doc tap tin he thong: I/O failure") != std::string::npos);
 
     // 2.8. Đảm bảo BookingService từ chối đặt sân khi khách hàng bị blacklist
-    BookingService normalBookingService(bookingRepo, customerService);
+    BookingService normalBookingService(
+        bookingRepo, customerService, venueService, paymentService
+    );
     req.customerId = "0944112233"; // khách bị blacklist
     req.customerPhone = "0944112233";
     booked = normalBookingService.createBooking(req, bookingId, bookingErr);

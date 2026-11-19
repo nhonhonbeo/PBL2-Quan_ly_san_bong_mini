@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include <stdexcept>
+#include <limits>
 #include "Core/HashTable.h"
 
 // Hasher luôn trả về 0 để ép toàn bộ key rơi vào cùng một bucket (kiểm thử va chạm và liên kết bucket)
@@ -12,6 +13,13 @@ struct ForceCollisionHasher {
     std::size_t operator()(int) const {
         return 0;
     }
+};
+
+struct NonDefaultValue {
+    explicit NonDefaultValue(int value) : value(value) {}
+    NonDefaultValue(const NonDefaultValue&) = default;
+    NonDefaultValue& operator=(const NonDefaultValue&) = default;
+    int value;
 };
 
 // Tracker đối tượng để kiểm tra rò rỉ bộ nhớ và an toàn ngoại lệ
@@ -88,6 +96,32 @@ void testEmptyTable() {
     assert(table.isEmpty());
 }
 
+void testContainsWithoutDefaultValue() {
+    std::cout << "  [RUN] testContainsWithoutDefaultValue...\n";
+    HashTable<int, NonDefaultValue> table;
+    assert(table.insert(7, NonDefaultValue(42)));
+    assert(table.contains(7));
+    assert(!table.contains(8));
+}
+
+void testInvalidLoadFactors() {
+    std::cout << "  [RUN] testInvalidLoadFactors...\n";
+    const float invalidFactors[] = {
+        0.0f, -1.0f, std::numeric_limits<float>::quiet_NaN(),
+        std::numeric_limits<float>::infinity(),
+        -std::numeric_limits<float>::infinity()
+    };
+    for (float factor : invalidFactors) {
+        bool threw = false;
+        try {
+            HashTable<int, int> table(16, factor);
+        } catch (const std::invalid_argument&) {
+            threw = true;
+        }
+        assert(threw);
+    }
+}
+
 void testDuplicateKeyAndInPlaceUpdate() {
     std::cout << "  [RUN] testDuplicateKeyAndInPlaceUpdate...\n";
     HashTable<std::string, int> table;
@@ -155,6 +189,48 @@ void testDeleteHeadMidTailInCollisionBucket() {
     assert(!table.search("k3", val));
 }
 
+void testRemoveIfMaintainsCount() {
+    std::cout << "  [RUN] testRemoveIfMaintainsCount...\n";
+    HashTable<int, int> table;
+    for (int value = 0; value < 10; ++value) {
+        table.insert(value, value);
+    }
+
+    assert(table.removeIf([](const Entry<int, int>& entry) {
+        return entry.value % 2 == 0;
+    }) == 5);
+    assert(table.size() == 5);
+    for (int value = 0; value < 10; ++value) {
+        assert(table.contains(value) == (value % 2 != 0));
+    }
+}
+
+void testRemoveIfExceptionKeepsCountConsistent() {
+    std::cout << "  [RUN] testRemoveIfExceptionKeepsCountConsistent...\n";
+    HashTable<int, int, ForceCollisionHasher> table(8, 2.0f);
+    table.insert(1, 1);
+    table.insert(2, 2);
+    table.insert(3, 3);
+
+    bool threw = false;
+    try {
+        table.removeIf([](const Entry<int, int>& entry) {
+            if (entry.key == 2) {
+                throw std::runtime_error("Simulated predicate failure");
+            }
+            return true;
+        });
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+
+    assert(threw);
+    assert(table.size() == 2);
+    assert(!table.contains(1));
+    assert(table.contains(2));
+    assert(table.contains(3));
+}
+
 void testRehashAndDynamicResizing() {
     std::cout << "  [RUN] testRehashAndDynamicResizing...\n";
     // Khởi tạo bảng capacity = 4, maxLoadFactor = 0.75f
@@ -185,6 +261,10 @@ void testRehashAndDynamicResizing() {
     for (int i = 1; i <= 10; ++i) {
         assert(table.search(i, s) && s == "val" + std::to_string(i));
     }
+
+    HashTable<int, int> strictLoadTable(4, 0.1f);
+    assert(strictLoadTable.insert(1, 10));
+    assert(strictLoadTable.loadFactor() <= 0.1f);
 }
 
 void testGenericKeyTypes() {
@@ -373,9 +453,13 @@ void testMemoryLeaksAndExceptionSafety() {
 int main() {
     std::cout << "=== CORE UNIT TEST: HashTable ===\n";
     testEmptyTable();
+    testContainsWithoutDefaultValue();
+    testInvalidLoadFactors();
     testDuplicateKeyAndInPlaceUpdate();
     testCollisionHandlingAndSameBucket();
     testDeleteHeadMidTailInCollisionBucket();
+    testRemoveIfMaintainsCount();
+    testRemoveIfExceptionKeepsCountConsistent();
     testRehashAndDynamicResizing();
     testGenericKeyTypes();
     testCopySemantics();

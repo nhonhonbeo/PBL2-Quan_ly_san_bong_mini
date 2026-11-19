@@ -31,10 +31,17 @@ class VenueService {
 public:
     explicit VenueService(const VenueRepository& repository);
 
+    bool initializeStorage(std::string& error) const;
     int getFacilitySlotDuration(const std::string& ownerId, std::string& error) const;
     bool getFacilitySlots(const std::string& ownerId,
                           LinkedList<VenueSlotRecord>& outSlots,
                           std::string& error) const;
+    bool getPriceMatrix(LinkedList<VenuePriceRecord>& prices,
+                        std::string& error) const;
+    bool loadFieldImages(LinkedList<VenueFieldImageRecord>& records,
+                         std::string& error) const;
+    bool saveFieldImages(const LinkedList<VenueFieldImageRecord>& records,
+                         std::string& error) const;
     bool getMatrixPrice(const std::string& ownerId, int fieldSize,
                         int durationMinutes, const std::string& startTime,
                         long long& outPrice, std::string& error) const;

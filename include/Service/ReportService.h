@@ -2,7 +2,10 @@
 #include <string>
 
 #include "Core/LinkedList.h"
-#include "Repository/ReportRepository.h"
+
+class ReportRepository;
+struct ReportFieldRecord;
+struct ReportBookingRecord;
 
 struct ReportRevenueDay {
     std::string label;
@@ -19,10 +22,18 @@ struct ReportDashboardMetrics {
 // LÝ DO CHỌN: Tách phép tổng hợp khỏi giao diện và Facade; danh sách nghiệp vụ
 // dùng LinkedList tự cài đặt, dữ liệu được giới hạn theo owner ID.
 class ReportService {
+private:
+    const ReportRepository& repository_;
+
 public:
+    explicit ReportService(const ReportRepository& repository);
+
+    bool loadFieldRecords(LinkedList<ReportFieldRecord>& fields,
+                          std::string& error) const;
+    bool loadBookingRecords(LinkedList<ReportBookingRecord>& bookings,
+                            std::string& error) const;
     bool buildOwnerDashboard(
         const std::string& ownerUserId,
-        const ReportRepository& repository,
         ReportDashboardMetrics& metrics,
         LinkedList<ReportRevenueDay>& revenueByDay,
         LinkedList<ReportBookingRecord>& recentBookings,

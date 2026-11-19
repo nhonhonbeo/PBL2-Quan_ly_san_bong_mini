@@ -2,25 +2,51 @@
 
 #include "Booking/Booking.h"
 #include "Booking/BookingDetail.h"
-#include "Storage/FileManager.h"
 
-BookingRepository::BookingRepository(FileManager& fileManager)
-    : file_manager_(fileManager) {}
+BookingRepository::BookingRepository(VenueRepository& venueRepository)
+    : venue_repository_(venueRepository) {}
+
+Booking BookingRepository::toDomain(const VenueBookingRecord& record) {
+    Booking booking(record.bookingId, record.customerId, record.fieldId,
+                    record.date, Booking::textToStatus(record.status),
+                    record.ownerId);
+    booking.addDetail(BookingDetail(
+        record.bookingId, record.startTime, record.endTime,
+        record.durationMinutes, record.priceVnd
+    ));
+    return booking;
+}
+
+VenueBookingRecord BookingRepository::toRecord(const Booking& booking) {
+    VenueBookingRecord record;
+    record.bookingId = booking.getBookingId();
+    record.fieldId = booking.getFieldId();
+    record.ownerId = booking.getOwnerId();
+    record.customerId = booking.getCustomerId();
+    record.date = booking.getDate();
+    record.status = Booking::statusToText(booking.getStatus());
+    const auto* detail = booking.getDetails().get_head();
+    if (detail != nullptr) {
+        record.startTime = detail->data.getStartTime();
+        record.endTime = detail->data.getEndTime();
+        record.durationMinutes = detail->data.getDurationMinutes();
+        record.priceVnd = detail->data.getAmountVnd();
+    }
+    return record;
+}
 
 bool BookingRepository::loadAll(
     LinkedList<VenueBookingRecord>& bookings,
     std::string& error
 ) const {
-    VenueRepository repository;
-    return repository.loadBookings(bookings, error);
+    return venue_repository_.loadBookings(bookings, error);
 }
 
 bool BookingRepository::saveAll(
     const LinkedList<VenueBookingRecord>& bookings,
     std::string& error
 ) const {
-    VenueRepository repository;
-    return repository.saveBookings(bookings, error);
+    return venue_repository_.saveBookings(bookings, error);
 }
 
 bool BookingRepository::findById(const std::string& bookingId, Booking& out,
@@ -29,7 +55,7 @@ bool BookingRepository::findById(const std::string& bookingId, Booking& out,
     if (!loadAll(bookings, error)) return false;
     for (auto* node = bookings.get_head(); node != nullptr; node = node->next) {
         if (node->data.bookingId != bookingId) continue;
-        out = Booking::fromRecord(node->data);
+        out = toDomain(node->data);
         return true;
     }
     error = "Không tìm thấy đơn đặt sân.";
@@ -39,47 +65,37 @@ bool BookingRepository::findById(const std::string& bookingId, Booking& out,
 bool BookingRepository::save(const Booking& booking, std::string& error) {
     LinkedList<VenueBookingRecord> bookings;
     if (!loadAll(bookings, error)) return false;
-    VenueBookingRecord record = booking.toRecord();
+    VenueBookingRecord record = toRecord(booking);
     for (auto* node = bookings.get_head(); node != nullptr; node = node->next) {
         if (node->data.bookingId == record.bookingId) {
             error = "Mã đơn đặt sân đã tồn tại.";
             return false;
         }
     }
-    VenueRepository repository;
-    if (!record.customerId.empty()) {
-        std::string customerName;
-        std::string customerPhone;
-        std::string lookupError;
-        if (repository.getCustomerDetails(
-                record.customerId, customerName, customerPhone, lookupError)) {
-            record.customerName = customerName;
-            record.customerPhone = customerPhone;
-        }
-    }
     bookings.push_back(record);
-    return repository.saveBookings(bookings, error);
+    return venue_repository_.saveBookings(bookings, error);
 }
 
 bool BookingRepository::update(const Booking& booking, std::string& error) {
     LinkedList<VenueBookingRecord> bookings;
     if (!loadAll(bookings, error)) return false;
-    VenueBookingRecord updated = booking.toRecord();
-    for (auto* node = bookings.get_head(); node != nullptr; node = node->next) {
-        VenueBookingRecord& existing = node->data;
-        if (existing.bookingId != updated.bookingId) continue;
-        if (existing.fieldId != updated.fieldId ||
-            existing.ownerId != updated.ownerId ||
-            existing.customerId != updated.customerId ||
-            existing.date != updated.date) {
+    VenueBookingRecord updated = toRecord(booking);
+    VenueBookingRecord* existing = bookings.findIf(
+        [&updated](const VenueBookingRecord& record) {
+            return record.bookingId == updated.bookingId;
+        });
+    if (existing != nullptr) {
+        if (existing->fieldId != updated.fieldId ||
+            existing->ownerId != updated.ownerId ||
+            existing->customerId != updated.customerId ||
+            existing->date != updated.date) {
             error = "Không thể thay đổi thông tin chủ thể của đơn đặt sân.";
             return false;
         }
-        updated.customerName = existing.customerName;
-        updated.customerPhone = existing.customerPhone;
-        existing = updated;
-        VenueRepository repository;
-        return repository.saveBookings(bookings, error);
+        updated.customerName = existing->customerName;
+        updated.customerPhone = existing->customerPhone;
+        *existing = updated;
+        return venue_repository_.saveBookings(bookings, error);
     }
     error = "Không tìm thấy đơn đặt sân cần cập nhật.";
     return false;

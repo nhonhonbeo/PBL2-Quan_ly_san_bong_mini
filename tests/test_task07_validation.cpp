@@ -39,7 +39,8 @@ int main() {
     // =========================================================================
     std::cout << "\n--- [1. ACCOUNT VALIDATION & ID GENERATION] ---" << std::endl;
     AccountRepository accRepo(fm);
-    AccountService accService(accRepo);
+    CustomerRepository custRepo(fm);
+    AccountService accService(accRepo, custRepo);
     assert(accService.loadAccounts(err));
 
     std::string nextId = accService.generateNextUserId();
@@ -48,28 +49,27 @@ int main() {
         assert(u->get_user_id() != nextId);
     }
 
-    CustomerRepository custRepo(fm);
     // SĐT sai format (< 10 số, không bắt đầu bằng 0, có chữ)
-    assert(!accService.registerCustomer("Khach Hang", "12345", "123456", custRepo, err));
+    assert(!accService.registerCustomer("Khach Hang", "12345", "123456", err));
     assert(!err.empty());
-    assert(!accService.registerCustomer("Khach Hang", "090123456a", "123456", custRepo, err));
+    assert(!accService.registerCustomer("Khach Hang", "090123456a", "123456", err));
     // Mật khẩu ngắn (< 6 ký tự)
-    assert(!accService.registerCustomer("Khach Hang", "0901112233", "123", custRepo, err));
+    assert(!accService.registerCustomer("Khach Hang", "0901112233", "123", err));
     // Tên trống
-    assert(!accService.registerCustomer("", "0901112233", "123456", custRepo, err));
+    assert(!accService.registerCustomer("", "0901112233", "123456", err));
     std::cout << "[PASS] Account registration validation verified." << std::endl;
 
     // =========================================================================
     // 2. BOOKING: Chuẩn hóa ngày giờ, kiểm tra sân bảo trì, trùng giờ, quyền hủy
     // =========================================================================
     std::cout << "\n--- [2. BOOKING VALIDATION & STATUS/TIME RULES] ---" << std::endl;
-    VenueRepository venueRepo;
+    VenueRepository venueRepo(fm);
     VenueService venueService(venueRepo);
     CustomerService custService(custRepo);
     PaymentRepository payRepo(fm);
-    PaymentService payService(&payRepo);
-    BookingRepository bookingRepo(fm);
-    BookingService bookingService(bookingRepo, custService, &venueService, &venueRepo, &payService);
+    PaymentService payService(payRepo);
+    BookingRepository bookingRepo(venueRepo);
+    BookingService bookingService(bookingRepo, custService, venueService, payService);
 
     // Chuẩn hóa ngày dd/MM/yyyy và YYYY-MM-DD
     std::string isoDate = DateTime::toIsoDate("25/12/2026");

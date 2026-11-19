@@ -4,7 +4,6 @@
 #include <cstdio>
 #include <iomanip>
 #include <iostream>
-#include <fstream>
 #include <sstream>
 
 #include "Core/DateTime.h"
@@ -57,13 +56,20 @@ DonDatSanInfo toBookingInfo(const ReportBookingRecord& record) {
 }  // namespace
 
 Facade::Facade()
-    : file_manager_(), account_repository_(file_manager_), venue_repository_(),
-      customer_repository_(file_manager_), booking_repository_(file_manager_),
-      report_repository_(), tournament_repository_(file_manager_), field_repository_(file_manager_, &venue_repository_), payment_repository_(file_manager_),
-      account_service_(account_repository_), venue_service_(venue_repository_),
-      customer_service_(customer_repository_), payment_service_(&payment_repository_), booking_service_(booking_repository_, customer_service_, &venue_service_, &venue_repository_, &payment_service_),
-      report_service_(), tournament_service_(tournament_repository_, booking_repository_),
-      field_service_(field_repository_, &venue_service_, &venue_repository_) {
+    : file_manager_(), account_repository_(file_manager_),
+      venue_repository_(file_manager_), customer_repository_(file_manager_),
+      booking_repository_(venue_repository_),
+      report_repository_(venue_repository_),
+      tournament_repository_(file_manager_),
+      field_repository_(venue_repository_), payment_repository_(file_manager_),
+      account_service_(account_repository_, customer_repository_),
+      venue_service_(venue_repository_), customer_service_(customer_repository_),
+      payment_service_(payment_repository_),
+      booking_service_(booking_repository_, customer_service_, venue_service_,
+                       payment_service_),
+      report_service_(report_repository_),
+      tournament_service_(tournament_repository_, booking_repository_),
+      field_service_(field_repository_, venue_service_) {
     loadData();
 }
 
@@ -74,7 +80,9 @@ Facade& Facade::getInstance() {
 
 void Facade::refreshCache() {
     std::string err;
-    account_service_.loadAccounts(err);
+    if (!account_service_.loadAccounts(err)) {
+        std::cerr << "Không thể nạp tài khoản: " << err << '\n';
+    }
     danhSachUser_ = account_service_.getAccounts();
 
     User* cur = Session::getInstance().getUser();
@@ -87,26 +95,49 @@ void Facade::refreshCache() {
         }
     }
 
-    venue_repository_.migrateLegacyData(err);
-    venue_repository_.seedIfNeeded(err);
+    if (!venue_service_.initializeStorage(err)) {
+        std::cerr << "Không thể khởi tạo dữ liệu sân: " << err << '\n';
+    }
+
+    std::map<std::tuple<std::string, int, int, std::string>, long long>
+        updatedPriceCache;
+    LinkedList<VenuePriceRecord> prices;
+    if (venue_service_.getPriceMatrix(prices, err)) {
+        for (auto* node = prices.get_head(); node != nullptr; node = node->next) {
+            const VenuePriceRecord& price = node->data;
+            updatedPriceCache[std::make_tuple(
+                price.ownerId, price.fieldSize, price.durationMinutes,
+                price.startTime
+            )] = price.priceVnd;
+        }
+        giaMaTranCache_.swap(updatedPriceCache);
+    } else {
+        std::cerr << "Không thể nạp bảng giá sân: " << err << '\n';
+    }
 
     danhSachSan_.clear();
-    loadAnhSan();
+    if (!loadAnhSan(err)) {
+        std::cerr << "Không thể nạp đường dẫn ảnh sân: " << err << '\n';
+    }
     LinkedList<ReportFieldRecord> repFields;
-    if (report_repository_.loadFields(repFields, err)) {
+    if (report_service_.loadFieldRecords(repFields, err)) {
         for (auto* n = repFields.get_head(); n; n = n->next) {
             danhSachSan_.push_back({n->data.fieldId, n->data.ownerUserId, n->data.name,
                                     n->data.size, static_cast<int>(n->data.hourlyRateVnd),
                                     n->data.underMaintenance, n->data.rules, getAnhSan(n->data.fieldId)});
         }
+    } else {
+        std::cerr << "Không thể nạp danh sách sân: " << err << '\n';
     }
 
     danhSachDonDat_.clear();
     LinkedList<ReportBookingRecord> repBookings;
-    if (report_repository_.loadBookings(repBookings, err)) {
+    if (report_service_.loadBookingRecords(repBookings, err)) {
         for (auto* n = repBookings.get_head(); n; n = n->next) {
             danhSachDonDat_.push_back(toBookingInfo(n->data));
         }
+    } else {
+        std::cerr << "Không thể nạp lịch sử đặt sân: " << err << '\n';
     }
 
     danhSachNguongUuDai_.clear();
@@ -119,18 +150,31 @@ void Facade::refreshCache() {
     }
     danhSachKhachHang_.clear();
     LinkedList<Customer> customers;
-    customer_service_.getAllCustomers(customers, err);
+    if (!customer_service_.getAllCustomers(customers, err)) {
+        std::cerr << "Không thể nạp danh sách khách hàng: " << err << '\n';
+    }
     for (auto* n = customers.get_head(); n; n = n->next) {
         KhachHangInfo kh{n->data.getUserId(), n->data.get_name(), n->data.get_phone_number(),
                          n->data.getBookingCount(), n->data.getCancelCount(), false, "", "", 0};
-        customer_service_.isBlacklisted(kh.sdt, kh.biChan, kh.lyDoChan);
-        kh.mucUuDaiPhanTram = customer_service_.getCustomerDiscountPercentage(kh.sdt, err);
+        if (!customer_service_.isBlacklisted(
+                kh.sdt, kh.biChan, kh.lyDoChan, err)) {
+            std::cerr << "Không thể kiểm tra danh sách đen: " << err << '\n';
+        }
+        std::string discountError;
+        kh.mucUuDaiPhanTram =
+            customer_service_.getCustomerDiscountPercentage(kh.sdt, discountError);
+        if (!discountError.empty()) {
+            std::cerr << "Không thể nạp ưu đãi khách hàng: "
+                      << discountError << '\n';
+        }
         mapIndexKhachSDT_.insert(kh.sdt, danhSachKhachHang_.size());
         danhSachKhachHang_.push_back(kh);
     }
 
     LinkedList<Blacklist> blacklists;
-    customer_service_.getAllBlacklists(blacklists, err);
+    if (!customer_service_.getAllBlacklists(blacklists, err)) {
+        std::cerr << "Không thể nạp danh sách đen: " << err << '\n';
+    }
     for (auto* n = blacklists.get_head(); n; n = n->next) {
         size_t idx = 0;
         if (!mapIndexKhachSDT_.search(n->data.getCustomerId(), idx)) {
@@ -143,7 +187,9 @@ void Facade::refreshCache() {
 
     danhSachDanhGia_.clear();
     LinkedList<Review> reviews;
-    customer_service_.getAllReviews(reviews, err);
+    if (!customer_service_.getAllReviews(reviews, err)) {
+        std::cerr << "Không thể nạp đánh giá: " << err << '\n';
+    }
     for (auto* n = reviews.get_head(); n; n = n->next) {
         danhSachDanhGia_.push_back({n->data.getReviewId(), n->data.getCustomerName(),
                                    n->data.getCustomerId(), n->data.getFieldId(),
@@ -152,7 +198,9 @@ void Facade::refreshCache() {
 
     danhSachGiaiDau_.clear();
     LinkedList<Tournament> tourList;
-    tournament_service_.loadAllTournaments(tourList, err);
+    if (!tournament_service_.loadAllTournaments(tourList, err)) {
+        std::cerr << "Không thể nạp danh sách giải đấu: " << err << '\n';
+    }
     for (auto* n = tourList.get_head(); n; n = n->next) danhSachGiaiDau_.push_back(toGiaiDauInfo(n->data));
 }
 void Facade::loadData() {
@@ -163,7 +211,10 @@ void Facade::loadData() {
 }
 
 void Facade::saveData() {
-    saveAnhSan();
+    std::string error;
+    if (!saveAnhSan(error)) {
+        std::cerr << "Không thể lưu đường dẫn ảnh sân: " << error << '\n';
+    }
 }
 
 bool Facade::kiemTraSDTDaTonTai(const std::string& sdt) const {
@@ -186,7 +237,7 @@ KetQuaDuLieu<std::shared_ptr<User>> Facade::dangNhap(const std::string& sdt, con
 KetQua Facade::dangKyNguoiThue(const std::string& hoTen, const std::string& sdt, const std::string& matKhau) {
     loadData();
     std::string err;
-    if (!account_service_.registerCustomer(hoTen, sdt, matKhau, customer_repository_, err)) {
+    if (!account_service_.registerCustomer(hoTen, sdt, matKhau, err)) {
         return {false, err};
     }
     refreshCache();
@@ -221,7 +272,7 @@ bool Facade::getBaoCaoDashboard(ReportDashboardMetrics& metrics, LinkedList<Repo
         error = u8"Không xác định được chủ sân đang đăng nhập.";
         return false;
     }
-    return report_service_.buildOwnerDashboard(user->get_user_id(), report_repository_, metrics,
+    return report_service_.buildOwnerDashboard(user->get_user_id(), metrics,
                                                doanhThuTheoNgay, luotDatGanDay, error);
 }
 
@@ -320,35 +371,29 @@ KetQua Facade::xoaSanBong(const std::string& maSan) {
     return {true, ""};
 }
 
-void Facade::loadAnhSan() {
-    mapAnhSan_.clear();
-    std::ifstream file("data/field_images.txt");
-    if (!file.is_open()) {
-        mapAnhSan_["S5-01"] = "assets/images/san_co_fifa_vip.jpg";
-        mapAnhSan_["S5-04"] = "assets/images/san_co_fifa_vip.jpg";
-        mapAnhSan_["S7-01"] = "assets/images/san_den_led_night.jpg";
-        mapAnhSan_["S11-01"] = "assets/images/san_ngoai_troi_view.jpg";
-        saveAnhSan();
-        return;
+bool Facade::loadAnhSan(std::string& error) {
+    LinkedList<VenueFieldImageRecord> records;
+    if (!venue_service_.loadFieldImages(records, error)) return false;
+    std::map<std::string, std::string> loadedImages;
+    for (auto* node = records.get_head(); node != nullptr; node = node->next) {
+        loadedImages[node->data.fieldId] = node->data.path;
     }
-    std::string line;
-    while (std::getline(file, line)) {
-        if (line.empty() || line[0] == '#') continue;
-        auto sep = line.find('|');
-        if (sep != std::string::npos) {
-            std::string id = line.substr(0, sep);
-            std::string path = line.substr(sep + 1);
-            mapAnhSan_[id] = path;
-        }
+    if (records.isEmpty()) {
+        loadedImages["S5-01"] = "assets/images/san_co_fifa_vip.jpg";
+        loadedImages["S5-04"] = "assets/images/san_co_fifa_vip.jpg";
+        loadedImages["S7-01"] = "assets/images/san_den_led_night.jpg";
+        loadedImages["S11-01"] = "assets/images/san_ngoai_troi_view.jpg";
     }
+    mapAnhSan_.swap(loadedImages);
+    return true;
 }
 
-void Facade::saveAnhSan() {
-    std::ofstream file("data/field_images.txt");
-    if (!file.is_open()) return;
+bool Facade::saveAnhSan(std::string& error) {
+    LinkedList<VenueFieldImageRecord> records;
     for (const auto& pair : mapAnhSan_) {
-        file << pair.first << "|" << pair.second << "\n";
+        records.push_back({pair.first, pair.second});
     }
+    return venue_service_.saveFieldImages(records, error);
 }
 
 KetQua Facade::uploadAnhSan(const std::string& maSan, const std::string& duongDanAnh) {
@@ -360,9 +405,18 @@ KetQua Facade::uploadAnhSan(const std::string& maSan, const std::string& duongDa
     if (!san) {
         return {false, u8"Không tìm thấy sân bóng hoặc bạn không có quyền sửa sân này."};
     }
+    std::map<std::string, std::string> updatedImages = mapAnhSan_;
+    updatedImages[maSan] = duongDanAnh;
+    LinkedList<VenueFieldImageRecord> records;
+    for (const auto& image : updatedImages) {
+        records.push_back({image.first, image.second});
+    }
+    std::string error;
+    if (!venue_service_.saveFieldImages(records, error)) {
+        return {false, error};
+    }
+    mapAnhSan_ = std::move(updatedImages);
     san->hinhAnh = duongDanAnh;
-    mapAnhSan_[maSan] = duongDanAnh;
-    saveAnhSan();
     return {true, ""};
 }
 
@@ -406,9 +460,11 @@ int Facade::getGiaMaTran(const std::string& khungGioStr, int loaiSan) const {
     if (!owner || owner->get_account_type() != "Owner") return 0;
     std::string start, end; int duration = 0;
     if (!tachKhungGio(khungGioStr, start, end, duration)) return 0;
-    long long price = 0; std::string err;
-    venue_service_.getMatrixPrice(owner->get_user_id(), loaiSan, duration, start, price, err);
-    return static_cast<int>(price);
+    const auto key = std::make_tuple(owner->get_user_id(), loaiSan, duration, start);
+    const auto price = giaMaTranCache_.find(key);
+    return price == giaMaTranCache_.end()
+        ? 0
+        : static_cast<int>(price->second);
 }
 
 KetQua Facade::capNhatGiaMaTran(const std::string& khungGioStr, int loaiSan, int giaMoi, bool apDungTatCaCungLoai) {
@@ -520,7 +576,9 @@ KetQua Facade::capNhatNguongUuDai(int id, int soLanToiThieu, int phanTramGiam) {
 
 KetQua Facade::apDungUuDaiChoKhach() {
     std::string error;
-    customer_service_.applyDiscountsToAll(error);
+    if (!customer_service_.applyDiscountsToAll(error)) {
+        return {false, error};
+    }
     refreshCache();
     return {true, ""};
 }
@@ -673,8 +731,63 @@ int Facade::getMucUuDaiCuaKhach(const std::string& sdt) const {
     std::string err; return customer_service_.getCustomerDiscountPercentage(sdt, err);
 }
 
-KetQua Facade::datNhieuCaMoi(const std::string&, const std::string&, const std::string&, const std::string&,
-                             const LinkedList<std::string>&, int, std::string&) { return {true, ""}; }
+KetQua Facade::datNhieuCaMoi(
+    const std::string& maSan,
+    const std::string& sdtKhach,
+    const std::string& tenKhach,
+    const std::string& ngay,
+    const LinkedList<std::string>& khungGio,
+    int loaiSan,
+    std::string& outMaDon
+) {
+    outMaDon.clear();
+    User* customer = Session::getInstance().getUser();
+    if (!customer || customer->get_account_type() != "Customer" ||
+        customer->get_phone_number() != sdtKhach) {
+        return {false, u8"Vui lòng đăng nhập bằng đúng tài khoản người thuê."};
+    }
+
+    const auto field = std::find_if(
+        danhSachSan_.begin(), danhSachSan_.end(),
+        [&maSan, loaiSan](const SanBongInfo& item) {
+            return item.maSan == maSan && item.loaiSan == loaiSan;
+        }
+    );
+    if (field == danhSachSan_.end()) {
+        return {false, u8"Không tìm thấy sân phù hợp với loại sân đã chọn."};
+    }
+
+    LinkedList<VenueBookingRequest> requests;
+    for (auto* slot = khungGio.get_head(); slot != nullptr; slot = slot->next) {
+        std::string start;
+        std::string end;
+        int duration = 0;
+        if (!tachKhungGio(slot->data, start, end, duration)) {
+            return {false, u8"Khung giờ đặt sân không hợp lệ."};
+        }
+        VenueBookingRequest request;
+        request.customerId = customer->get_user_id();
+        request.customerName = tenKhach;
+        request.customerPhone = sdtKhach;
+        request.fieldId = maSan;
+        request.date = ngay;
+        request.startTime = start;
+        request.durationMinutes = duration;
+        requests.push_back(request);
+    }
+
+    LinkedList<std::string> bookingIds;
+    std::string error;
+    if (!booking_service_.createBookings(requests, bookingIds, error)) {
+        return {false, error};
+    }
+    for (auto* id = bookingIds.get_head(); id != nullptr; id = id->next) {
+        if (!outMaDon.empty()) outMaDon += ", ";
+        outMaDon += id->data;
+    }
+    refreshCache();
+    return {true, ""};
+}
 
 KetQua Facade::huyDonDat(const std::string& maDon, const std::string& sdtKhach) {
     User* user = Session::getInstance().getUser();

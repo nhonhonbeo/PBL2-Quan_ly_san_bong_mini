@@ -7,6 +7,7 @@
 #include <stdexcept>
 
 #include "Core/DateTime.h"
+#include "Repository/ReportRepository.h"
 
 namespace {
 
@@ -89,9 +90,25 @@ bool daChon(const LinkedList<std::string>& danhSach,
 
 }  // Kết thúc không gian tên ẩn danh
 
+ReportService::ReportService(const ReportRepository& repository)
+    : repository_(repository) {}
+
+bool ReportService::loadFieldRecords(
+    LinkedList<ReportFieldRecord>& fields,
+    std::string& error
+) const {
+    return repository_.loadFields(fields, error);
+}
+
+bool ReportService::loadBookingRecords(
+    LinkedList<ReportBookingRecord>& bookings,
+    std::string& error
+) const {
+    return repository_.loadBookings(bookings, error);
+}
+
 bool ReportService::buildOwnerDashboard(
     const std::string& ownerUserId,
-    const ReportRepository& repository,
     ReportDashboardMetrics& metrics,
     LinkedList<ReportRevenueDay>& revenueByDay,
     LinkedList<ReportBookingRecord>& recentBookings,
@@ -103,8 +120,8 @@ bool ReportService::buildOwnerDashboard(
 
     LinkedList<ReportFieldRecord> fields;
     LinkedList<ReportBookingRecord> bookings;
-    if (!repository.loadFields(fields, error) ||
-        !repository.loadBookings(bookings, error)) {
+    if (!repository_.loadFields(fields, error) ||
+        !repository_.loadBookings(bookings, error)) {
         return false;
     }
 

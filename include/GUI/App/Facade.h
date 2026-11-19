@@ -2,6 +2,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 #include "Account/Customer.h"
@@ -322,8 +323,11 @@ private:
     mutable TournamentService tournament_service_;
     mutable FieldService field_service_;
     std::map<std::string, std::string> mapAnhSan_;
-    void loadAnhSan();
-    void saveAnhSan();
+    // LÝ DO CHỌN: Tra cứu bảng giá trong bộ nhớ để render không đọc file mỗi frame.
+    std::map<std::tuple<std::string, int, int, std::string>, long long>
+        giaMaTranCache_;
+    bool loadAnhSan(std::string& error);
+    bool saveAnhSan(std::string& error);
     // LÝ DO CHỌN: Toàn bộ dữ liệu nghiệp vụ do các Service/Repository quản lý và lưu bền vững.
     // Các vector bên dưới chỉ đóng vai trò bộ nhớ đệm hiển thị (ViewModel cache) chỉ-đọc cho ImGui,
     // tự động đồng bộ lại sau mỗi thao tác ghi, tuyệt đối không đọc file mỗi frame.

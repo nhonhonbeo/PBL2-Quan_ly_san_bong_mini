@@ -17,21 +17,9 @@ bool isValidSize(int size) {
 }  // namespace
 
 FieldService::FieldService(FieldRepository& fieldRepository,
-                           VenueService* venueService,
-                           VenueRepository* venueRepository)
+                           VenueService& venueService)
     : field_repository_(fieldRepository),
-      venue_service_(venueService),
-      venue_repository_(venueRepository),
-      default_venue_repo_(),
-      default_venue_service_(default_venue_repo_) {
-    if (!venue_repository_) venue_repository_ = &default_venue_repo_;
-    if (!venue_service_) venue_service_ = &default_venue_service_;
-}
-
-void FieldService::setVenueDependencies(VenueService* venueService, VenueRepository* venueRepository) {
-    venue_service_ = venueService ? venueService : &default_venue_service_;
-    venue_repository_ = venueRepository ? venueRepository : &default_venue_repo_;
-}
+      venue_service_(venueService) {}
 
 bool FieldService::createMultipleFields(const std::string& requesterOwnerId, int loaiSan,
                                         int soLuong, const std::string& quyDinh,
@@ -71,7 +59,7 @@ bool FieldService::createMultipleFields(const std::string& requesterOwnerId, int
                               u8"Sân " + std::to_string(loaiSan) + u8" số " +
                               (stt < 10 ? "0" : "") + std::to_string(stt),
                               loaiSan, 0, quyDinh};
-        if (!venue_service_->createField(requesterOwnerId, newF, error)) return false;
+        if (!venue_service_.createField(requesterOwnerId, newF, error)) return false;
         outMaSan.push_back(maBuf);
     }
     return true;
@@ -80,39 +68,33 @@ bool FieldService::createMultipleFields(const std::string& requesterOwnerId, int
 bool FieldService::createField(const std::string& requesterOwnerId,
                                const VenueFieldRecord& field,
                                std::string& error) {
-    return venue_service_->createField(requesterOwnerId, field, error);
+    return venue_service_.createField(requesterOwnerId, field, error);
 }
 
 bool FieldService::updateField(const std::string& requesterOwnerId,
                                const VenueFieldRecord& field,
                                std::string& error) {
-    return venue_service_->updateField(requesterOwnerId, field, error);
+    return venue_service_.updateField(requesterOwnerId, field, error);
 }
 
 bool FieldService::deleteField(const std::string& requesterOwnerId,
                                const std::string& fieldId,
                                std::string& error) {
-    return venue_service_->deleteField(requesterOwnerId, fieldId, error);
+    return venue_service_.deleteField(requesterOwnerId, fieldId, error);
 }
 
 bool FieldService::setFieldStatus(const std::string& requesterOwnerId,
                                   const std::string& fieldId,
                                   FieldStatus status,
                                   std::string& error) {
-    LinkedList<VenueFieldRecord> fields;
-    if (!field_repository_.loadAll(fields, error)) return false;
-    for (auto* node = fields.get_head(); node != nullptr; node = node->next) {
-        VenueFieldRecord& field = node->data;
-        if (field.fieldId != fieldId) continue;
-        if (field.ownerId != requesterOwnerId) {
-            error = "Không có quyền thay đổi trạng thái sân của chủ sân khác.";
-            return false;
-        }
-        field.status = static_cast<int>(status);
-        return venue_repository_->saveFields(fields, error);
+    Field field("", "", "", FieldSize::FIVE, 0, "", "06:00", "23:00");
+    if (!field_repository_.findById(fieldId, field, error)) return false;
+    if (field.getOwnerUserId() != requesterOwnerId) {
+        error = "Không có quyền thay đổi trạng thái sân của chủ sân khác.";
+        return false;
     }
-    error = "Không tìm thấy sân cần cập nhật trạng thái.";
-    return false;
+    field.setStatus(status);
+    return field_repository_.update(field, error);
 }
 
 bool FieldService::getFields(const std::string& ownerId, int fieldSize,
@@ -123,7 +105,7 @@ bool FieldService::getFields(const std::string& ownerId, int fieldSize,
         error = "Loại sân không hợp lệ.";
         return false;
     }
-    return venue_service_->getFields(ownerId, fieldSize, includeUnavailable, fields, error);
+    return venue_service_.getFields(ownerId, fieldSize, includeUnavailable, fields, error);
 }
 
 bool FieldService::setPrice(const std::string& requesterOwnerId,
@@ -132,7 +114,7 @@ bool FieldService::setPrice(const std::string& requesterOwnerId,
                             const std::string& startTime,
                             long long priceVnd,
                             std::string& error) const {
-    return venue_service_->setFieldPrice(
+    return venue_service_.setFieldPrice(
         requesterOwnerId, fieldSize, durationMinutes, startTime, priceVnd, error
     );
 }

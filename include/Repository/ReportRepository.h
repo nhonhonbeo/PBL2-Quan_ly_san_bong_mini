@@ -30,10 +30,17 @@ struct ReportBookingRecord {
     std::string ownerUserId;
 };
 
+class VenueRepository;
+
 // LÝ DO CHỌN: Repository đọc/ghi dữ liệu báo cáo bằng LinkedList và chỉ trả
 // về bản ghi có đủ mã chủ sân, tránh gán nhầm dữ liệu cũ không rõ quyền sở hữu.
 class ReportRepository {
+private:
+    VenueRepository& venue_repository_;
+
 public:
+    explicit ReportRepository(VenueRepository& venueRepository);
+
     bool loadFields(LinkedList<ReportFieldRecord>& fields,
                     std::string& error) const;
     bool saveFields(const LinkedList<ReportFieldRecord>& fields,

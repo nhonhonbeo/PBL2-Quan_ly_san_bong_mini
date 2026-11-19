@@ -353,17 +353,14 @@ bool TournamentService::recordMatchScore(const std::string& matchId, int homeSco
                                         int awayScore, std::string& error) {
     LinkedList<TournamentMatch> matches;
     if (!tournament_repository_.loadMatches(matches, error)) return false;
-    bool found = false;
-    for (auto* n = matches.get_head(); n != nullptr; n = n->next) {
-        if (n->data.getMatchId() == matchId) {
-            n->data.setResult(homeScore, awayScore);
-            found = true;
-            break;
-        }
-    }
-    if (!found) {
+    TournamentMatch* match = matches.findIf(
+        [&matchId](const TournamentMatch& current) {
+            return current.getMatchId() == matchId;
+        });
+    if (match == nullptr) {
         error = u8"Không tìm thấy trận đấu: " + matchId;
         return false;
     }
+    match->setResult(homeScore, awayScore);
     return tournament_repository_.saveMatches(matches, error);
 }

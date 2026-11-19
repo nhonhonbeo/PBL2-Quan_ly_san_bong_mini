@@ -312,12 +312,21 @@ bool CustomerService::recordSuccessfulBooking(const std::string& userId,
     if (!customer_repository_.findCustomerByUserId(userId, customer, error)) {
         return false;
     }
+    const Customer originalCustomer = customer;
     customer.recordBooking();
     if (!customer_repository_.updateCustomer(customer, error)) {
         return false;
     }
-    if (!bookingId.empty()) {
-        customer_repository_.recordBookingId(bookingId, userId, "BOOKING_COMPLETED", error);
+    if (!bookingId.empty() &&
+        !customer_repository_.recordBookingId(
+            bookingId, userId, "BOOKING_COMPLETED", error)) {
+        std::string rollbackError;
+        if (!customer_repository_.updateCustomer(originalCustomer,
+                                                 rollbackError)) {
+            error += "; không thể khôi phục thống kê khách hàng: " +
+                     rollbackError;
+        }
+        return false;
     }
     return true;
 }
@@ -337,12 +346,21 @@ bool CustomerService::recordCancellation(const std::string& userId,
     if (!customer_repository_.findCustomerByUserId(userId, customer, error)) {
         return false;
     }
+    const Customer originalCustomer = customer;
     customer.recordCancellation();
     if (!customer_repository_.updateCustomer(customer, error)) {
         return false;
     }
-    if (!bookingId.empty()) {
-        customer_repository_.recordBookingId(bookingId, userId, "BOOKING_CANCELLED", error);
+    if (!bookingId.empty() &&
+        !customer_repository_.recordBookingId(
+            bookingId, userId, "BOOKING_CANCELLED", error)) {
+        std::string rollbackError;
+        if (!customer_repository_.updateCustomer(originalCustomer,
+                                                 rollbackError)) {
+            error += "; không thể khôi phục thống kê khách hàng: " +
+                     rollbackError;
+        }
+        return false;
     }
     return true;
 }
@@ -382,14 +400,16 @@ bool CustomerService::useDiscount(const std::string& discountId, const std::stri
                                   const std::string& bookingId, std::string& error) {
     LinkedList<Discount> discounts;
     if (!customer_repository_.loadAllDiscounts(discounts, error)) return false;
-    for (auto* n = discounts.get_head(); n != nullptr; n = n->next) {
-        if (n->data.getDiscountId() == discountId) {
-            if (!validateDiscount(n->data, customerId, error)) {
-                return false;
-            }
-            n->data.markUsed(bookingId);
-            return customer_repository_.saveDiscount(n->data, error);
+    Discount* discount = discounts.findIf(
+        [&discountId](const Discount& current) {
+            return current.getDiscountId() == discountId;
+        });
+    if (discount != nullptr) {
+        if (!validateDiscount(*discount, customerId, error)) {
+            return false;
         }
+        discount->markUsed(bookingId);
+        return customer_repository_.saveDiscount(*discount, error);
     }
     error = u8"Không tìm thấy mã ưu đãi: " + discountId;
     return false;

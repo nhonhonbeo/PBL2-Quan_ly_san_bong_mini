@@ -30,7 +30,8 @@ int main() {
 
     // 1. AccountService: Single Responsibility = Account & Auth
     AccountRepository accRepo(fm);
-    AccountService accService(accRepo);
+    CustomerRepository custRepo(fm);
+    AccountService accService(accRepo, custRepo);
     assert(accService.loadAccounts(err));
     auto user = accService.authenticate("0901234567", "123456", err);
     assert(user != nullptr);
@@ -38,7 +39,6 @@ int main() {
     std::cout << "[PASS] AccountService: Auth & credential verification isolated." << std::endl;
 
     // 2. CustomerService: Single Responsibility = Customer Profile, Blacklist, Discount, Review
-    CustomerRepository custRepo(fm);
     CustomerService custService(custRepo);
     bool isBlocked = false;
     std::string reason;
@@ -52,7 +52,7 @@ int main() {
     std::cout << "[PASS] CustomerService: Profile, Blacklist & Discount lifecycle isolated." << std::endl;
 
     // 3. VenueService: Single Responsibility = Facility, Hours, Matrix Pricing, Slots
-    VenueRepository venueRepo;
+    VenueRepository venueRepo(fm);
     VenueService venueService(venueRepo);
     LinkedList<VenueSlotRecord> slots;
     assert(venueService.getSlots("S5-05", "2026-12-30", 60, slots, err));
@@ -60,8 +60,8 @@ int main() {
     std::cout << "[PASS] VenueService: Facility time matrix & schedule isolated." << std::endl;
 
     // 4. FieldService: Single Responsibility = Physical Field Management (CRUD, Status)
-    FieldRepository fieldRepo(fm, &venueRepo);
-    FieldService fieldService(fieldRepo, &venueService, &venueRepo);
+    FieldRepository fieldRepo(venueRepo);
+    FieldService fieldService(fieldRepo, venueService);
     LinkedList<VenueFieldRecord> ownerFields;
     assert(fieldService.getFields("US01", 0, true, ownerFields, err));
     assert(ownerFields.size() > 0);
@@ -69,7 +69,7 @@ int main() {
 
     // 5. PaymentService: Single Responsibility = Invoices & Payments
     PaymentRepository payRepo(fm);
-    PaymentService payService(&payRepo);
+    PaymentService payService(payRepo);
     std::string testInvId;
     assert(payService.createInvoice("BK-RESP-01", 100000, testInvId, err));
     assert(testInvId == "INV-BK-RESP-01");
@@ -80,8 +80,8 @@ int main() {
     std::cout << "[PASS] PaymentService: Invoices and transactional payment isolated." << std::endl;
 
     // 6. BookingService: Single Responsibility = Booking Lifecycle (Coordination via DI)
-    BookingRepository bookingRepo(fm);
-    BookingService bookingService(bookingRepo, custService, &venueService, &venueRepo, &payService);
+    BookingRepository bookingRepo(venueRepo);
+    BookingService bookingService(bookingRepo, custService, venueService, payService);
     VenueBookingRequest bReq;
     bReq.customerId = "US02";
     bReq.customerName = "Trần Văn Thuê";
@@ -97,12 +97,12 @@ int main() {
     std::cout << "[PASS] BookingService: Booking lifecycle coordination via DI verified." << std::endl;
 
     // 7. ReportService: Single Responsibility = Aggregations & Dashboard
-    ReportRepository reportRepo;
-    ReportService reportService;
+    ReportRepository reportRepo(venueRepo);
+    ReportService reportService(reportRepo);
     ReportDashboardMetrics metrics;
     LinkedList<ReportRevenueDay> revenueDays;
     LinkedList<ReportBookingRecord> recentBookings;
-    assert(reportService.buildOwnerDashboard("US01", reportRepo, metrics, revenueDays, recentBookings, err));
+    assert(reportService.buildOwnerDashboard("US01", metrics, revenueDays, recentBookings, err));
     std::cout << "[PASS] ReportService: Aggregation calculations isolated." << std::endl;
 
     // 8. TournamentService: Single Responsibility = Tournaments, Teams & Matches

@@ -117,15 +117,12 @@ bool PaymentRepository::saveInvoice(const Invoice& invoice, std::string& error) 
     if (!loadAllInvoices(list, error)) {
         return false;
     }
-    bool found = false;
-    for (auto* node = list.get_head(); node != nullptr; node = node->next) {
-        if (node->data.getInvoiceId() == invoice.getInvoiceId() ||
-            node->data.getBookingId() == invoice.getBookingId()) {
-            node->data = invoice;
-            found = true;
-            break;
-        }
-    }
+    const bool found = list.replaceFirstIf(
+        [&invoice](const Invoice& existing) {
+            return existing.getInvoiceId() == invoice.getInvoiceId() ||
+                   existing.getBookingId() == invoice.getBookingId();
+        },
+        invoice);
     if (!found) {
         list.push_back(invoice);
     }
@@ -221,14 +218,11 @@ bool PaymentRepository::saveAllPayments(const LinkedList<Payment>& payments, std
 bool PaymentRepository::savePayment(const Payment& payment, std::string& error) {
     LinkedList<Payment> list;
     if (!loadAllPayments(list, error)) return false;
-    bool found = false;
-    for (auto* node = list.get_head(); node != nullptr; node = node->next) {
-        if (node->data.getPaymentId() == payment.getPaymentId()) {
-            node->data = payment;
-            found = true;
-            break;
-        }
-    }
+    const bool found = list.replaceFirstIf(
+        [&payment](const Payment& existing) {
+            return existing.getPaymentId() == payment.getPaymentId();
+        },
+        payment);
     if (!found) {
         list.push_back(payment);
     }

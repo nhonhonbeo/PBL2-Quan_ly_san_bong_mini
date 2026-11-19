@@ -80,6 +80,11 @@ bool xungDot(int startA, int endA, int startB, int endB) {
 VenueService::VenueService(const VenueRepository& repository)
     : repository_(repository) {}
 
+bool VenueService::initializeStorage(std::string& error) const {
+    if (!repository_.migrateLegacyData(error)) return false;
+    return repository_.seedIfNeeded(error);
+}
+
 int VenueService::getFacilitySlotDuration(const std::string& ownerId, std::string& error) const {
     LinkedList<VenueFacilityRecord> facilities;
     if (!getFacilities(facilities, error)) return 0;
@@ -145,6 +150,27 @@ bool VenueService::getMatrixPrice(const std::string& ownerId, int fieldSize,
         }
     }
     return false;
+}
+
+bool VenueService::getPriceMatrix(
+    LinkedList<VenuePriceRecord>& prices,
+    std::string& error
+) const {
+    return repository_.loadPrices(prices, error);
+}
+
+bool VenueService::loadFieldImages(
+    LinkedList<VenueFieldImageRecord>& records,
+    std::string& error
+) const {
+    return repository_.loadFieldImages(records, error);
+}
+
+bool VenueService::saveFieldImages(
+    const LinkedList<VenueFieldImageRecord>& records,
+    std::string& error
+) const {
+    return repository_.saveFieldImages(records, error);
 }
 
 bool VenueService::getFacilities(
@@ -236,8 +262,8 @@ bool VenueService::getSlots(
         return false;
     }
 
-    HashTable<std::string, VenueFacilityRecord*> facilityIndex;
-    HashTable<std::string, VenueFieldRecord*> fieldIndex;
+    HashTable<std::string, const VenueFacilityRecord*> facilityIndex;
+    HashTable<std::string, const VenueFieldRecord*> fieldIndex;
     for (auto* node = facilities.get_head(); node != nullptr; node = node->next) {
         facilityIndex.insert(node->data.ownerId, &node->data);
     }
@@ -245,7 +271,7 @@ bool VenueService::getSlots(
         fieldIndex.insert(node->data.fieldId, &node->data);
     }
 
-    VenueFieldRecord* field = nullptr;
+    const VenueFieldRecord* field = nullptr;
     if (!fieldIndex.search(fieldId, field) || field == nullptr) {
         error = "Không tìm thấy sân cần xem lịch.";
         return false;
@@ -254,7 +280,7 @@ bool VenueService::getSlots(
         error = "Sân hiện không nhận đặt chỗ.";
         return false;
     }
-    VenueFacilityRecord* facility = nullptr;
+    const VenueFacilityRecord* facility = nullptr;
     if (!facilityIndex.search(field->ownerId, facility) || facility == nullptr) {
         error = "Không tìm thấy thông tin cơ sở của sân.";
         return false;
@@ -331,16 +357,25 @@ bool VenueService::setFieldPrice(
         error = "Không có quyền sửa bảng giá của cơ sở này.";
         return false;
     }
+    const auto matchesPrice = [&](const VenuePriceRecord& price) {
+        return price.ownerId == requesterOwnerId && price.fieldSize == fieldSize &&
+               price.durationMinutes == durationMinutes &&
+               (allStarts || price.startTime == startTime);
+    };
     bool updated = false;
-    for (auto* node = prices.get_head(); node != nullptr; node = node->next) {
-        VenuePriceRecord& price = node->data;
-        if (price.ownerId == requesterOwnerId && price.fieldSize == fieldSize &&
-            price.durationMinutes == durationMinutes &&
-            (allStarts || price.startTime == startTime)) {
-            price.priceVnd = priceVnd;
-            updated = true;
-            if (!allStarts) return repository_.savePrices(prices, error);
+    if (!allStarts) {
+        VenuePriceRecord* price = prices.findIf(matchesPrice);
+        if (price != nullptr) {
+            price->priceVnd = priceVnd;
+            return repository_.savePrices(prices, error);
         }
+    } else {
+        prices.forEach([&](VenuePriceRecord& price) {
+            if (matchesPrice(price)) {
+                price.priceVnd = priceVnd;
+                updated = true;
+            }
+        });
     }
     if (allStarts) {
         if (!updated) {
@@ -429,10 +464,12 @@ bool VenueService::updateField(
 ) const {
     LinkedList<VenueFieldRecord> fields;
     if (!repository_.loadFields(fields, error)) return false;
-    for (auto* node = fields.get_head(); node != nullptr; node = node->next) {
-        VenueFieldRecord& current = node->data;
-        if (current.fieldId != field.fieldId) continue;
-        if (current.ownerId != requesterOwnerId ||
+    VenueFieldRecord* current = fields.findIf(
+        [&field](const VenueFieldRecord& record) {
+            return record.fieldId == field.fieldId;
+        });
+    if (current != nullptr) {
+        if (current->ownerId != requesterOwnerId ||
             field.ownerId != requesterOwnerId) {
             error = "Không có quyền sửa sân của chủ sân khác.";
             return false;
@@ -442,7 +479,7 @@ bool VenueService::updateField(
             error = "Thông tin sân không hợp lệ.";
             return false;
         }
-        current = field;
+        *current = field;
         return repository_.saveFields(fields, error) &&
                repository_.seedIfNeeded(error);
     }
@@ -514,23 +551,12 @@ bool VenueService::createBooking(
         !repository_.loadBookings(bookings, error)) {
         return false;
     }
-    HashTable<std::string, VenueBookingRecord*> bookingsById;
+    HashTable<std::string, const VenueBookingRecord*> bookingsById;
     for (auto* node = bookings.get_head(); node != nullptr; node = node->next) {
         bookingsById.insert(node->data.bookingId, &node->data);
     }
-    std::string accountName;
-    std::string accountPhone;
-    if (!repository_.getCustomerDetails(
-            request.customerId, accountName, accountPhone, error)) {
-        return false;
-    }
-    if (accountPhone != request.customerPhone ||
-        (!request.customerName.empty() && accountName != request.customerName)) {
-        error = "Thông tin người đặt không khớp tài khoản đang đăng nhập.";
-        return false;
-    }
-    VenueFieldRecord* field = nullptr;
-    HashTable<std::string, VenueFieldRecord*> fieldsById;
+    const VenueFieldRecord* field = nullptr;
+    HashTable<std::string, const VenueFieldRecord*> fieldsById;
     for (auto* node = fields.get_head(); node != nullptr; node = node->next) {
         fieldsById.insert(node->data.fieldId, &node->data);
     }
@@ -539,8 +565,8 @@ bool VenueService::createBooking(
         error = "Không tìm thấy sân đang nhận đặt chỗ.";
         return false;
     }
-    VenueFacilityRecord* facility = nullptr;
-    HashTable<std::string, VenueFacilityRecord*> facilitiesByOwner;
+    const VenueFacilityRecord* facility = nullptr;
+    HashTable<std::string, const VenueFacilityRecord*> facilitiesByOwner;
     for (auto* node = facilities.get_head(); node != nullptr; node = node->next) {
         facilitiesByOwner.insert(node->data.ownerId, &node->data);
     }
@@ -553,17 +579,6 @@ bool VenueService::createBooking(
         error = "Cơ sở không hỗ trợ thời lượng ca đã chọn.";
         return false;
     }
-    std::string blacklistReason;
-    if (repository_.isCustomerBlacklisted(
-            request.customerId,
-            request.customerPhone,
-            blacklistReason,
-            error)) {
-        error = "Tài khoản đang bị chặn đặt sân: " + blacklistReason;
-        return false;
-    }
-    if (!error.empty()) return false;
-
     const int start = phutSangSo(request.startTime);
     const int opening = phutSangSo(facility->openTime);
     const int closing = phutSangSo(facility->closeTime);
@@ -598,7 +613,7 @@ bool VenueService::createBooking(
     }
 
     if (!request.bookingId.empty()) {
-        VenueBookingRecord* existing = nullptr;
+        const VenueBookingRecord* existing = nullptr;
         if (bookingsById.search(request.bookingId, existing)) {
             error = "Mã đơn đặt sân đã tồn tại.";
             return false;
@@ -611,7 +626,7 @@ bool VenueService::createBooking(
             char id[32];
             std::snprintf(id, sizeof(id), "BK-%06d", sequence++);
             bookingId = id;
-            VenueBookingRecord* existing = nullptr;
+            const VenueBookingRecord* existing = nullptr;
             duplicate = bookingsById.search(bookingId, existing);
         }
     }

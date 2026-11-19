@@ -19,33 +19,33 @@ int main() {
     std::cout << "=== RUNNING TASK 08 UNIFY VENUE & FIELD ARCHITECTURE TESTS ===" << std::endl;
 
     FileManager fm;
-    VenueRepository venueRepo;
+    VenueRepository venueRepo(fm);
     VenueService venueService(venueRepo);
 
     CustomerRepository custRepo(fm);
     CustomerService custService(custRepo);
 
     PaymentRepository payRepo(fm);
-    PaymentService payService(&payRepo);
+    PaymentService payService(payRepo);
 
-    BookingRepository bookingRepo(fm);
+    BookingRepository bookingRepo(venueRepo);
 
     // 1. Kiểm tra FieldRepository hoạt động như persistence adapter với VenueRepository được inject
-    FieldRepository fieldRepo(fm, &venueRepo);
+    FieldRepository fieldRepo(venueRepo);
     LinkedList<VenueFieldRecord> repoFields;
     std::string err;
     assert(fieldRepo.loadAll(repoFields, err));
     std::cout << "[PASS] FieldRepository loaded fields via injected VenueRepository: " << repoFields.size() << " fields." << std::endl;
 
     // 2. Kiểm tra FieldService nhận VenueService & VenueRepository qua DI
-    FieldService fieldService(fieldRepo, &venueService, &venueRepo);
+    FieldService fieldService(fieldRepo, venueService);
     LinkedList<VenueFieldRecord> serviceFields;
     assert(fieldService.getFields("US01", 0, true, serviceFields, err));
     assert(serviceFields.size() > 0);
     std::cout << "[PASS] FieldService getFields through injected VenueService successful." << std::endl;
 
     // 3. Kiểm tra BookingService nhận VenueService & VenueRepository qua DI không tự khởi tạo lại
-    BookingService bookingService(bookingRepo, custService, &venueService, &venueRepo, &payService);
+    BookingService bookingService(bookingRepo, custService, venueService, payService);
     VenueBookingRequest req;
     req.customerId = "US02";
     req.customerName = "Trần Văn Thuê";

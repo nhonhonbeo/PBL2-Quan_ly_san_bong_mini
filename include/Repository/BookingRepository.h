@@ -5,10 +5,12 @@
 class Booking; class FileManager;
 // LÝ DO CHỌN: Repository cô lập tuần tự hóa Booking khỏi quy tắc kiểm tra trùng lịch.
 class BookingRepository {
-    FileManager& file_manager_;
+    VenueRepository& venue_repository_;
 public:
-    explicit BookingRepository(FileManager& fileManager);
+    explicit BookingRepository(VenueRepository& venueRepository);
     virtual ~BookingRepository() = default;
+    static Booking toDomain(const VenueBookingRecord& record);
+    static VenueBookingRecord toRecord(const Booking& booking);
     virtual bool save(const Booking& booking, std::string& error);
     virtual bool update(const Booking& booking, std::string& error);
     virtual bool findById(const std::string& bookingId, Booking& out, std::string& error) const;

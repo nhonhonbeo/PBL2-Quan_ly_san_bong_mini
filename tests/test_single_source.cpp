@@ -63,7 +63,8 @@ int main() {
 
     // 3. Test Single Source of Truth for Tournament:
     TournamentRepository tournRepo(fm);
-    BookingRepository bookRepo(fm);
+    VenueRepository venueRepo(fm);
+    BookingRepository bookRepo(venueRepo);
     TournamentService tournService(tournRepo, bookRepo);
 
     Tournament t(

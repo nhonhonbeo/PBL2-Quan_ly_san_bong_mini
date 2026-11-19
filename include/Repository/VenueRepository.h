@@ -4,6 +4,8 @@
 
 #include "Core/LinkedList.h"
 
+class FileManager;
+
 struct VenueFacilityRecord {
     std::string ownerId;
     std::string name;
@@ -47,10 +49,21 @@ struct VenueBookingRecord {
     std::string status;
 };
 
+// LÝ DO CHỌN: Tách dữ liệu đường dẫn ảnh khỏi GUI để Repository quản lý lưu trữ.
+struct VenueFieldImageRecord {
+    std::string fieldId;
+    std::string path;
+};
+
 // LÝ DO CHỌN: Mỗi bản ghi có thể lưu trong LinkedList, còn các chỉ mục tra
 // cứu được dựng lại từ dữ liệu bền vững để tránh lưu trùng trạng thái.
 class VenueRepository {
+private:
+    FileManager& file_manager_;
+
 public:
+    explicit VenueRepository(FileManager& fileManager);
+
     bool loadFacilities(LinkedList<VenueFacilityRecord>& records,
                         std::string& error) const;
     bool loadFields(LinkedList<VenueFieldRecord>& records,
@@ -71,13 +84,10 @@ public:
                       std::string& error) const;
     bool saveBookings(const LinkedList<VenueBookingRecord>& records,
                       std::string& error) const;
+    bool loadFieldImages(LinkedList<VenueFieldImageRecord>& records,
+                         std::string& error) const;
+    bool saveFieldImages(const LinkedList<VenueFieldImageRecord>& records,
+                         std::string& error) const;
     bool migrateLegacyData(std::string& error) const;
     bool seedIfNeeded(std::string& error) const;
-    bool isCustomerBlacklisted(const std::string& customerId,
-                               const std::string& phone,
-                               std::string& reason,
-                               std::string& error) const;
-    bool getCustomerDetails(const std::string& customerId,
-                            std::string& name, std::string& phone,
-                            std::string& error) const;
 };

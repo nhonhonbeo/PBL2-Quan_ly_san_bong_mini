@@ -41,8 +41,11 @@ bool kiemTraMatKhauHopLe(const std::string& pass, std::string& error) {
 
 } // namespace
 
-AccountService::AccountService(AccountRepository& repository)
-    : account_repository_(repository), accounts_() {}
+AccountService::AccountService(AccountRepository& repository,
+                               CustomerRepository& customerRepository)
+    : account_repository_(repository),
+      customer_repository_(customerRepository),
+      accounts_() {}
 
 bool AccountService::loadAccounts(std::string& error) {
     return account_repository_.load(accounts_, error);
@@ -70,8 +73,11 @@ bool AccountService::resetPassword(const std::string& phone,
     if (!kiemTraMatKhauHopLe(password, error)) return false;
     for (const auto& account : accounts_) {
         if (account && account->get_phone_number() == phone) {
+            const std::string originalPassword = account->get_password();
             account->update_pw(password);
-            return account_repository_.save(accounts_, error);
+            if (account_repository_.save(accounts_, error)) return true;
+            account->update_pw(originalPassword);
+            return false;
         }
     }
     error = "Khong tim thay tai khoan";
@@ -98,7 +104,7 @@ std::string AccountService::generateNextUserId() const {
 }
 
 bool AccountService::registerCustomer(const std::string& name, const std::string& phone,
-                                      const std::string& pass, CustomerRepository& custRepo,
+                                      const std::string& pass,
                                       std::string& error) {
     if (name.empty()) {
         error = u8"Họ tên không được để trống.";
@@ -110,7 +116,14 @@ bool AccountService::registerCustomer(const std::string& name, const std::string
     std::string newId = generateNextUserId();
     auto cust = std::make_shared<Customer>(newId, phone, pass, name, phone);
     if (!registerUser(cust, error)) return false;
-    custRepo.saveCustomer(*cust, error);
+    if (!customer_repository_.saveCustomer(*cust, error)) {
+        accounts_.pop_back();
+        std::string rollbackError;
+        if (!account_repository_.save(accounts_, rollbackError)) {
+            error += "; không thể khôi phục danh sách tài khoản: " + rollbackError;
+        }
+        return false;
+    }
     return true;
 }
 
@@ -151,7 +164,9 @@ bool AccountService::registerUser(const std::shared_ptr<User>& user,
         }
     }
     accounts_.push_back(user);
-    return account_repository_.save(accounts_, error);
+    if (account_repository_.save(accounts_, error)) return true;
+    accounts_.pop_back();
+    return false;
 }
 
 bool AccountService::updateUser(const std::string& oldPhone,
@@ -169,9 +184,14 @@ bool AccountService::updateUser(const std::string& oldPhone,
     }
     for (const auto& account : accounts_) {
         if (account && account->get_phone_number() == oldPhone) {
+            const std::string originalName = account->get_name();
+            const std::string originalPhone = account->get_phone_number();
             account->rename(newName);
             account->update_phone_number(newPhone);
-            return account_repository_.save(accounts_, error);
+            if (account_repository_.save(accounts_, error)) return true;
+            account->rename(originalName);
+            account->update_phone_number(originalPhone);
+            return false;
         }
     }
     error = "Khong tim thay tai khoan de cap nhat";

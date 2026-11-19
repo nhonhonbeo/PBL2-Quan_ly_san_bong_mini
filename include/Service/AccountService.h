@@ -13,10 +13,12 @@ class CustomerRepository;
 class AccountService {
 private:
     AccountRepository& account_repository_;
+    CustomerRepository& customer_repository_;
     std::vector<std::shared_ptr<User>> accounts_;
 
 public:
-    explicit AccountService(AccountRepository& accountRepository);
+    AccountService(AccountRepository& accountRepository,
+                   CustomerRepository& customerRepository);
 
     bool loadAccounts(std::string& error);
     std::shared_ptr<User> authenticate(const std::string& phone,
@@ -27,8 +29,7 @@ public:
                        std::string& error);
     std::string generateNextUserId() const;
     bool registerCustomer(const std::string& name, const std::string& phone,
-                          const std::string& pass, CustomerRepository& custRepo,
-                          std::string& error);
+                          const std::string& pass, std::string& error);
     bool registerOwner(const std::string& name, const std::string& phone,
                        const std::string& pass, const std::string& facilityName,
                        const std::string& address, std::string& error);

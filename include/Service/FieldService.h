@@ -10,8 +10,6 @@
 class Field;
 class FieldRepository;
 class TimeSlot;
-class VenueRepository;
-class VenueService;
 enum class FieldStatus : int;
 
 // LÝ DO CHỌN: FieldService quản lý các nghiệp vụ trên sân vật lý (tạo sân hàng loạt,
@@ -20,16 +18,10 @@ enum class FieldStatus : int;
 class FieldService {
 private:
     FieldRepository& field_repository_;
-    VenueService* venue_service_;
-    VenueRepository* venue_repository_;
-    VenueRepository default_venue_repo_;
-    VenueService default_venue_service_;
+    VenueService& venue_service_;
 
 public:
-    explicit FieldService(FieldRepository& fieldRepository,
-                          VenueService* venueService = nullptr,
-                          VenueRepository* venueRepository = nullptr);
-    void setVenueDependencies(VenueService* venueService, VenueRepository* venueRepository);
+    FieldService(FieldRepository& fieldRepository, VenueService& venueService);
 
     bool createMultipleFields(const std::string& requesterOwnerId, int loaiSan,
                               int soLuong, const std::string& quyDinh,

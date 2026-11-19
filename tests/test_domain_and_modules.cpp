@@ -100,7 +100,7 @@ int main() {
     std::cout << "[TEST] 7. Repository and Service integration for ghost modules...\n";
     FileManager fm;
     PaymentRepository payRepo(fm);
-    PaymentService payService(&payRepo);
+    PaymentService payService(payRepo);
 
     std::string newInvId, newPayId;
     assert(payService.createInvoice("BK-UNITTEST", 150000, newInvId, err));

@@ -1,17 +1,18 @@
 #include "Repository/ReportRepository.h"
 
 #include "Repository/VenueRepository.h"
-#include "Storage/FileManager.h"
+
+ReportRepository::ReportRepository(VenueRepository& venueRepository)
+    : venue_repository_(venueRepository) {}
 
 bool ReportRepository::loadFields(
     LinkedList<ReportFieldRecord>& fields,
     std::string& error
 ) const {
-    VenueRepository venueRepository;
     LinkedList<VenueFieldRecord> venueFields;
     LinkedList<VenuePriceRecord> prices;
-    if (!venueRepository.loadFields(venueFields, error) ||
-        !venueRepository.loadPrices(prices, error)) return false;
+    if (!venue_repository_.loadFields(venueFields, error) ||
+        !venue_repository_.loadPrices(prices, error)) return false;
     fields.clear();
     for (auto* node = venueFields.get_head(); node != nullptr;
          node = node->next) {
@@ -46,29 +47,22 @@ bool ReportRepository::saveFields(
     const LinkedList<ReportFieldRecord>& fields,
     std::string& error
 ) const {
-    FileManager fileManager;
-    LinkedList<std::string> lines;
+    LinkedList<VenueFieldRecord> records;
     for (auto* node = fields.get_head(); node != nullptr; node = node->next) {
         const ReportFieldRecord& field = node->data;
-        lines.push_back(
-            FileManager::join(field.fieldId) + "|" +
-            FileManager::join(field.ownerUserId) + "|" +
-            FileManager::join(field.name) + "|" +
-            std::to_string(field.size) + "|" +
-            (field.underMaintenance ? "MAINTENANCE" : "ACTIVE") + "|" +
-            FileManager::join(field.rules)
-        );
+        records.push_back({field.fieldId, field.ownerUserId, field.name,
+                           field.size, field.underMaintenance ? 2 : 0,
+                           field.rules});
     }
-    return fileManager.writeAllLines("data/fields.txt", lines, error);
+    return venue_repository_.saveFields(records, error);
 }
 
 bool ReportRepository::loadBookings(
     LinkedList<ReportBookingRecord>& bookings,
     std::string& error
 ) const {
-    VenueRepository venueRepository;
     LinkedList<VenueBookingRecord> venueBookings;
-    if (!venueRepository.loadBookings(venueBookings, error)) return false;
+    if (!venue_repository_.loadBookings(venueBookings, error)) return false;
     bookings.clear();
     for (auto* node = venueBookings.get_head(); node != nullptr;
          node = node->next) {
@@ -96,24 +90,15 @@ bool ReportRepository::saveBookings(
     const LinkedList<ReportBookingRecord>& bookings,
     std::string& error
 ) const {
-    FileManager fileManager;
-    LinkedList<std::string> lines;
+    LinkedList<VenueBookingRecord> records;
     for (auto* node = bookings.get_head(); node != nullptr; node = node->next) {
         const ReportBookingRecord& booking = node->data;
-        lines.push_back(
-            FileManager::join(booking.bookingId) + "|" +
-            FileManager::join(booking.fieldId) + "|" +
-            FileManager::join(booking.ownerUserId) + "|" +
-            FileManager::join(booking.customerId) + "|" +
-            FileManager::join(booking.customerName) + "|" +
-            FileManager::join(booking.customerPhone) + "|" +
-            FileManager::join(booking.date) + "|" +
-            FileManager::join(booking.startTime) + "|" +
-            FileManager::join(booking.endTime) + "|" +
-            std::to_string(booking.durationMinutes) + "|" +
-            std::to_string(booking.amountVnd) + "|" +
-            FileManager::join(booking.status)
-        );
+        records.push_back({booking.bookingId, booking.fieldId,
+                           booking.ownerUserId, booking.customerId,
+                           booking.customerName, booking.customerPhone,
+                           booking.date, booking.startTime, booking.endTime,
+                           booking.durationMinutes, booking.amountVnd,
+                           booking.status});
     }
-    return fileManager.writeAllLines("data/bookings.txt", lines, error);
+    return venue_repository_.saveBookings(records, error);
 }

@@ -41,6 +41,17 @@ int main() {
     std::cout << "[PASS] Facade dangNhap & Session management verified for Owner: "
               << loginResult.duLieu->get_name() << std::endl;
 
+    LinkedList<std::string> requestedSlots;
+    requestedSlots.push_back("06:00 - 07:00");
+    std::string legacyBookingId = "stale";
+    const auto rejectedBooking = facade.datNhieuCaMoi(
+        "S5-01", "0901234567", "Test Customer", "2026-10-20",
+        requestedSlots, 5, legacyBookingId
+    );
+    assert(!rejectedBooking.ok);
+    assert(legacyBookingId.empty());
+    std::cout << "[PASS] Legacy multi-slot booking rejects a non-customer session.\n";
+
     // 4. Kiểm tra lấy dữ liệu Dashboard qua Facade ủy quyền cho ReportService
     ReportDashboardMetrics metrics;
     LinkedList<ReportRevenueDay> doanhThuTheoNgay;

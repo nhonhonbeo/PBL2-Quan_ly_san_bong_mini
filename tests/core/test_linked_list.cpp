@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include <stdexcept>
+#include <type_traits>
 #include "Core/LinkedList.h"
 
 // LÝ DO CHỌN: Tracker đối tượng để kiểm tra rò rỉ bộ nhớ (memory leak) và ngoại lệ (exception safety).
@@ -71,9 +72,67 @@ void testEmptyList() {
     assert(!list.remove(42));
     assert(!list.removeIf([](int x) { return x == 42; }));
     assert(!list.removeFirstIf([](int x) { return x == 42; }));
+    bool frontThrew = false;
+    try {
+        (void)list.front();
+    } catch (const std::underflow_error&) {
+        frontThrew = true;
+    }
+    assert(frontThrew);
+    bool backThrew = false;
+    try {
+        (void)list.back();
+    } catch (const std::underflow_error&) {
+        backThrew = true;
+    }
+    assert(backThrew);
     list.clear();
     assert(list.isEmpty());
     assert(list.size() == 0);
+}
+
+void testConstNodeAccess() {
+    std::cout << "  [RUN] testConstNodeAccess...\n";
+    using MutableHead = decltype(std::declval<LinkedList<int>&>().get_head());
+    using MutableTail = decltype(std::declval<LinkedList<int>&>().get_tail());
+    using ConstHead = decltype(std::declval<const LinkedList<int>&>().get_head());
+    using ConstTail = decltype(std::declval<const LinkedList<int>&>().get_tail());
+    using NextNode = decltype(std::declval<LinkedList<int>::Node>().next);
+    static_assert(std::is_same<MutableHead, const LinkedList<int>::Node*>::value,
+                  "List nodes must be read-only outside LinkedList");
+    static_assert(std::is_same<MutableTail, const LinkedList<int>::Node*>::value,
+                  "List nodes must be read-only outside LinkedList");
+    static_assert(std::is_same<ConstHead, const LinkedList<int>::Node*>::value,
+                  "Const lists must expose nodes as read-only");
+    static_assert(std::is_same<ConstTail, const LinkedList<int>::Node*>::value,
+                  "Const lists must expose nodes as read-only");
+    static_assert(std::is_same<NextNode, const LinkedList<int>::Node*>::value,
+                  "Node links must not expose mutable nodes");
+    static_assert(!std::is_constructible<LinkedList<int>::Node, const int&>::value,
+                  "Node construction must remain internal to LinkedList");
+}
+
+void testControlledValueMutation() {
+    std::cout << "  [RUN] testControlledValueMutation...\n";
+    LinkedList<int> list;
+    list.push_back(1);
+    list.push_back(2);
+    list.push_back(2);
+
+    int* firstMatch = list.findIf([](int value) { return value == 2; });
+    assert(firstMatch != nullptr);
+    *firstMatch = 20;
+    assert(list.front() == 1);
+    assert(list.findIf([](int value) { return value == 20; }) != nullptr);
+
+    assert(list.replaceFirstIf(
+        [](int value) { return value == 2; }, 30));
+    assert(list.back() == 30);
+    assert(list.replaceFirstIf(
+        [](int value) { return value == 1; }, 10));
+    assert(list.front() == 10);
+    assert(!list.replaceFirstIf(
+        [](int value) { return value == 99; }, 0));
 }
 
 void testSingleElementBoundary() {
@@ -366,6 +425,8 @@ void testMemoryLeaksAndExceptionSafety() {
 int main() {
     std::cout << "=== CORE UNIT TEST: LinkedList ===\n";
     testEmptyList();
+    testConstNodeAccess();
+    testControlledValueMutation();
     testSingleElementBoundary();
     testMultipleElementsNormal();
     testDeleteHeadMidTail();

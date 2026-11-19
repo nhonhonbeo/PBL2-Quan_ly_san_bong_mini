@@ -1,5 +1,4 @@
 ﻿#include "Booking/Booking.h"
-#include "Repository/VenueRepository.h"
 
 Booking::Booking()
     : status_(BookingStatus::PENDING), total_vnd_(0) {}
@@ -122,32 +121,4 @@ BookingStatus Booking::textToStatus(const std::string& status) {
     if (status == "COMPLETED" || status == u8"Đã hoàn tất" || status == u8"Đã hoàn thành" || status == u8"Đã thanh toán") return BookingStatus::COMPLETED;
     if (status == "CANCELLED" || status == u8"Đã hủy") return BookingStatus::CANCELLED;
     return BookingStatus::PENDING;
-}
-
-Booking Booking::fromRecord(const VenueBookingRecord& record) {
-    Booking b(record.bookingId, record.customerId, record.fieldId,
-              record.date, textToStatus(record.status), record.ownerId);
-    b.addDetail(BookingDetail(
-        record.bookingId, record.startTime, record.endTime,
-        record.durationMinutes, record.priceVnd
-    ));
-    return b;
-}
-
-VenueBookingRecord Booking::toRecord() const {
-    VenueBookingRecord rec;
-    rec.bookingId = booking_id_;
-    rec.fieldId = field_id_;
-    rec.ownerId = owner_id_;
-    rec.customerId = customer_id_;
-    rec.date = date_;
-    rec.status = statusToText(status_);
-    auto* detail = details_.get_head();
-    if (detail != nullptr) {
-        rec.startTime = detail->data.getStartTime();
-        rec.endTime = detail->data.getEndTime();
-        rec.durationMinutes = detail->data.getDurationMinutes();
-        rec.priceVnd = detail->data.getAmountVnd();
-    }
-    return rec;
 }

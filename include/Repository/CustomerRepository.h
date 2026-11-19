@@ -2,10 +2,11 @@
 #define CUSTOMER_REPOSITORY_H
 
 #include <string>
+#include "Account/Customer.h"
+#include "Core/HashTable.h"
 #include "Core/LinkedList.h"
 
 class Blacklist;
-class Customer;
 class Discount;
 class FileManager;
 class Review;
@@ -15,6 +16,13 @@ class Review;
 class CustomerRepository {
 private:
     FileManager& file_manager_;
+    mutable HashTable<std::string, Customer> customer_index_;
+    mutable bool customer_index_loaded_;
+    mutable std::string customer_file_error_;
+    mutable std::string account_file_error_;
+
+    void loadCustomerIndex() const;
+    void indexCustomer(const Customer& customer);
 
 public:
     explicit CustomerRepository(FileManager& fileManager);

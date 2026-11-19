@@ -3,8 +3,6 @@
 
 #include <string>
 
-struct VenueFieldRecord;
-
 enum class FieldSize {
     FIVE = 5,
     SEVEN = 7,
@@ -62,11 +60,6 @@ public:
     bool supportsDuration(int durationMinutes) const;
     long long calculatePrice(int durationMinutes) const;
 
-    // Chuyển đổi hai chiều Domain Entity <-> Persistence Record
-    static FieldStatus statusToEnum(int status);
-    static int enumToStatus(FieldStatus status);
-    static Field fromRecord(const VenueFieldRecord& record);
-    VenueFieldRecord toRecord() const;
 };
 
 #endif

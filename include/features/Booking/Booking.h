@@ -4,8 +4,6 @@
 #include "Core/LinkedList.h"
 #include "Booking/BookingDetail.h"
 
-struct VenueBookingRecord;
-
 enum class BookingStatus { PENDING, CONFIRMED, COMPLETED, CANCELLED };
 
 // LÝ DO CHỌN: LinkedList quản lý danh sách chi tiết các ca (BookingDetail) trong cùng đơn đặt;
@@ -47,9 +45,6 @@ public:
     bool isCancelled() const;
     long long calculateTotalVnd() const;
 
-    // Chuyển đổi hai chiều Domain Entity <-> Persistence Record
     static std::string statusToText(BookingStatus status);
     static BookingStatus textToStatus(const std::string& status);
-    static Booking fromRecord(const VenueBookingRecord& record);
-    VenueBookingRecord toRecord() const;
 };

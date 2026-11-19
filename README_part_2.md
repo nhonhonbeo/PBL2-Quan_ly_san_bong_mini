@@ -1,5 +1,9 @@
 # Quản lý sân bóng mini — PBL2
 
+> **Lưu ý:** Đây là tài liệu đề xuất ban đầu; một số cấu trúc và giai đoạn bên dưới
+> mô tả kế hoạch chứ không phải hiện trạng repository. Dùng [README.md](README.md) và
+> [docs/PBL2_BAO_VE.md](docs/PBL2_BAO_VE.md) để tra cứu trạng thái code hiện tại.
+
 ## 1. Giới thiệu
 
 Đây là dự án PBL2 **Xây dựng phần mềm quản lý sân bóng mini** bằng C++.

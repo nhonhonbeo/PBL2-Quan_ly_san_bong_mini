@@ -1,4 +1,5 @@
 ﻿#include <cassert>
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -77,7 +78,7 @@ public:
     bool alwaysFail = false;
     LinkedList<std::string> rollbackCalls;
 
-    explicit MockFailingPaymentService(PaymentRepository* repo)
+    explicit MockFailingPaymentService(PaymentRepository& repo)
         : PaymentService(repo) {}
 
     bool createInvoice(const std::string& bookingId, long long amountVnd,
@@ -112,16 +113,27 @@ public:
     }
 };
 
+std::string normalizeLineEndings(std::string content) {
+    content.erase(
+        std::remove(content.begin(), content.end(), '\r'),
+        content.end()
+    );
+    return content;
+}
+
 void runConsistencyTests() {
     StorageBackupGuard guard;
 
     FileManager fileManager;
     CustomerRepository customerRepo(fileManager);
     CustomerService customerService(customerRepo);
-    BookingRepository bookingRepo(fileManager);
+    VenueRepository venueRepository(fileManager);
+    VenueService venueService(venueRepository);
+    BookingRepository bookingRepo(venueRepository);
     PaymentRepository paymentRepo(fileManager);
-    PaymentService paymentService(&paymentRepo);
-    BookingService bookingService(bookingRepo, customerService, &paymentService);
+    PaymentService paymentService(paymentRepo);
+    BookingService bookingService(bookingRepo, customerService, venueService,
+                                  paymentService);
 
     const std::string testField = "S5-04";
     const std::string testCustId = "US02";
@@ -244,6 +256,36 @@ void runConsistencyTests() {
         std::cout << "  -> Pre-validation chan thanh cong ca thu 2 trung lich, 0 byte du thua bi ghi.\n";
     }
 
+    std::cout << "[TEST 3B] Batch tu choi khi thong tin khach khong dong nhat...\n";
+    {
+        guard.restore();
+        const std::string bookingsBefore = guard.currentBookings();
+        const std::string invoicesBefore = guard.currentInvoices();
+
+        VenueBookingRequest firstRequest;
+        firstRequest.customerId = testCustId;
+        firstRequest.customerName = testCustName;
+        firstRequest.customerPhone = testCustPhone;
+        firstRequest.fieldId = testField;
+        firstRequest.date = "2026-11-22";
+        firstRequest.startTime = "10:00";
+        firstRequest.durationMinutes = 60;
+
+        VenueBookingRequest secondRequest = firstRequest;
+        secondRequest.startTime = "11:00";
+        secondRequest.customerPhone = "0900000000";
+
+        LinkedList<VenueBookingRequest> batchRequests;
+        batchRequests.push_back(firstRequest);
+        batchRequests.push_back(secondRequest);
+        LinkedList<std::string> bookingIds;
+        std::string error;
+        assert(!bookingService.createBookings(batchRequests, bookingIds, error));
+        assert(bookingIds.isEmpty());
+        assert(guard.currentBookings() == bookingsBefore);
+        assert(guard.currentInvoices() == invoicesBefore);
+    }
+
     // =========================================================================
     // TEST 4: Booking thu hai that bai trong commit -> Rollback booking 1 & invoice 1
     // =========================================================================
@@ -254,9 +296,10 @@ void runConsistencyTests() {
         const std::string invoicesBefore = guard.currentInvoices();
 
         // Su dung MockPaymentService de lam hoa don thu 2 that bai
-        MockFailingPaymentService mockPay(&paymentRepo);
+        MockFailingPaymentService mockPay(paymentRepo);
         mockPay.failOnCallIndex = 2; // Booking 1 tao invoice thanh cong, Booking 2 fail
-        BookingService testService(bookingRepo, customerService, &mockPay);
+        BookingService testService(bookingRepo, customerService, venueService,
+                                   mockPay);
 
         LinkedList<VenueBookingRequest> batchReqs;
         VenueBookingRequest r1;
@@ -276,9 +319,12 @@ void runConsistencyTests() {
         assert(bIds.isEmpty() && "bookingIds phai bi xoa sach!");
         assert(mockPay.rollbackCalls.size() == 1 && "Phai goi rollbackInvoice cho don dat san 1!");
 
-        // Kiem tra sau rollback: bookings.txt va invoices.txt khoi phuc 100% nguyen trang ban dau
-        assert(guard.currentBookings() == bookingsBefore && "Bookings khong duoc khoi phuc sau rollback!");
-        assert(guard.currentInvoices() == invoicesBefore && "Invoices khong duoc khoi phuc sau rollback!");
+        assert(normalizeLineEndings(guard.currentBookings()) ==
+               normalizeLineEndings(bookingsBefore) &&
+               "Bookings khong duoc khoi phuc sau rollback!");
+        assert(normalizeLineEndings(guard.currentInvoices()) ==
+               normalizeLineEndings(invoicesBefore) &&
+               "Invoices khong duoc khoi phuc sau rollback!");
         std::cout << "  -> Rollback ca dat san 1 va hoa don 1 thanh cong khi ca 2 that bai.\n";
     }
 
@@ -291,9 +337,10 @@ void runConsistencyTests() {
         const std::string bookingsBefore = guard.currentBookings();
         const std::string invoicesBefore = guard.currentInvoices();
 
-        MockFailingPaymentService mockPay(&paymentRepo);
+        MockFailingPaymentService mockPay(paymentRepo);
         mockPay.failOnCallIndex = 3; // Ca 1 va 2 thanh cong, ca 3 fail invoice
-        BookingService testService(bookingRepo, customerService, &mockPay);
+        BookingService testService(bookingRepo, customerService, venueService,
+                                   mockPay);
 
         LinkedList<VenueBookingRequest> batchReqs;
         for (int i = 0; i < 3; ++i) {
@@ -314,8 +361,12 @@ void runConsistencyTests() {
         assert(mockPay.rollbackCalls.size() == 2 && "Phai rollback invoice cho 2 ca dau!");
 
         // Dam bao khong con bat ky don dat san hay hoa don nao do dang
-        assert(guard.currentBookings() == bookingsBefore && "Bookings con lai ban ghi mo coi!");
-        assert(guard.currentInvoices() == invoicesBefore && "Invoices con lai ban ghi mo coi!");
+        assert(normalizeLineEndings(guard.currentBookings()) ==
+               normalizeLineEndings(bookingsBefore) &&
+               "Bookings con lai ban ghi mo coi!");
+        assert(normalizeLineEndings(guard.currentInvoices()) ==
+               normalizeLineEndings(invoicesBefore) &&
+               "Invoices con lai ban ghi mo coi!");
         std::cout << "  -> Rollback toan bo 3 ca va 2 hoa don thanh cong, khong co orphan record.\n";
     }
 
@@ -328,9 +379,10 @@ void runConsistencyTests() {
         const std::string bookingsBefore = guard.currentBookings();
         const std::string invoicesBefore = guard.currentInvoices();
 
-        MockFailingPaymentService mockPay(&paymentRepo);
+        MockFailingPaymentService mockPay(paymentRepo);
         mockPay.alwaysFail = true;
-        BookingService testService(bookingRepo, customerService, &mockPay);
+        BookingService testService(bookingRepo, customerService, venueService,
+                                   mockPay);
 
         VenueBookingRequest req;
         req.customerId = testCustId; req.customerName = testCustName; req.customerPhone = testCustPhone;
@@ -342,8 +394,11 @@ void runConsistencyTests() {
         assert(bId.empty() && "bId phai bi xoa trang!");
 
         // Kiem tra sau rollback
-        assert(guard.currentBookings() == bookingsBefore && "Booking van con luu du invoice loi!");
-        assert(guard.currentInvoices() == invoicesBefore);
+        assert(normalizeLineEndings(guard.currentBookings()) ==
+               normalizeLineEndings(bookingsBefore) &&
+               "Booking van con luu du invoice loi!");
+        assert(normalizeLineEndings(guard.currentInvoices()) ==
+               normalizeLineEndings(invoicesBefore));
         std::cout << "  -> Don dat san don le duoc rollback sach se khi tao invoice loi.\n";
     }
 

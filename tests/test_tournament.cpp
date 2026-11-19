@@ -14,7 +14,8 @@
 int main() {
     FileManager fileManager;
     TournamentRepository tournamentRepo(fileManager);
-    BookingRepository bookingRepo(fileManager);
+    VenueRepository venueRepository(fileManager);
+    BookingRepository bookingRepo(venueRepository);
     TournamentService tournamentService(tournamentRepo, bookingRepo);
 
     // 1. Test loadAllTournaments
@@ -29,6 +30,13 @@ int main() {
     );
     assert(schedule.size() == 2);
     assert(!schedule.isEmpty());
+    assert(schedule.front().getHomeTeamId() == "TM-01");
+    assert(schedule.front().getStartTime() == "18:00");
+    assert(schedule.dequeue());
+    assert(schedule.front().getHomeTeamId() == "TM-03");
+    assert(schedule.front().getStartTime() == "19:30");
+    assert(schedule.dequeue());
+    assert(schedule.isEmpty());
 
     // 3. Test checkOverlap with existing tournament on field S7-01
     // GD-01 is 15/10/2026 - 20/10/2026, status = 2 (DangDienRa), slot: 17:30 - 21:00

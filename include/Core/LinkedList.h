@@ -2,6 +2,7 @@
 #define LINKEDLIST_H
 
 #include <cstddef>
+#include <stdexcept>
 #include <utility>
 
 // LÝ DO CHỌN: Danh sách liên kết đơn tự cài đặt, không phụ thuộc std::list,
@@ -13,8 +14,10 @@ class LinkedList {
 public:
     struct Node {
         T data;
-        Node* next;
+        const Node* next;
 
+    private:
+        friend class LinkedList;
         explicit Node(const T& value, Node* nextNode = nullptr)
             : data(value), next(nextNode) {}
 
@@ -26,6 +29,12 @@ private:
     Node* head;
     Node* tail;
     int count;
+
+    // LÝ DO CHỌN: Mọi nút trong chuỗi đều do LinkedList cấp phát và sở hữu;
+    // chỉ thao tác nội bộ mới chuyển liên kết chỉ-đọc về con trỏ sở hữu để sửa chuỗi.
+    static Node* mutableNode(const Node* node) noexcept {
+        return const_cast<Node*>(node);
+    }
 
 public:
     LinkedList() noexcept
@@ -139,7 +148,7 @@ public:
             return false;
         }
         Node* old = head;
-        head = head->next;
+        head = mutableNode(head->next);
         if (head == nullptr) {
             tail = nullptr;
         }
@@ -160,7 +169,7 @@ public:
         }
         Node* cur = head;
         while (cur->next != tail) {
-            cur = cur->next;
+            cur = mutableNode(cur->next);
         }
         delete tail;
         tail = cur;
@@ -177,34 +186,54 @@ public:
         return count;
     }
 
-    Node* get_head() const noexcept {
+    const Node* get_head() noexcept {
         return head;
     }
 
-    Node* get_tail() const noexcept {
+    const Node* get_head() const noexcept {
+        return head;
+    }
+
+    const Node* get_tail() noexcept {
+        return tail;
+    }
+
+    const Node* get_tail() const noexcept {
         return tail;
     }
 
     T& front() {
+        if (head == nullptr) {
+            throw std::underflow_error("LinkedList is empty: cannot access front()");
+        }
         return head->data;
     }
 
     const T& front() const {
+        if (head == nullptr) {
+            throw std::underflow_error("LinkedList is empty: cannot access front()");
+        }
         return head->data;
     }
 
     T& back() {
+        if (tail == nullptr) {
+            throw std::underflow_error("LinkedList is empty: cannot access back()");
+        }
         return tail->data;
     }
 
     const T& back() const {
+        if (tail == nullptr) {
+            throw std::underflow_error("LinkedList is empty: cannot access back()");
+        }
         return tail->data;
     }
 
     void clear() noexcept {
         Node* cur = head;
         while (cur != nullptr) {
-            Node* next = cur->next;
+            Node* next = mutableNode(cur->next);
             delete cur;
             cur = next;
         }
@@ -217,7 +246,7 @@ public:
         Node* cur = head;
         while (cur != nullptr) {
             f(cur->data);
-            cur = cur->next;
+            cur = mutableNode(cur->next);
         }
     }
 
@@ -237,7 +266,7 @@ public:
         bool removedAny = false;
         while (head != nullptr && pred(head->data)) {
             Node* old = head;
-            head = head->next;
+            head = mutableNode(head->next);
             delete old;
             count--;
             removedAny = true;
@@ -247,7 +276,7 @@ public:
             return removedAny;
         }
         Node* prev = head;
-        Node* cur = head->next;
+        Node* cur = mutableNode(head->next);
         while (cur != nullptr) {
             if (pred(cur->data)) {
                 prev->next = cur->next;
@@ -257,10 +286,10 @@ public:
                 delete cur;
                 count--;
                 removedAny = true;
-                cur = prev->next;
+                cur = mutableNode(prev->next);
             } else {
                 prev = cur;
-                cur = cur->next;
+                cur = mutableNode(cur->next);
             }
         }
         return removedAny;
@@ -274,7 +303,7 @@ public:
             return pop_front();
         }
         Node* prev = head;
-        Node* cur = head->next;
+        Node* cur = mutableNode(head->next);
         while (cur != nullptr) {
             if (pred(cur->data)) {
                 prev->next = cur->next;
@@ -286,9 +315,33 @@ public:
                 return true;
             }
             prev = cur;
-            cur = cur->next;
+            cur = mutableNode(cur->next);
         }
         return false;
+    }
+
+    template <typename Predicate>
+    T* findIf(Predicate pred) {
+        for (Node* cur = head; cur != nullptr; cur = mutableNode(cur->next)) {
+            if (pred(cur->data)) return &cur->data;
+        }
+        return nullptr;
+    }
+
+    template <typename Predicate>
+    const T* findIf(Predicate pred) const {
+        for (const Node* cur = head; cur != nullptr; cur = cur->next) {
+            if (pred(cur->data)) return &cur->data;
+        }
+        return nullptr;
+    }
+
+    template <typename Predicate, typename Value>
+    bool replaceFirstIf(Predicate pred, Value&& value) {
+        T* current = findIf(pred);
+        if (current == nullptr) return false;
+        *current = std::forward<Value>(value);
+        return true;
     }
 
     bool remove(const T& value) {

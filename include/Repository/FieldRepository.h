@@ -7,18 +7,15 @@
 #include "Repository/VenueRepository.h"
 
 class Field;
-class FileManager;
 
 // LÝ DO CHỌN: FieldRepository hoạt động như một persistence adapter chuẩn hóa giữa
 // domain model Field và bảng lưu trữ VenueFieldRecord, nhận VenueRepository qua DI.
 class FieldRepository {
 private:
-    FileManager& file_manager_;
-    VenueRepository* venue_repository_;
-    VenueRepository default_venue_repo_;
+    VenueRepository& venue_repository_;
 
 public:
-    explicit FieldRepository(FileManager& fileManager, VenueRepository* venueRepo = nullptr);
+    explicit FieldRepository(VenueRepository& venueRepository);
 
     bool findById(const std::string& fieldId, Field& out,
                   std::string& error) const;

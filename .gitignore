@@ -1,0 +1,11 @@
+# Đầu ra biên dịch trong build/, giữ nguyên các tệp dữ liệu mẫu hiện có.
+/build/*.o
+/build/*.obj
+/build/*.exe
+/build/*.rsp
+
+# Tệp cấu hình sinh bởi Dear ImGui.
+/imgui.ini
+
+# File tạm khi FileManager ghi dữ liệu theo cách thay thế nguyên tử.
+*.tmp.*

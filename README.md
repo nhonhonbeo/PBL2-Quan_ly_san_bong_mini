@@ -1,63 +1,138 @@
-# Quản lý sân bóng mini — PBL2
+# Quản lý sân bóng mini (PBL2)
 
-## Cấu trúc thư mục
+Ứng dụng desktop C++17 hỗ trợ chủ sân quản lý sân, lịch đặt và khách hàng; người thuê
+có thể tìm sân, gửi yêu cầu đặt sân và theo dõi các nghiệp vụ liên quan. Dữ liệu được
+lưu cục bộ trong các tệp văn bản dưới `data/`.
 
+## Mục tiêu
+
+- Áp dụng OOP và các cấu trúc dữ liệu tự cài đặt trong một ứng dụng nghiệp vụ.
+- Tách giao diện khỏi quy tắc nghiệp vụ và thao tác lưu trữ.
+- Thực hành kiểm thử logic, lưu trữ tệp và các luồng cần đồng bộ nhiều bản ghi.
+
+## Chức năng hiện có
+
+- Tài khoản Owner/Customer: đăng nhập, đăng ký và cập nhật hồ sơ.
+- Sân: cấu hình sân, loại sân, tình trạng, khung giờ và giá thuê.
+- Booking: kiểm tra điều kiện đặt sân, trùng lịch, hủy và hoàn thành.
+- Khách hàng: hồ sơ, thống kê booking, blacklist và ưu đãi.
+- Hóa đơn/thanh toán: tạo hóa đơn và cập nhật trạng thái thủ công qua service.
+- Tournament: yêu cầu, duyệt/từ chối, đội tham gia, lịch trận đơn giản và kết quả.
+- Review: lưu nhận xét, rating và tổng hợp điểm trung bình.
+
+GUI hiện có các màn hình xác thực, dashboard Owner, quản lý sân/khách/giải và các màn
+hình Customer cho đặt sân, lịch sử, hồ sơ, ưu đãi, yêu cầu giải và đánh giá. Chưa có
+màn hình riêng cho toàn bộ nghiệp vụ hóa đơn Owner; một số chức năng có service nhưng
+chưa có luồng GUI độc lập.
+
+## Công nghệ
+
+- C++17.
+- Dear ImGui, GLFW và OpenGL3 cho GUI desktop; không dùng Qt.
+- Makefile/GNU Make; MinGW trên Windows.
+- Không dùng framework kiểm thử ngoài: các test C++ hiện có chạy độc lập.
+
+## Cấu trúc repository
+
+```text
+include/
+  Core/                 LinkedList, HashTable, Queue, DateTime
+  features/              Domain: Account, Booking, Customer, Field, Payment,
+                         Storage, Tournament
+  Repository/            Đọc/ghi và chuyển đổi dữ liệu
+  Service/               Quy tắc nghiệp vụ và điều phối
+  GUI/                   Application, ScreenManager, Theme, Widgets, Screens
+src/
+  Core/, features/, Repository/, Service/, GUI/
+  main_gui.cpp           Điểm vào ứng dụng desktop
+tests/
+  core/                  Kiểm thử cấu trúc dữ liệu
+  test_*.cpp             Unit/integration tests nghiệp vụ, lưu trữ và Facade
+data/                    Dữ liệu mẫu/runtime đang sử dụng
+data_backup/             Bản sao lưu dữ liệu được giữ nguyên trong repository
+assets/                  Icon và font chữ
+third_party/             Dear ImGui, GLFW và tài nguyên phụ thuộc đã vendored
+build/                   Đầu ra build cục bộ; không cần commit binary
+Makefile
 ```
-QuanLySanBongMini/
-├── include/            # Header (.h) — khai báo class, chia theo module
-│   ├── Core/           # Cấu trúc dữ liệu tự cài đặt (LinkedList, HashTable, Queue...)
-│   ├── Account/        # NguoiDung (base), ChuSan, NguoiThue (kế thừa + đa hình)
-│   ├── Field/           # San (sân bóng), KhungGio
-│   ├── Booking/        # DatSan (đặt/hủy sân)
-│   ├── Customer/       # KhachHang, danh sách đen, ưu đãi, đánh giá
-│   ├── Tournament/     # Giai (giải đấu)
-│   ├── Storage/        # FileManager — đọc/ghi file dùng chung
-│   └── UI/             # Menu — giao diện dòng lệnh
-├── src/                # File .cpp cài đặt tương ứng, cùng cấu trúc với include/
-│   └── main.cpp
-├── data/               # File dữ liệu lưu trữ (.txt) — accounts, fields, bookings...
-├── docs/               # Báo cáo, sơ đồ lớp (class diagram), slide
-├── build/              # File thực thi sau khi build (không commit lên git)
-└── Makefile
+
+## Kiến trúc
+
+```text
+Dear ImGui Screens → GUI::App::Facade → Service → Repository → FileManager → data/*.txt
 ```
 
-## Cách build và chạy
+- `Application` quản lý vòng đời GLFW/OpenGL/ImGui; `ScreenManager` điều phối màn hình.
+- `Facade` cung cấp DTO và điểm vào GUI, đồng thời gọi các service.
+- Service thực hiện quy tắc nghiệp vụ và nhận dependency qua constructor.
+- Repository chuyển đổi bản ghi thành entity và lưu trữ qua `FileManager`.
+- `FileManager` đọc/ghi văn bản và thay thế tệp qua tệp tạm để hạn chế ghi dở.
 
-```bash
-make run       # build và chạy chương trình
-make clean     # dọn file .o và file thực thi
+Một số phần tương thích cũ chưa đồng nhất hoàn toàn: `AccountRepository` vẫn gọi các
+hàm tĩnh tương thích của `FileManager`. Xem thêm [tài liệu bảo vệ PBL2](docs/PBL2_BAO_VE.md)
+để biết các giới hạn đã xác nhận.
+
+## Build và chạy
+
+Chạy lệnh từ thư mục gốc để các đường dẫn tương đối `data/` và `assets/` được phân giải
+đúng.
+
+Windows (MinGW):
+
+```powershell
+mingw32-make gui
+.\build\QuanLySanBong_GUI.exe
 ```
 
-## Thứ tự triển khai đề xuất
+Linux (GNU Make, g++, GLFW và OpenGL development libraries đã cài):
 
-Đừng làm tất cả module cùng lúc. Thầy gợi ý làm theo đúng thứ tự này vì các module sau
-phụ thuộc vào module trước:
+```sh
+make gui
+./build/QuanLySanBong_GUI
+```
 
-1. **Core** — cài đặt xong `LinkedList`, `HashTable` trước tiên (đây là "công cụ" mà
-   mọi module khác sẽ dùng lại). Viết unit test nhỏ để chắc chắn nó chạy đúng trước khi
-   dùng ở nơi khác.
-2. **Account** — cài `NguoiDung` (lớp cơ sở) rồi mới cài `ChuSan`, `NguoiThue` kế thừa.
-   Đây là chỗ thầy khuyên em làm kỹ vì GVHD sẽ hỏi về tính kế thừa/đa hình ở đây.
-3. **Storage** — cài `FileManager` để đọc/ghi được ngay, vì từ bước 4 trở đi module nào
-   cũng cần lưu file.
-4. **Field & Booking** — quản lý sân và đặt sân là lõi nghiệp vụ chính, nên làm kỹ và
-   test nhiều nhất.
-5. **Customer** — dùng lại `HashTable` (đã làm ở bước 1) để tra cứu khách theo SĐT.
-6. **Tournament** — module đơn giản nhất, làm sau cùng.
-7. **UI** — sau khi các module nghiệp vụ đã chạy được độc lập (test qua `main.cpp` đơn
-   giản), mới ghép UI để điều phối toàn bộ menu.
+Xóa các object, executable và response file được sinh trong `build/` mà không đụng tới
+`build/data/`:
 
-## Lưu ý khi làm báo cáo
+```sh
+mingw32-make clean   # Windows
+make clean           # Linux
+```
 
-Đề bài yêu cầu giải thích **tại sao chọn cấu trúc dữ liệu đó**. Em nên ghi chú ngay
-trong code (comment) và note lại lý do trong lúc code, để khi viết báo cáo khỏi phải nhớ lại:
-- Vì sao dùng `HashTable` cho tra cứu khách hàng / tình trạng đặt sân? (độ phức tạp O(1))
-- Vì sao dùng `LinkedList` cho danh sách đánh giá / danh sách đen? (thêm/xóa linh hoạt,
-  không cần truy cập ngẫu nhiên)
-- Vì sao `NguoiDung` là lớp trừu tượng với hàm ảo thuần túy `hienThiMenu()`?
+## Kiểm thử
 
-## Việc cần làm tiếp (đánh dấu TODO trong code)
+Chạy toàn bộ 16 chương trình test tuần tự:
 
-Các file trong `include/` hiện chỉ là khung (khai báo), **chưa có phần cài đặt** (`src/*.cpp`
-tương ứng còn thiếu — em cần tự viết). Đây là thiết kế có chủ đích: thầy để em tự viết phần
-logic để hiểu sâu, thay vì đưa sẵn code hoàn chỉnh.
+```powershell
+mingw32-make test
+```
+
+```sh
+make test
+```
+
+Có thể chạy riêng các nhóm, ví dụ `make test-core`, `make test-booking`,
+`make test-customer`, `make test-file-manager` hoặc `make test-facade`. Test integration
+có thể sửa các tệp trong `data/`; chỉ chạy trên dữ liệu mẫu/working copy có thể khôi
+phục, không dùng dữ liệu vận hành thật.
+
+## Lưu trữ và dữ liệu mẫu
+
+Các repository đọc/ghi các tệp `.txt` như `accounts.txt`, `fields.txt`, `bookings.txt`,
+`invoices.txt`, `tournaments.txt`, `teams.txt`, `matches.txt` và `reviews.txt`.
+Bản ghi thường dùng dấu `|` phân cách. `data/` là dữ liệu mà ứng dụng chạy từ thư mục
+gốc sử dụng; giữ nguyên dữ liệu này khi dọn build.
+
+Dữ liệu mẫu có các ID Owner `US01`, `US06`, `US09` và Customer `US02`–`US05`,
+`US07`–`US08`. GUI đăng nhập bằng số điện thoại và mật khẩu của bản ghi tương ứng.
+Không ghi mật khẩu mẫu vào README: định dạng tài khoản hiện tại lưu trường mật khẩu
+plaintext, nên chỉ dùng dữ liệu demo cục bộ và tuyệt đối không dùng thông tin thật.
+
+## Giới hạn cần biết trước khi bảo vệ
+
+- Mật khẩu hiện được lưu/so sánh dạng plaintext; không phù hợp cho triển khai thật.
+- Một số màn hình/nghiệp vụ chưa được bao phủ bằng luồng GUI độc lập.
+- Định dạng ngày trong dữ liệu legacy chưa đồng nhất hoàn toàn giữa ISO và
+  `dd/MM/yyyy`; một số service chuyển đổi khi so sánh.
+- `README_part_2.md` là tài liệu đề xuất ban đầu; trạng thái code hiện tại được mô tả
+  ở README này và tài liệu bảo vệ.
