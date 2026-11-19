@@ -176,9 +176,9 @@ void GiaiScreen::renderTabDanhSachGiai() {
                     } else if (tt == u8"Đã duyệt") {
                         Widgets::BadgeTrong(tt.c_str());
                     } else if (tt == u8"Đang diễn ra") {
-                        Widgets::BadgeVIP(tt.c_str());
+                        Widgets::BadgeNoiBat(tt.c_str());
                     } else if (tt == u8"Bị từ chối") {
-                        Widgets::BadgeDanhSachDen(tt.c_str());
+                        Widgets::BadgeCanhBao(tt.c_str());
                     } else {
                         Widgets::Badge(tt.c_str(), GUI::Theme::Colors::GrayHover, GUI::Theme::Colors::DarkText);
                     }

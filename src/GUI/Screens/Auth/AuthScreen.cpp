@@ -271,7 +271,7 @@ void AuthScreen::renderBanner(float width, float height) {
 
         veTheTinhNang(u8"Quản lý sân & Lịch thi đấu thông minh", u8"Tự động phân bổ ca đá, kiểm soát khung giờ, chống trùng lịch.");
         veTheTinhNang(u8"Đặt sân trực tuyến & Giữ chỗ tức thì 24/7", u8"Tra cứu tình trạng sân theo thời gian thực, bảng giá minh bạch.");
-        veTheTinhNang(u8"Khách hàng thân thiết & Giải đấu phong trào", u8"Tích điểm nâng hạng VIP, ưu đãi tự động, quản lý cúp giao hữu.");
+        veTheTinhNang(u8"Thông tin khách hàng & Giải đấu phong trào", u8"Theo dõi lịch sử đặt sân, đánh giá và quản lý giải giao hữu.");
 
     }
     ImGui::EndChild();

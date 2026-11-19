@@ -6,7 +6,7 @@
 // theo nguyên lý RAII để quản lý tài nguyên GLFW/OpenGL/ImGui tập trung, tránh rò rỉ bộ nhớ.
 class Application {
 public:
-    explicit Application(bool runDemo = false);
+    Application();
     ~Application();
 
     // LÝ DO CHỌN: Xóa copy constructor và copy assignment operator để đảm bảo tính duy nhất
@@ -26,5 +26,4 @@ public:
 private:
     struct GLFWwindow* window_ = nullptr;
     bool initialized_ = false;
-    bool runDemo_ = false;
 };

@@ -202,7 +202,7 @@ void LichDatScreen::renderTableDonDat() {
                 } else if (tt == u8"Đã hoàn thành" || tt == u8"Đã thanh toán") {
                     Widgets::BadgeDaDat(tt.c_str());
                 } else if (tt == u8"Đã hủy") {
-                    Widgets::BadgeDanhSachDen(tt.c_str());
+                    Widgets::BadgeCanhBao(tt.c_str());
                 } else {
                     Widgets::Badge(tt.c_str(), GUI::Theme::Colors::GrayHover, GUI::Theme::Colors::DarkText);
                 }
@@ -228,8 +228,7 @@ void LichDatScreen::renderTableDonDat() {
 }
 
 void LichDatScreen::renderModalXacNhanHuy() {
-    std::string noiDung = u8"Hủy nhiều lần sẽ vào danh sách đen, bạn đã hủy " +
-                          std::to_string(soLanDaHuy_) +
+    std::string noiDung = u8"Bạn đã hủy " + std::to_string(soLanDaHuy_) +
                           u8" lần.\nXác nhận thao tác hủy đơn đặt sân mã " + maDonCanHuy_ + u8".";
 
     Widgets::ModalXacNhan(

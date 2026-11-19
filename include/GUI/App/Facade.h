@@ -69,7 +69,7 @@ struct DonDatSanInfo {
     std::string khungGio;    // "17:30 - 19:00"
     int thoiLuongPhut = 90;
     int giaTien = 0;
-    std::string trangThai;   // "Đã xác nhận", "Đã thanh toán", "Đã hủy"
+    std::string trangThai;   // "Đã xác nhận", "Đã hoàn thành", "Đã hủy"
 };
 // Cấu trúc dữ liệu Khách hàng
 struct KhachHangInfo {

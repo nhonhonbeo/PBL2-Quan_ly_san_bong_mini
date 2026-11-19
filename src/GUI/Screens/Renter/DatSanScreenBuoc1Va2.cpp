@@ -177,7 +177,7 @@ void DatSanScreen::renderTheCumSan(const VenueFacilityRecord& facility, int fiel
         } else {
             Widgets::BadgeTrong((std::to_string(fieldCount) + u8" s\u00E2n s\u1EB5n s\u00E0ng").c_str());
             ImGui::SameLine(0.0f, 6.0f);
-            Widgets::BadgeVIP((u8"T\u1EEB " + dinhDangTien(lowestPrice)).c_str());
+            Widgets::BadgeNoiBat((u8"T\u1EEB " + dinhDangTien(lowestPrice)).c_str());
         }
 
         ImGui::Spacing();

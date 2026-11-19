@@ -46,12 +46,12 @@ void BadgeBaoTri(const char* text) {
     Badge(text, ImVec4(0.996f, 0.953f, 0.780f, 1.0f), ImVec4(0.471f, 0.208f, 0.059f, 1.0f));
 }
 
-void BadgeVIP(const char* text) {
+void BadgeNoiBat(const char* text) {
     // LÝ DO CHỌN: Nền vàng nhạt sáng #FEF9C3, chữ nâu vàng đậm #713F12 tương phản cao đạt chuẩn WCAG
     Badge(text, ImVec4(0.996f, 0.976f, 0.765f, 1.0f), ImVec4(0.443f, 0.247f, 0.071f, 1.0f));
 }
 
-void BadgeDanhSachDen(const char* text) {
+void BadgeCanhBao(const char* text) {
     // Nền đỏ pastel, chữ đỏ đậm #DC2626
     Badge(text, ImVec4(0.996f, 0.886f, 0.886f, 1.0f), GUI::Theme::Colors::Danger);
 }

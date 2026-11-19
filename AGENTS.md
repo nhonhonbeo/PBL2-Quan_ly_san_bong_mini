@@ -19,10 +19,10 @@ QuanLySanBongMini/
 2 loại tài khoản:
 1) Chủ sân: đăng nhập/đăng ký; tạo sân (loại 5/7/11, số lượng, quy định, thông tin chủ sân);
    quản lý sân (mã sân, khung giờ, đặt giá, còn chỗ/đã đặt, giờ mở/đóng cửa);
-   quản lý khách hàng (danh bạ SĐT, số lần đặt -> ưu đãi, hủy nhiều lần -> danh sách đen,
-   xem đánh giá); quản lý giải (tên giải, khách đặt sự kiện, lịch diễn ra).
+   quản lý khách hàng (danh bạ SĐT, thống kê số lần đặt/hủy, xem đánh giá);
+   quản lý giải (tên giải, khách đặt sự kiện, lịch diễn ra).
 2) Người thuê: đăng nhập/đăng ký; thông tin cá nhân; đặt/hủy sân; tạo giải (liên hệ chủ sân);
-   xem số lần đặt & ưu đãi; đánh giá sân.
+   xem lịch sử và số lần đặt/hủy; đánh giá sân.
 
 # QUY TẮC BẮT BUỘC
 1. GUI chỉ GỌI nghiệp vụ qua class/hàm đã khai báo trong include/. KHÔNG viết logic

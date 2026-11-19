@@ -12,7 +12,6 @@
 #include "GUI/App/Facade.h"
 #include "GUI/App/ScreenManager.h"
 #include "GUI/Screens/Auth/AuthScreen.h"
-#include "GUI/Screens/DemoScreen.h"
 #include "GUI/Theme/Fonts.h"
 #include "GUI/Theme/Theme.h"
 #include "GUI/Widgets/Toast.h"
@@ -58,8 +57,7 @@ void windowCloseCallback(GLFWwindow* /*window*/) {
 
 }  // namespace
 
-Application::Application(bool runDemo)
-    : runDemo_(runDemo) {}
+Application::Application() = default;
 
 Application::~Application() {
     shutdown();
@@ -122,13 +120,9 @@ bool Application::init() {
     // LÝ DO CHỌN: Nạp dữ liệu từ FileManager qua Facade khi ứng dụng khởi động
     GUI::App::Facade::getInstance().loadData();
 
-    // Thiết lập màn hình khởi động vào ScreenManager
-    if (runDemo_) {
-        GUI::App::ScreenManager::getInstance().replace(std::make_unique<GUI::Screens::DemoScreen>());
-    } else {
-        // Mặc định nạp màn hình Xác thực & Chào mừng (AuthScreen)
-        GUI::App::ScreenManager::getInstance().replace(std::make_unique<GUI::Screens::Auth::AuthScreen>());
-    }
+    // Mặc định nạp màn hình xác thực.
+    GUI::App::ScreenManager::getInstance().replace(
+        std::make_unique<GUI::Screens::Auth::AuthScreen>());
 
     initialized_ = true;
     return true;

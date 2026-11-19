@@ -149,7 +149,7 @@ void OwnerShellScreen::renderTopBar() {
         u8"Tổng quan & Báo cáo cơ sở sân",
         u8"Quản lý danh sách sân & Lịch đặt",
         u8"Khởi tạo sân bóng mới (Wizard 4 bước)",
-        u8"Quản lý danh bạ khách hàng & Ưu đãi VIP",
+        u8"Quản lý danh bạ khách hàng & Thống kê đặt sân",
         u8"Quản lý sự kiện & Giải đấu thể thao"
     };
 

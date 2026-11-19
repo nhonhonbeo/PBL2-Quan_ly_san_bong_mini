@@ -83,7 +83,7 @@ void FieldManagementScreen::renderTabKhungGio() {
 
                 ImGui::TableSetColumnIndex(3);
                 if (kg.laGioVang) {
-                    Widgets::BadgeVIP(u8"Giờ vàng");
+                    Widgets::BadgeNoiBat(u8"Giờ vàng");
                 } else {
                     Widgets::Badge(u8"Giờ thường", GUI::Theme::Colors::GrayHover, GUI::Theme::Colors::DarkText);
                 }

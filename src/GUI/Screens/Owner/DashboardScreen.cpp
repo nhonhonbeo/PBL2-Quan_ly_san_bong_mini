@@ -136,7 +136,7 @@ void DashboardScreen::renderStatCards() {
         "",
         u8"Doanh thu tháng này",
         dtStr.c_str(),
-        u8"Đơn hoàn tất hoặc đã thanh toán",
+        u8"Đơn đã hoàn thành",
         GUI::Theme::Colors::Warning
     );
     ImGui::SameLine(0.0f, cardSpacing);
@@ -328,7 +328,7 @@ void DashboardScreen::renderUpcomingBookings() {
                 if (don.status == u8"Đã thanh toán" || don.status == u8"Đã hoàn thành") {
                     Widgets::BadgeDaDat(don.status.c_str());
                 } else if (don.status == u8"Đã hủy") {
-                    Widgets::BadgeDanhSachDen(don.status.c_str());
+                    Widgets::BadgeCanhBao(don.status.c_str());
                 } else {
                     Widgets::Badge(don.status.c_str(), GUI::Theme::Colors::PrimaryLight, GUI::Theme::Colors::Primary);
                 }

@@ -14,7 +14,7 @@ Phạm vi trọng tâm của hệ thống là:
 - Quản lý sân bóng, khung giờ, giá thuê và trạng thái sân.
 - Cho phép người thuê **tìm kiếm/liên hệ và đặt sân**, đồng thời hỗ trợ hủy sân.
 - Quản lý thông tin khách hàng.
-- Theo dõi số lần đặt/hủy để hỗ trợ **ưu đãi** và **danh sách đen**.
+- Theo dõi số lần đặt/hủy và đánh giá của khách hàng.
 - Quản lý đánh giá sân.
 - Cung cấp thống kê/báo cáo cho chủ sân.
 
@@ -100,8 +100,6 @@ PBL2-Quan_ly_san_bong_mini/
 │   │
 │   ├── Customer/
 │   │   ├── Customer.h
-│   │   ├── Blacklist.h
-│   │   ├── Discount.h
 │   │   └── Review.h
 │   │
 │   ├── Tournament/
@@ -153,8 +151,6 @@ PBL2-Quan_ly_san_bong_mini/
 │   ├── fields.txt
 │   ├── bookings.txt
 │   ├── customers.txt
-│   ├── blacklist.txt
-│   ├── discounts.txt
 │   ├── reviews.txt
 │   ├── tournaments.txt
 │   ├── teams.txt
@@ -194,7 +190,6 @@ Chứa các cấu trúc dữ liệu tự cài đặt và các tiện ích dùng 
 Dùng cho các danh sách cần thêm/xóa linh hoạt, ví dụ:
 
 - Danh sách đánh giá.
-- Danh sách đen.
 - Danh sách booking.
 - Các danh sách đối tượng khác khi phù hợp.
 
@@ -346,27 +341,11 @@ Quản lý thông tin và lịch sử của khách hàng.
 
 Thông tin khách hàng.
 
-### `Blacklist`
-
-Quản lý khách bị đưa vào danh sách đen theo quy tắc nghiệp vụ.
-
-### `Discount`
-
-Quản lý thông tin/điều kiện ưu đãi.
-
 ### `Review`
 
 Quản lý đánh giá của khách hàng đối với sân.
 
-Các quy tắc như:
-
-```text
-Khách đặt nhiều lần → đủ điều kiện ưu đãi
-
-Khách hủy nhiều lần → có thể bị đưa vào blacklist
-```
-
-là **business logic**, vì vậy nên xử lý trong `CustomerService`/`BookingService`, không xử lý trong Repository.
+`CustomerService` quản lý hồ sơ, thống kê số lần đặt/hủy và đánh giá của khách hàng.
 
 ---
 
@@ -409,8 +388,6 @@ Phụ trách:
 - Quản lý khách hàng.
 - Theo dõi số lần đặt.
 - Theo dõi số lần hủy.
-- Xử lý blacklist.
-- Xử lý điều kiện ưu đãi.
 - Quản lý đánh giá.
 
 ## `ReportService`
@@ -480,9 +457,7 @@ Tùy từng entity có thể bổ sung hàm tìm kiếm phù hợp.
 Không đặt các quy tắc nghiệp vụ như:
 
 ```text
-Khách hủy 3 lần → blacklist
 Sân đã được đặt → từ chối booking
-Khách đặt đủ số lần → giảm giá
 ```
 
 Những việc này thuộc Service.
@@ -640,7 +615,6 @@ BookingService
     ├── kiểm tra TimeSlot
     ├── kiểm tra giờ mở/đóng
     ├── kiểm tra trùng lịch
-    ├── kiểm tra blacklist
     │
     ▼
 Tạo Booking
@@ -746,7 +720,6 @@ Test kỹ:
 - Ngoài giờ mở cửa.
 - Sân không tồn tại.
 - Khách không tồn tại.
-- Khách trong blacklist.
 
 ## Giai đoạn 6 — Customer
 
@@ -754,8 +727,6 @@ Hoàn thiện:
 
 ```text
 Customer
-Blacklist
-Discount
 Review
 CustomerService
 CustomerRepository
