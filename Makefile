@@ -5,7 +5,7 @@ BUILD_DIR := build
 GUI_TARGET := $(BUILD_DIR)/QuanLySanBong_GUI
 
 # Mọi mã nghiệp vụ, trừ hai entry point, được liên kết vào ứng dụng GUI.
-BUSINESS_SRC_DIRS := src/Core src/features/Account src/features/Field src/features/Booking src/features/Customer src/Repository src/Service src/features/Payment src/features/Tournament src/features/Storage
+BUSINESS_SRC_DIRS := src/Core src/features/Account src/features/Field src/features/Booking src/features/Customer src/Repository src/Service src/features/Tournament src/features/Storage
 BUSINESS_SOURCES := $(foreach dir,$(BUSINESS_SRC_DIRS),$(wildcard $(dir)/*.cpp))
 GUI_SRC_DIRS := src/GUI src/GUI/App src/GUI/Theme src/GUI/Widgets src/GUI/Screens src/GUI/Screens/Auth src/GUI/Screens/Owner src/GUI/Screens/Renter
 GUI_SOURCES := src/main_gui.cpp $(foreach dir,$(GUI_SRC_DIRS),$(wildcard $(dir)/*.cpp))
@@ -52,6 +52,8 @@ test-core:
 	$(BUILD_DIR)/test_linked_list$(EXE_EXT)
 	$(BUILD_DIR)/test_queue$(EXE_EXT)
 	$(BUILD_DIR)/test_hash_table$(EXE_EXT)
+	$(CXX) $(CXXFLAGS) tests/core/test_id_generator.cpp -o $(BUILD_DIR)/test_id_generator$(EXE_EXT)
+	$(BUILD_DIR)/test_id_generator$(EXE_EXT)
 
 test-booking:
 	@mkdir -p $(BUILD_DIR)
@@ -76,12 +78,6 @@ test-file-manager:
 	$(file >$(BUILD_DIR)/biz_sources.rsp,$(BUSINESS_SOURCES))
 	$(CXX) $(CXXFLAGS) tests/test_file_manager.cpp @$(BUILD_DIR)/biz_sources.rsp -o $(BUILD_DIR)/test_file_manager$(EXE_EXT)
 	$(BUILD_DIR)/test_file_manager$(EXE_EXT)
-
-test-payment:
-	@mkdir -p $(BUILD_DIR)
-	$(file >$(BUILD_DIR)/biz_sources.rsp,$(BUSINESS_SOURCES))
-	$(CXX) $(CXXFLAGS) tests/test_payment_consistency.cpp @$(BUILD_DIR)/biz_sources.rsp -o $(BUILD_DIR)/test_payment_consistency$(EXE_EXT)
-	$(BUILD_DIR)/test_payment_consistency$(EXE_EXT)
 
 test-venue-images:
 	@mkdir -p $(BUILD_DIR)
@@ -141,7 +137,6 @@ test:
 	$(MAKE) test-domain
 	$(MAKE) test-facade
 	$(MAKE) test-file-manager
-	$(MAKE) test-payment
 	$(MAKE) test-service-responsibilities
 	$(MAKE) test-single-source
 	$(MAKE) test-task07-validation
@@ -152,4 +147,4 @@ test:
 clean:
 	rm -f $(BUILD_DIR)/*.o $(BUILD_DIR)/*.obj $(BUILD_DIR)/*.exe $(BUILD_DIR)/*.rsp
 
-.PHONY: all gui run run-gui test test-core test-booking test-customer test-customer-index test-file-manager test-payment test-venue-images test-facade test-domain test-service-responsibilities test-single-source test-task07-validation test-task08-di test-tournament clean
+.PHONY: all gui run run-gui test test-core test-booking test-customer test-customer-index test-file-manager test-venue-images test-facade test-domain test-service-responsibilities test-single-source test-task07-validation test-task08-di test-tournament clean

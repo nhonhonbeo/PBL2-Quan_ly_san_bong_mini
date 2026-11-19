@@ -1,5 +1,6 @@
 ﻿#include "GUI/Screens/Owner/CreateFieldWizardScreen.h"
 
+#include <algorithm>
 #include <cstring>
 #include <imgui.h>
 
@@ -13,7 +14,8 @@
 #include "GUI/Widgets/Card.h"
 #include "GUI/Widgets/InputFields.h"
 #include "GUI/Widgets/Modal.h"
-#include "GUI/Widgets/ProgressBar.h"
+#include "GUI/Widgets/Layout.h"
+#include "GUI/Widgets/StepIndicator.h"
 #include "GUI/Widgets/Toast.h"
 
 namespace GUI::Screens::Owner {
@@ -45,7 +47,9 @@ void CreateFieldWizardScreen::onExit() {
 }
 
 void CreateFieldWizardScreen::render() {
-    Widgets::Card("card_create_field_wizard", u8"Quy trình tạo sân bóng mới (Wizard 4 bước)", [this]() {
+    // Tiêu đề trang đã có ở thanh trên nên thẻ không lặp lại; form giới hạn bề rộng để dễ đọc.
+    Widgets::BeginNoiDungHep("##wizard_wrap", 1000.0f);
+    Widgets::Card("card_create_field_wizard", "", [this]() {
         renderProgressBar();
         ImGui::Spacing();
         ImGui::Spacing();
@@ -73,21 +77,15 @@ void CreateFieldWizardScreen::render() {
 
         renderNavigationButtons();
     });
+    Widgets::EndNoiDungHep();
 
     renderResultModal();
 }
 
 void CreateFieldWizardScreen::renderProgressBar() {
-    float ratio = currentStep_ * 0.25f;
-    const char* stepLabels[] = {
-        "",
-        u8"1. Chọn loại sân bóng",
-        u8"2. Thiết lập số lượng sân",
-        u8"3. Ban hành quy định sử dụng",
-        u8"4. Xác nhận thông tin & Hoàn tất"
-    };
-
-    Widgets::ProgressBar(ratio, stepLabels[currentStep_], ImVec2(-1.0f, 30.0f));
+    Widgets::ThanhCacBuoc(
+        {u8"Loại sân", u8"Số lượng", u8"Quy định", u8"Xác nhận"},
+        currentStep_);
 }
 
 void CreateFieldWizardScreen::renderStep1LoaiSan() {
@@ -259,52 +257,53 @@ void CreateFieldWizardScreen::renderStep4XacNhan() {
 }
 
 void CreateFieldWizardScreen::renderNavigationButtons() {
-    float btnW = 120.0f;
-    float confirmW = currentStep_ == 4 ? 180.0f : btnW;
+    constexpr float kChieuCaoNut = 36.0f;
+    const float btnW = 120.0f;
+    const float confirmW = currentStep_ == 4 ? 180.0f : btnW;
+    const float spacing = ImGui::GetStyle().ItemSpacing.x;
 
-    // Nút Hủy
-    if (Widgets::NutPhu(u8"Hủy bỏ", ImVec2(btnW, 36.0f))) {
+    // Tính trước mép phải của hàng để cả ba nút nằm trên cùng một dòng:
+    // "Hủy bỏ" bên trái, "Quay lại" + "Tiếp tục" bên phải.
+    const float rowStartX = ImGui::GetCursorPosX();
+    const float rightEdgeX = rowStartX + ImGui::GetContentRegionAvail().x;
+    const float rightGroupWidth = btnW + confirmW + spacing;
+
+    if (Widgets::NutPhu(u8"Hủy bỏ", ImVec2(btnW, kChieuCaoNut))) {
         if (onHoanTatCallback_) {
             onHoanTatCallback_();
         }
     }
 
-    float rowStartX = ImGui::GetCursorPosX();
-    float rightEdgeX = rowStartX + ImGui::GetContentRegionAvail().x;
-    float rightGroupWidth = btnW + confirmW + ImGui::GetStyle().ItemSpacing.x;
-    ImGui::SetCursorPosX(std::max(rowStartX, rightEdgeX - rightGroupWidth));
+    ImGui::SameLine();
+    ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), rightEdgeX - rightGroupWidth));
 
     // Nút Quay lại
-    if (currentStep_ <= 1) {
-        ImGui::BeginDisabled();
-    }
-    if (Widgets::NutPhu(u8"Quay lại", ImVec2(btnW, 36.0f))) {
+    ImGui::BeginDisabled(currentStep_ <= 1);
+    if (Widgets::NutPhu(u8"Quay lại", ImVec2(btnW, kChieuCaoNut))) {
         if (currentStep_ > 1) {
             currentStep_--;
         }
     }
-    if (currentStep_ <= 1) {
-        ImGui::EndDisabled();
-    }
+    ImGui::EndDisabled();
 
     ImGui::SameLine();
 
     // Nút Tiếp tục / Xác nhận tạo sân
     if (currentStep_ < 4) {
-        if (Widgets::NutChinh(u8"Tiếp tục >", ImVec2(btnW, 36.0f))) {
+        if (Widgets::NutChinh(u8"Tiếp tục", ImVec2(btnW, kChieuCaoNut))) {
             currentStep_++;
         }
     } else {
-        if (Widgets::NutChinh(u8"Xác nhận tạo sân", ImVec2(confirmW, 36.0f))) {
-            // Thực hiện tạo sân qua Facade
+        if (Widgets::NutChinh(u8"Xác nhận tạo sân", ImVec2(confirmW, kChieuCaoNut))) {
             auto kq = GUI::App::Facade::getInstance().taoNhieuSan(loaiSan_, soLuong_, quyDinh_, danhSachMaSanVuaTao_);
             if (kq.ok) {
                 moPopupKetQua_ = true;
                 Widgets::MoModalXacNhan(u8"Kết quả khởi tạo sân bóng");
             } else {
+                // Trước đây lỗi bị bỏ qua im lặng, người dùng bấm xong không thấy gì.
+                Widgets::ToastLoi(kq.loi.empty() ? u8"Không thể tạo sân bóng." : kq.loi);
             }
         }
-        ImGui::Dummy(ImVec2(0.0f, 4.0f));
     }
 }
 

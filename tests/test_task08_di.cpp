@@ -7,13 +7,11 @@
 #include "Repository/CustomerRepository.h"
 #include "Repository/FieldRepository.h"
 #include "Repository/VenueRepository.h"
-#include "Repository/PaymentRepository.h"
 #include "Service/BookingService.h"
 #include "Service/CustomerService.h"
 #include "Field/Field.h"
 #include "Service/FieldService.h"
 #include "Service/VenueService.h"
-#include "Service/PaymentService.h"
 
 int main() {
     std::cout << "=== RUNNING TASK 08 UNIFY VENUE & FIELD ARCHITECTURE TESTS ===" << std::endl;
@@ -24,9 +22,6 @@ int main() {
 
     CustomerRepository custRepo(fm);
     CustomerService custService(custRepo);
-
-    PaymentRepository payRepo(fm);
-    PaymentService payService(payRepo);
 
     BookingRepository bookingRepo(venueRepo);
 
@@ -45,7 +40,7 @@ int main() {
     std::cout << "[PASS] FieldService getFields through injected VenueService successful." << std::endl;
 
     // 3. Kiểm tra BookingService nhận VenueService & VenueRepository qua DI không tự khởi tạo lại
-    BookingService bookingService(bookingRepo, custService, venueService, payService);
+    BookingService bookingService(bookingRepo, custService, venueService);
     VenueBookingRequest req;
     req.customerId = "US02";
     req.customerName = "Trần Văn Thuê";

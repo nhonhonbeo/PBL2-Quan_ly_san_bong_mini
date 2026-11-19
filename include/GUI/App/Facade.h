@@ -19,7 +19,6 @@
 #include "Repository/ReportRepository.h"
 #include "Repository/TournamentRepository.h"
 #include "Repository/VenueRepository.h"
-#include "Repository/PaymentRepository.h"
 #include "Service/AccountService.h"
 #include "Service/BookingService.h"
 #include "Service/CustomerService.h"
@@ -27,7 +26,6 @@
 #include "Service/ReportService.h"
 #include "Service/TournamentService.h"
 #include "Service/VenueService.h"
-#include "Service/PaymentService.h"
 #include "Storage/FileManager.h"
 namespace GUI::App {
 // LÝ DO CHỌN: Cấu trúc kết quả trả về chuẩn hóa cho mọi tác vụ nghiệp vụ
@@ -313,11 +311,9 @@ private:
     ReportRepository report_repository_;
     TournamentRepository tournament_repository_;
     FieldRepository field_repository_;
-    PaymentRepository payment_repository_;
     mutable AccountService account_service_;
     mutable VenueService venue_service_;
     mutable CustomerService customer_service_;
-    mutable PaymentService payment_service_;
     mutable BookingService booking_service_;
     mutable ReportService report_service_;
     mutable TournamentService tournament_service_;

@@ -26,7 +26,7 @@ struct Colors {
     // 3. Văn bản & Phân cấp thị giác (Typography Colors)
     static constexpr ImVec4 TextPrimary   = ImVec4(0.094f, 0.169f, 0.141f, 1.0f); // #182B24 - Chữ chính đậm nét
     static constexpr ImVec4 DarkText      = TextPrimary;
-    static constexpr ImVec4 TextSecondary = ImVec4(0.455f, 0.502f, 0.471f, 1.0f); // #748078 - Chữ phụ/nhãn/breadcrumb
+    static constexpr ImVec4 TextSecondary = ImVec4(0.373f, 0.420f, 0.392f, 1.0f); // #5F6B64 - Chữ phụ/nhãn/breadcrumb (tương phản >= 4.5:1 trên nền trắng)
     static constexpr ImVec4 MutedText     = TextSecondary;
     static constexpr ImVec4 Gray          = ImVec4(0.612f, 0.639f, 0.686f, 1.0f); // #9CA3AF - Xám vô hiệu hóa
 

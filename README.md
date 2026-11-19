@@ -37,8 +37,8 @@ chưa có luồng GUI độc lập.
 ```text
 include/
   Core/                 LinkedList, HashTable, Queue, DateTime
-  features/              Domain: Account, Booking, Customer, Field, Payment,
-                         Storage, Tournament
+  features/              Domain: Account, Booking, Customer, Field, Storage,
+                         Tournament
   Repository/            Đọc/ghi và chuyển đổi dữ liệu
   Service/               Quy tắc nghiệp vụ và điều phối
   GUI/                   Application, ScreenManager, Theme, Widgets, Screens

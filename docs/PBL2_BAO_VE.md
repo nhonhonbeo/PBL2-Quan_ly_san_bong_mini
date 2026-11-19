@@ -66,8 +66,7 @@ FileManager / text files
   screen; mỗi màn hình nằm trong `include/GUI` và `src/GUI`.
 - GUI gọi `Facade`; `Facade` chuyển tiếp đến service và ánh xạ dữ liệu sang DTO.
 - Các service nhận repository/service phụ thuộc qua tham chiếu constructor, ví dụ
-  `BookingService` nhận `BookingRepository`, `CustomerService`, `VenueService` và
-  `PaymentService`.
+  `BookingService` nhận `BookingRepository`, `CustomerService` và `VenueService`.
 - Repository đảm nhiệm đọc/ghi, parse/serialize. `FileManager` tập trung I/O và hỗ trợ
   ghi/thay thế file.
 - DI chưa tuyệt đối đồng nhất: `AccountRepository` có dependency `FileManager` nhưng
@@ -78,24 +77,17 @@ FileManager / text files
 ### Booking
 
 `BookingService` kiểm tra khách hàng, blacklist và thông tin đặt; `VenueService`/repository
-kiểm tra sân, thời gian hoạt động và lịch trùng trước khi lưu. Sau khi tạo booking,
-service lấy giá đã lưu để tạo invoice. Nếu lập invoice thất bại, booking được rollback;
-luồng đặt nhiều ca cũng theo dõi các ID để rollback khi một bước thất bại.
+kiểm tra sân, thời gian hoạt động và lịch trùng trước khi lưu. Luồng đặt nhiều ca
+theo dõi các ID để rollback toàn bộ booking đã tạo nếu một bước thất bại.
 
-Hủy booking kiểm tra quyền khách hàng và trạng thái, cập nhật invoice liên quan rồi lưu
-trạng thái booking. Hoàn thành đi qua kiểm tra quyền Owner và quy tắc trạng thái domain.
-
-### Invoice
-
-`PaymentService` và `PaymentRepository` tạo/lấy/cập nhật hóa đơn và trạng thái thanh toán.
-Thanh toán là cập nhật thủ công; không có tích hợp payment gateway.
+Hủy booking kiểm tra quyền khách hàng và trạng thái trước khi lưu trạng thái booking.
+Hoàn thành đi qua kiểm tra quyền Owner và quy tắc trạng thái domain.
 
 ### Tournament
 
 `TournamentService` kiểm tra tên/ngày, xung đột với giải khác và booking đang hoạt động,
-điều phối yêu cầu/duyệt/từ chối, quản lý đội và kết quả trận. Lịch được sinh theo thứ tự
-FIFO bằng `Queue`; đây là lịch ghép cặp cơ bản, không phải bracket hoặc thuật toán loại
-trực tiếp.
+điều phối yêu cầu/duyệt/từ chối. `Queue` được dùng để tạo lịch ghép cặp cơ bản theo FIFO,
+không phải bracket hoặc thuật toán loại trực tiếp.
 
 ### Review
 

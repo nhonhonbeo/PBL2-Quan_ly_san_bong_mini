@@ -1,6 +1,5 @@
 ﻿#include "Service/BookingService.h"
 #include "Service/CustomerService.h"
-#include "Service/PaymentService.h"
 
 #include "Booking/Booking.h"
 #include "Booking/BookingDetail.h"
@@ -47,12 +46,10 @@ bool validateBookingCustomer(
 
 BookingService::BookingService(BookingRepository& bookingRepository,
                                CustomerService& customerService,
-                               VenueService& venueService,
-                               PaymentService& paymentService)
+                               VenueService& venueService)
     : booking_repository_(bookingRepository),
       customer_service_(customerService),
-      venue_service_(venueService),
-      payment_service_(paymentService) {}
+      venue_service_(venueService) {}
 
 bool BookingService::createBooking(const Booking& booking,
                                    std::string& error) {
@@ -83,66 +80,7 @@ bool BookingService::createBooking(const VenueBookingRequest& request,
                                    std::string& bookingId,
                                    std::string& error) {
     if (!validateBookingCustomer(customer_service_, request, error)) return false;
-
-    LinkedList<VenueBookingRecord> originalBookings;
-    if (!booking_repository_.loadAll(originalBookings, error)) {
-        return false;
-    }
-
-    bool ok = venue_service_.createBooking(request, bookingId, error);
-    if (!ok) {
-        return false;
-    }
-
-    {
-        // Lấy giá tiền chính xác của đơn đặt sân vừa tạo
-        LinkedList<VenueBookingRecord> currentBookings;
-        std::string loadErr;
-        long long price = 0;
-        if (!booking_repository_.loadAll(currentBookings, loadErr)) {
-            std::string rollbackError;
-            if (!booking_repository_.saveAll(originalBookings, rollbackError)) {
-                error = "Không thể đọc booking vừa tạo: " + loadErr +
-                        "; không thể khôi phục danh sách: " + rollbackError;
-            } else {
-                error = "Không thể đọc booking vừa tạo: " + loadErr;
-            }
-            bookingId.clear();
-            return false;
-        }
-        bool bookingFound = false;
-        for (auto* n = currentBookings.get_head(); n != nullptr; n = n->next) {
-            if (n->data.bookingId == bookingId) {
-                price = n->data.priceVnd;
-                bookingFound = true;
-                break;
-            }
-        }
-        if (!bookingFound) {
-            error = "Không tìm thấy booking vừa tạo để lập hóa đơn.";
-            std::string rollbackError;
-            if (!booking_repository_.saveAll(originalBookings, rollbackError)) {
-                error += "; không thể khôi phục danh sách: " + rollbackError;
-            }
-            bookingId.clear();
-            return false;
-        }
-
-        std::string invId, invErr;
-        if (!payment_service_.createInvoice(bookingId, price, invId, invErr)) {
-            // Rollback đơn đặt sân nếu tạo hóa đơn thất bại để tránh dữ liệu mồ côi
-            std::string rollbackErr;
-            if (!booking_repository_.saveAll(originalBookings, rollbackErr)) {
-                error = "Tao hoa don that bai: " + invErr +
-                        ". Khong the khoi phuc don dat san: " + rollbackErr;
-            } else {
-                error = "Tao hoa don that bai: " + invErr;
-            }
-            bookingId.clear();
-            return false;
-        }
-    }
-    return true;
+    return venue_service_.createBooking(request, bookingId, error);
 }
 
 bool BookingService::createBookings(
@@ -190,7 +128,6 @@ bool BookingService::createBookings(
 
     // 3. Tiến hành đặt từng ca kèm theo dõi danh sách để rollback nguyên khối nếu bất kỳ bước nào thất bại
     LinkedList<std::string> createdBookingIds;
-    LinkedList<std::string> createdInvoiceIds;
     bool allSuccess = true;
 
     for (auto* node = requests.get_head(); node != nullptr; node = node->next) {
@@ -200,39 +137,6 @@ bool BookingService::createBookings(
             break;
         }
         createdBookingIds.push_back(currentBookingId);
-
-        {
-            // Xác định chính xác giá tiền của đơn vừa ghi nhận
-            LinkedList<VenueBookingRecord> currentBookings;
-            std::string loadErr;
-            long long price = 0;
-            if (!booking_repository_.loadAll(currentBookings, loadErr)) {
-                error = "Không thể đọc booking vừa tạo: " + loadErr;
-                allSuccess = false;
-                break;
-            }
-            bool bookingFound = false;
-            for (auto* bNode = currentBookings.get_head(); bNode != nullptr; bNode = bNode->next) {
-                if (bNode->data.bookingId == currentBookingId) {
-                    price = bNode->data.priceVnd;
-                    bookingFound = true;
-                    break;
-                }
-            }
-            if (!bookingFound) {
-                error = "Không tìm thấy booking vừa tạo để lập hóa đơn.";
-                allSuccess = false;
-                break;
-            }
-
-            std::string invId, invErr;
-            if (!payment_service_.createInvoice(currentBookingId, price, invId, invErr)) {
-                error = "Tao hoa don that bai: " + invErr;
-                allSuccess = false;
-                break;
-            }
-            createdInvoiceIds.push_back(currentBookingId);
-        }
     }
 
     if (!allSuccess) {
@@ -240,13 +144,6 @@ bool BookingService::createBookings(
         std::string rollbackErr;
         if (!booking_repository_.saveAll(originalBookings, rollbackErr)) {
             error += ". Loi nghiem trong: Khong the khoi phuc trang thai bookings: " + rollbackErr;
-        }
-        // Rollback toàn bộ hóa đơn đã phát hành
-        for (auto* invNode = createdInvoiceIds.get_head(); invNode != nullptr; invNode = invNode->next) {
-            std::string delErr;
-            if (!payment_service_.rollbackInvoice(invNode->data, delErr)) {
-                error += ". Không thể hủy hóa đơn: " + delErr;
-            }
         }
         bookingIds.clear();
         return false;
@@ -275,38 +172,8 @@ bool BookingService::cancelBooking(const std::string& bookingId,
             return false;
         }
 
-        auto invoiceResult = payment_service_.getInvoiceByBookingIdResult(
-            booking->bookingId
-        );
-        if (!invoiceResult &&
-            invoiceResult.code != ServiceErrorCode::NotFound) {
-            error = invoiceResult.message;
-            return false;
-        }
-        const bool hasInvoice = invoiceResult.isSuccess();
-        Invoice originalInvoice;
-        if (hasInvoice) {
-            originalInvoice = *invoiceResult.value;
-            ServiceResult paymentResult =
-                payment_service_.cancelInvoiceResult(booking->bookingId);
-            if (!paymentResult) {
-                error = paymentResult.message;
-                return false;
-            }
-        }
-
         booking->status = Booking::statusToText(domainBooking.getStatus());
-        if (!booking_repository_.saveAll(bookings, error)) {
-            if (hasInvoice) {
-                ServiceResult restoreResult =
-                    payment_service_.restoreInvoiceResult(originalInvoice);
-                if (!restoreResult) {
-                    error += "; không thể khôi phục hóa đơn: " +
-                             restoreResult.message;
-                }
-            }
-            return false;
-        }
+        if (!booking_repository_.saveAll(bookings, error)) return false;
 
         std::string custErr;
         if (!customer_service_.recordCancellation(
@@ -317,14 +184,6 @@ bool BookingService::cancelBooking(const std::string& bookingId,
                                              bookingRollbackError)) {
                 error += "; không thể khôi phục booking: " +
                          bookingRollbackError;
-            }
-            if (hasInvoice) {
-                ServiceResult restoreResult =
-                    payment_service_.restoreInvoiceResult(originalInvoice);
-                if (!restoreResult) {
-                    error += "; không thể khôi phục hóa đơn: " +
-                             restoreResult.message;
-                }
             }
             return false;
         }

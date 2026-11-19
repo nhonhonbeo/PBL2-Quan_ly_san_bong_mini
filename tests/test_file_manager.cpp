@@ -9,9 +9,7 @@
 #include <vector>
 
 #include "Account/Customer.h"
-#include "Payment/Invoice.h"
 #include "Repository/CustomerRepository.h"
-#include "Repository/PaymentRepository.h"
 #include "Repository/TournamentRepository.h"
 #include "Storage/FileManager.h"
 #include "Tournament/Tournament.h"
@@ -262,33 +260,6 @@ int main() {
         emptyAccounts, emptyAccountsPath.string(), error));
     assert(emptyAccounts.empty());
     assert(readFile(emptyAccountsPath).empty());
-
-    const std::filesystem::path invoicesPath = "data/invoices.txt";
-    writeFile(invoicesPath, "INV-OK|BOOK-OK|120000|2026-11-14|0\n");
-    PaymentRepository paymentRepository(manager);
-    LinkedList<Invoice> invoices;
-    assert(paymentRepository.loadAllInvoices(invoices, error));
-    assert(invoices.size() == 1);
-    assert(invoices.front().getTotalVnd() == 120000);
-
-    const std::filesystem::path paymentsPath = "data/payments.txt";
-    writeFile(paymentsPath, "PAY-OK|INV-OK|120000|1|2026-11-14\n");
-    LinkedList<Payment> payments;
-    assert(paymentRepository.loadAllPayments(payments, error));
-    assert(payments.size() == 1);
-    assert(payments.front().getAmountVnd() == 120000);
-
-    const std::string malformedInvoice =
-        "INV-BAD|BOOKING-1|not-a-number|2026-11-14|0\n";
-    writeFile(invoicesPath, malformedInvoice);
-    invoices.clear();
-    invoices.push_back(Invoice("KEEP", "KEEP-BOOKING", 100, "2026-11-14"));
-    assert(!paymentRepository.loadAllInvoices(invoices, error));
-    assert(invoices.size() == 1);
-    assert(invoices.front().getInvoiceId() == "KEEP");
-    assert(!paymentRepository.saveInvoice(
-        Invoice("NEW", "NEW-BOOKING", 200, "2026-11-14"), error));
-    assert(readFile(invoicesPath) == malformedInvoice);
 
     const std::filesystem::path tournamentsPath = "data/tournaments.txt";
     writeFile(tournamentsPath,

@@ -210,14 +210,14 @@ Fonts loadFonts() {
     const int dataSize = static_cast<int>(fontData.size());
     Fonts fonts;
     // LÝ DO CHỌN: Phân cấp Typography chuẩn mực:
-    // - regular: 15px (nội dung, form, bảng)
+    // - regular: 16px (nội dung, form, bảng)
     // - heading: 24px (tiêu đề màn hình)
     // - title:   18px (tiêu đề khu vực, card header)
-    // - small:   13px (nhãn phụ, badge, footnote)
-    fonts.regular = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 15.0F, &config, glyphRanges.Data);
+    // - small:   14px (nhãn phụ, badge, footnote)
+    fonts.regular = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 16.0F, &config, glyphRanges.Data);
     fonts.heading = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 24.0F, &config, glyphRanges.Data);
     fonts.title   = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 18.0F, &config, glyphRanges.Data);
-    fonts.small   = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 13.0F, &config, glyphRanges.Data);
+    fonts.small   = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 14.0F, &config, glyphRanges.Data);
 
     if (fonts.regular == nullptr || fonts.heading == nullptr || fonts.title == nullptr || fonts.small == nullptr) {
         io.Fonts->Clear();

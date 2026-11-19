@@ -12,6 +12,7 @@
 #include "GUI/Widgets/Button.h"
 #include "GUI/Widgets/Card.h"
 #include "GUI/Widgets/ComboRadio.h"
+#include "GUI/Widgets/Layout.h"
 #include "GUI/Widgets/StarRating.h"
 #include "GUI/Widgets/Toast.h"
 
@@ -39,18 +40,45 @@ void DanhGiaScreen::reloadViewModel() {
 
     // 2. Nạp danh sách các đánh giá đã gửi của tôi
     danhSachDanhGiaCuaToi_ = facade.getDanhGiaCuaKhach(sdt);
+
+    // 3. Tên cơ sở theo chủ sân, để dropdown hiển thị tên dễ hiểu thay vì mã nội bộ.
+    tenCoSoTheoChuSan_.clear();
+    LinkedList<VenueFacilityRecord> coSo;
+    std::string loi;
+    if (facade.getDanhSachCoSo(coSo, loi)) {
+        for (auto* n = coSo.get_head(); n != nullptr; n = n->next) {
+            tenCoSoTheoChuSan_[n->data.ownerId] = n->data.name;
+        }
+    }
 }
 
 void DanhGiaScreen::render() {
-    renderFormDanhGia();
-    ImGui::Spacing();
-    ImGui::Spacing();
-    renderDanhSachDanhGiaCuaToi();
+    const float rongKhaDung = ImGui::GetContentRegionAvail().x;
+    constexpr float kNguongHaiCot = 1100.0f;
+
+    if (rongKhaDung >= kNguongHaiCot) {
+        // Màn hình rộng: form bên trái, các đánh giá đã gửi bên phải (không để form trải 1600px).
+        constexpr float kKhoangCach = 16.0f;
+        const float rongTrai = static_cast<float>(static_cast<int>((rongKhaDung - kKhoangCach) * 0.55f));
+        Widgets::BeginCot("##danhgia_cot_form", rongTrai);
+        renderFormDanhGia();
+        Widgets::EndCot();
+
+        ImGui::SameLine(0.0f, kKhoangCach);
+        Widgets::BeginCot("##danhgia_cot_lichsu", rongKhaDung - rongTrai - kKhoangCach);
+        renderDanhSachDanhGiaCuaToi();
+        Widgets::EndCot();
+    } else {
+        Widgets::BeginNoiDungHep("##danhgia_cot_don", 820.0f);
+        renderFormDanhGia();
+        renderDanhSachDanhGiaCuaToi();
+        Widgets::EndNoiDungHep();
+    }
 }
 
 void DanhGiaScreen::renderFormDanhGia() {
     const char* cardTitle = formDanhGiaIdDangSua_.empty()
-        ? u8"Đánh giá & Nhận xét chất lượng sân bóng"
+        ? ""  // tiêu đề trang đã có ở thanh trên
         : u8"Chỉnh sửa nội dung đánh giá của bạn";
 
     Widgets::Card("card_renter_write_review", cardTitle, [this]() {
@@ -65,13 +93,18 @@ void DanhGiaScreen::renderFormDanhGia() {
         ImGui::TextWrapped(u8"Chia sẻ cảm nhận thực tế của bạn về chất lượng sân bãi, dàn đèn chiếu sáng, mặt cỏ và dịch vụ:");
         ImGui::PopStyleColor();
         ImGui::Spacing();
-        ImGui::Separator();
         ImGui::Spacing();
 
         // 1. Chọn từ danh sách sân đầy đủ; quyền gửi vẫn giới hạn ở sân đã hoàn tất thi đấu.
         std::vector<std::string> dsTenSan;
         for (const auto& s : danhSachSan_) {
-            dsTenSan.push_back(s.maSan + " - " + s.tenSan + " (" + std::to_string(s.loaiSan) + u8" người)");
+            // Hiển thị "Sân 5 người - Tên cơ sở" thay vì mã nội bộ; mã chỉ dùng để định danh.
+            const auto it = tenCoSoTheoChuSan_.find(s.ownerUserId);
+            std::string nhan = s.tenSan;
+            if (it != tenCoSoTheoChuSan_.end() && !it->second.empty()) {
+                nhan += " - " + it->second;
+            }
+            dsTenSan.push_back(nhan);
         }
         if (formIndexSan_ >= static_cast<int>(dsTenSan.size())) {
             formIndexSan_ = 0;
@@ -110,9 +143,14 @@ void DanhGiaScreen::renderFormDanhGia() {
         ImGui::PopStyleVar();
         ImGui::PopStyleColor(2);
 
+        // Giải thích lý do nút Gửi đang bị mờ để người dùng biết cần làm gì.
         if (!duDieuKienDanhGia) {
             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
             ImGui::TextUnformatted(u8"Chỉ có thể đánh giá sân đã hoàn tất thi đấu.");
+            ImGui::PopStyleColor();
+        } else if (formNoiDung_.empty()) {
+            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
+            ImGui::TextUnformatted(u8"Hãy viết nhận xét để có thể gửi đánh giá.");
             ImGui::PopStyleColor();
         }
 
@@ -138,7 +176,9 @@ void DanhGiaScreen::renderFormDanhGia() {
                     formNoiDung_.clear();
                     formSoSao_ = 5;
                     reloadViewModel();
+                    Widgets::ToastThanhCong(u8"Đã gửi đánh giá. Cảm ơn bạn!");
                 } else {
+                    Widgets::ToastLoi(kq.loi.empty() ? u8"Không thể gửi đánh giá." : kq.loi);
                 }
             }
             ImGui::EndDisabled();
@@ -159,7 +199,9 @@ void DanhGiaScreen::renderFormDanhGia() {
                     formNoiDung_.clear();
                     formSoSao_ = 5;
                     reloadViewModel();
+                    Widgets::ToastThanhCong(u8"Đã cập nhật đánh giá.");
                 } else {
+                    Widgets::ToastLoi(kq.loi.empty() ? u8"Không thể cập nhật đánh giá." : kq.loi);
                 }
             }
             ImGui::EndDisabled();

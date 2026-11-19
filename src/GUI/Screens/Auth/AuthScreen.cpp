@@ -6,7 +6,6 @@
 
 #include "GUI/App/Facade.h"
 #include "GUI/App/ScreenManager.h"
-#include "GUI/Screens/DemoScreen.h"
 #include "GUI/Theme/Fonts.h"
 #include "GUI/Theme/Theme.h"
 #include "GUI/Widgets/Button.h"
@@ -274,31 +273,6 @@ void AuthScreen::renderBanner(float width, float height) {
         veTheTinhNang(u8"Đặt sân trực tuyến & Giữ chỗ tức thì 24/7", u8"Tra cứu tình trạng sân theo thời gian thực, bảng giá minh bạch.");
         veTheTinhNang(u8"Khách hàng thân thiết & Giải đấu phong trào", u8"Tích điểm nâng hạng VIP, ưu đãi tự động, quản lý cúp giao hữu.");
 
-        // ==========================================
-        // 4. CHÂN BANNER & NÚT DEMO WIDGETS (CĂN GIỮA)
-        // ==========================================
-        float bottomPosY = height - 50.0f;
-        if (bottomPosY > ImGui::GetCursorPosY() + 8.0f) {
-            ImGui::SetCursorPosY(bottomPosY);
-        }
-
-        float demoBtnW = std::min(width - 56.0f, 380.0f);
-        ImGui::SetCursorPosX((width - demoBtnW) * 0.5f);
-
-        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(255, 255, 255, 25));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(255, 255, 255, 45));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(255, 255, 255, 15));
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::Surface);
-        ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32(255, 255, 255, 60));
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
-
-        if (ImGui::Button(u8"Xem Thư viện Widget Demo UI", ImVec2(demoBtnW, 34.0f))) {
-            GUI::App::ScreenManager::getInstance().push(std::make_unique<GUI::Screens::DemoScreen>());
-        }
-
-        ImGui::PopStyleVar(2);
-        ImGui::PopStyleColor(5);
     }
     ImGui::EndChild();
 
@@ -390,7 +364,7 @@ void AuthScreen::renderTabDangNhap() {
     ImGui::Spacing();
 
     // ==========================================
-    // KHU VỰC TÀI KHOẢN DÙNG THỬ (DEMO CHIPS NHỎ GỌN)
+    // KHU VỰC TÀI KHOẢN MẪU
     // ==========================================
     ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
     ImGui::TextUnformatted(u8"Tài khoản dùng thử (bấm để tự điền):");

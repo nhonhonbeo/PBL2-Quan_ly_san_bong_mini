@@ -1,3 +1,4 @@
+#include "GUI/App/ViewFormat.h"
 #include "GUI/Screens/Owner/DashboardScreen.h"
 
 #include <algorithm>
@@ -13,19 +14,7 @@
 
 namespace GUI::Screens::Owner {
 
-namespace {
-
-std::string dinhDangTien(long long amount) {
-    std::string s = std::to_string(amount);
-    int n = static_cast<int>(s.length()) - 3;
-    while (n > 0) {
-        s.insert(n, ".");
-        n -= 3;
-    }
-    return s;
-}
-
-}  // namespace
+using GUI::App::ViewFormat::nhomNghin;
 
 void DashboardScreen::onEnter() {
     auto& facade = GUI::App::Facade::getInstance();
@@ -141,7 +130,7 @@ void DashboardScreen::renderStatCards() {
     ImGui::SameLine(0.0f, cardSpacing);
 
     // Thẻ 3: Doanh thu tháng
-    std::string dtStr = dinhDangTien(metrics_.monthlyRevenueVnd) + u8" đ";
+    std::string dtStr = nhomNghin(metrics_.monthlyRevenueVnd) + u8" đ";
     veTheKPI(
         "kpi_doanh_thu",
         "",
@@ -274,7 +263,7 @@ void DashboardScreen::renderRevenueChart() {
                     ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextPrimary);
                     ImGui::Text(u8"Ngày: %s", item.label.c_str());
                     ImGui::Separator();
-                    ImGui::Text(u8"Doanh thu: %s VNĐ", dinhDangTien(item.amountVnd).c_str());
+                    ImGui::Text(u8"Doanh thu: %s VNĐ", nhomNghin(item.amountVnd).c_str());
                     ImGui::PopStyleColor();
                     ImGui::EndTooltip();
                 }
@@ -333,7 +322,7 @@ void DashboardScreen::renderUpcomingBookings() {
                 ImGui::TextUnformatted(don.timeSlot.c_str());
 
                 ImGui::TableSetColumnIndex(6);
-                ImGui::Text("%s đ", dinhDangTien(don.amountVnd).c_str());
+                ImGui::Text("%s đ", nhomNghin(don.amountVnd).c_str());
 
                 ImGui::TableSetColumnIndex(7);
                 if (don.status == u8"Đã thanh toán" || don.status == u8"Đã hoàn thành") {

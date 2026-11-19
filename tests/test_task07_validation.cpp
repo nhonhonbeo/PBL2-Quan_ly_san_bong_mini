@@ -11,18 +11,14 @@
 #include "Customer/Blacklist.h"
 #include "Customer/Discount.h"
 #include "Customer/Review.h"
-#include "Payment/Invoice.h"
-#include "Payment/Payment.h"
 #include "Repository/AccountRepository.h"
 #include "Repository/BookingRepository.h"
 #include "Repository/CustomerRepository.h"
-#include "Repository/PaymentRepository.h"
 #include "Repository/TournamentRepository.h"
 #include "Repository/VenueRepository.h"
 #include "Service/AccountService.h"
 #include "Service/BookingService.h"
 #include "Service/CustomerService.h"
-#include "Service/PaymentService.h"
 #include "Service/TournamentService.h"
 #include "Service/VenueService.h"
 #include "Storage/FileManager.h"
@@ -66,10 +62,8 @@ int main() {
     VenueRepository venueRepo(fm);
     VenueService venueService(venueRepo);
     CustomerService custService(custRepo);
-    PaymentRepository payRepo(fm);
-    PaymentService payService(payRepo);
     BookingRepository bookingRepo(venueRepo);
-    BookingService bookingService(bookingRepo, custService, venueService, payService);
+    BookingService bookingService(bookingRepo, custService, venueService);
 
     // Chuẩn hóa ngày dd/MM/yyyy và YYYY-MM-DD
     std::string isoDate = DateTime::toIsoDate("25/12/2026");
@@ -198,24 +192,6 @@ int main() {
     );
     assert(!tourService.checkOverlap(conflictWithBookingTour, "GD-CONFLICT", err));
     std::cout << "[PASS] Blocked tournament overlapping with active booking: " << err << std::endl;
-
-    // =========================================================================
-    // 7. PAYMENT: Không thanh toán lại hóa đơn đã trả, kiểm tra số tiền chính xác
-    // =========================================================================
-    std::cout << "\n--- [7. PAYMENT INTEGRITY & INVOICE RULES] ---" << std::endl;
-    Invoice invTest("INV-TEST-001", "BK-TEST-001", 300000, DateTime::today(), InvoiceStatus::PAID);
-    assert(invTest.isPaid());
-    assert(!invTest.canAcceptPayment()); // Không cho thanh toán lại hóa đơn đã thanh toán
-
-    Payment mismatchPayment("PAY-TEST", "INV-TEST-001", 200000, PaymentMethod::CASH, DateTime::today());
-    assert(!payService.validatePayment(invTest, mismatchPayment, err));
-    std::cout << "[PASS] Blocked paying paid invoice / wrong amount: " << err << std::endl;
-
-    Invoice unpaidInv("INV-TEST-002", "BK-TEST-002", 300000, DateTime::today(), InvoiceStatus::UNPAID);
-    assert(unpaidInv.canAcceptPayment());
-    Payment correctPayment("PAY-TEST2", "INV-TEST-002", 300000, PaymentMethod::TRANSFER, DateTime::today());
-    assert(payService.validatePayment(unpaidInv, correctPayment, err));
-    std::cout << "[PASS] Successfully validated legitimate payment transaction." << std::endl;
 
     std::cout << "\n>>> ALL TASK 07 BUSINESS VALIDATIONS & CHECKS PASSED! <<<" << std::endl;
     return 0;

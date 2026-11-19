@@ -1,4 +1,5 @@
 ﻿#include "GUI/Screens/Renter/LichDatScreen.h"
+#include "GUI/App/ViewFormat.h"
 
 #include <chrono>
 #include <ctime>
@@ -58,13 +59,7 @@ std::string layNgayHomNayStr() {
 }
 
 std::string dinhDangTien(int soTien) {
-    std::string s = std::to_string(soTien);
-    int n = s.length() - 3;
-    while (n > 0) {
-        s.insert(n, ".");
-        n -= 3;
-    }
-    return s + u8" đ";
+    return GUI::App::ViewFormat::nhomNghin(soTien) + u8" đ";
 }
 
 }  // namespace

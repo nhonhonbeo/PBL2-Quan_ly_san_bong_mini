@@ -85,7 +85,8 @@ void OwnerShellScreen::render() {
             renderTopBar();
 
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(22.0f, 18.0f));
-            if (ImGui::BeginChild("##OwnerScrollContent", ImVec2(0.0f, 0.0f), false)) {
+            if (ImGui::BeginChild("##OwnerScrollContent", ImVec2(0.0f, 0.0f),
+                                  ImGuiChildFlags_AlwaysUseWindowPadding)) {
                 renderContentArea();
             }
             ImGui::EndChild();
@@ -164,7 +165,7 @@ void OwnerShellScreen::renderTopBar() {
         userName.c_str(),
         u8"Chủ sân",
         60.0f,
-        [this]() { yeuCauDangXuat_ = true; }
+        nullptr  // Đăng xuất chỉ đặt ở sidebar, tránh trùng lặp
     );
 }
 

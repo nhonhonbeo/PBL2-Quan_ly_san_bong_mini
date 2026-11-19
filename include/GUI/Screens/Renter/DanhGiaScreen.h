@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <string>
 #include <vector>
 #include "GUI/App/Facade.h"
@@ -34,6 +35,7 @@ private:
     std::vector<GUI::App::SanBongInfo> danhSachSan_;
     std::vector<GUI::App::SanBongInfo> danhSachSanDaThue_;
     std::vector<GUI::App::DanhGiaInfo> danhSachDanhGiaCuaToi_;
+    std::map<std::string, std::string> tenCoSoTheoChuSan_;  // ownerUserId -> tên cơ sở (hiển thị dropdown)
 };
 
 }  // namespace GUI::Screens::Renter

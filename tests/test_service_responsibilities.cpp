@@ -9,7 +9,6 @@
 #include "Repository/BookingRepository.h"
 #include "Repository/CustomerRepository.h"
 #include "Repository/FieldRepository.h"
-#include "Repository/PaymentRepository.h"
 #include "Repository/ReportRepository.h"
 #include "Repository/TournamentRepository.h"
 #include "Repository/VenueRepository.h"
@@ -17,7 +16,6 @@
 #include "Service/BookingService.h"
 #include "Service/CustomerService.h"
 #include "Service/FieldService.h"
-#include "Service/PaymentService.h"
 #include "Service/ReportService.h"
 #include "Service/TournamentService.h"
 #include "Service/VenueService.h"
@@ -67,21 +65,9 @@ int main() {
     assert(ownerFields.size() > 0);
     std::cout << "[PASS] FieldService: Field physical configuration and status isolated." << std::endl;
 
-    // 5. PaymentService: Single Responsibility = Invoices & Payments
-    PaymentRepository payRepo(fm);
-    PaymentService payService(payRepo);
-    std::string testInvId;
-    assert(payService.createInvoice("BK-RESP-01", 100000, testInvId, err));
-    assert(testInvId == "INV-BK-RESP-01");
-    Invoice inv;
-    assert(payService.getInvoiceByBookingId("BK-RESP-01", inv, err));
-    assert(inv.getTotalVnd() == 100000);
-    assert(payService.rollbackInvoice("BK-RESP-01", err));
-    std::cout << "[PASS] PaymentService: Invoices and transactional payment isolated." << std::endl;
-
-    // 6. BookingService: Single Responsibility = Booking Lifecycle (Coordination via DI)
+    // 5. BookingService: Single Responsibility = Booking Lifecycle (Coordination via DI)
     BookingRepository bookingRepo(venueRepo);
-    BookingService bookingService(bookingRepo, custService, venueService, payService);
+    BookingService bookingService(bookingRepo, custService, venueService);
     VenueBookingRequest bReq;
     bReq.customerId = "US02";
     bReq.customerName = "Trần Văn Thuê";

@@ -94,3 +94,10 @@ bool DateTime::isPastSlot(const std::string& date,
     return dateOrder < 0 ||
            (dateOrder == 0 && compareTime(startTime, nowTime()) <= 0);
 }
+
+std::string DateTime::formatMinutes(int totalMinutes) {
+    std::ostringstream output;
+    output << std::setfill('0') << std::setw(2) << totalMinutes / 60
+           << ':' << std::setw(2) << totalMinutes % 60;
+    return output.str();
+}

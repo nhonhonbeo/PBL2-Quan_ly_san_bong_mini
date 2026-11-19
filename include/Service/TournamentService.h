@@ -4,7 +4,6 @@
 #include "Core/LinkedList.h"
 #include "Core/Queue.h"
 #include "Tournament/Tournament.h"
-#include "Tournament/Team.h"
 #include "Tournament/TournamentMatch.h"
 
 class TournamentRepository;
@@ -38,23 +37,4 @@ public:
     bool guiYeuCauTaoGiai(const Tournament& tournament, std::string& outId, std::string& error);
     bool checkOverlap(const Tournament& tournament, const std::string& excludeId, std::string& error) const;
 
-    // Quản lý Đội bóng & Lịch thi đấu
-    bool registerTeam(const std::string& tournamentId, const std::string& name,
-                      const std::string& phone, std::string& outTeamId,
-                      std::string& error);
-    bool getTeamsByTournament(const std::string& tournamentId,
-                              LinkedList<Team>& out,
-                              std::string& error) const;
-    bool scheduleMatch(const std::string& tournamentId,
-                       const std::string& homeTeamId,
-                       const std::string& awayTeamId,
-                       int round, const std::string& date,
-                       const std::string& startTime,
-                       std::string& outMatchId,
-                       std::string& error);
-    bool getMatchesByTournament(const std::string& tournamentId,
-                                LinkedList<TournamentMatch>& out,
-                                std::string& error) const;
-    bool recordMatchScore(const std::string& matchId, int homeScore,
-                          int awayScore, std::string& error);
 };

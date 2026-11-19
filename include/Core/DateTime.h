@@ -15,4 +15,6 @@ public:
     static bool isPastDate(const std::string& value);
     static bool isPastSlot(const std::string& date,
                            const std::string& startTime);
+    // Đổi số phút trong ngày sang "HH:MM" (một nguồn duy nhất cho toàn dự án).
+    static std::string formatMinutes(int totalMinutes);
 };

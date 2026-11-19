@@ -8,11 +8,9 @@
 #include "Customer/Review.h"
 #include "Repository/BookingRepository.h"
 #include "Repository/CustomerRepository.h"
-#include "Repository/PaymentRepository.h"
 #include "Repository/VenueRepository.h"
 #include "Service/BookingService.h"
 #include "Service/CustomerService.h"
-#include "Service/PaymentService.h"
 #include "Service/VenueService.h"
 #include "Storage/FileManager.h"
 
@@ -124,11 +122,9 @@ int main() {
     // 2.7. Đảm bảo BookingService KHÔNG cho phép đặt sân khi không thể xác minh blacklist
     VenueRepository venueRepository(fileManager);
     VenueService venueService(venueRepository);
-    PaymentRepository paymentRepository(fileManager);
-    PaymentService paymentService(paymentRepository);
     BookingRepository bookingRepo(venueRepository);
     BookingService bookingServiceWithFailingCustomer(
-        bookingRepo, failingFileCustomerService, venueService, paymentService
+        bookingRepo, failingFileCustomerService, venueService
     );
     VenueBookingRequest req;
     req.customerId = "US02";
@@ -146,7 +142,7 @@ int main() {
 
     // 2.8. Đảm bảo BookingService từ chối đặt sân khi khách hàng bị blacklist
     BookingService normalBookingService(
-        bookingRepo, customerService, venueService, paymentService
+        bookingRepo, customerService, venueService
     );
     req.customerId = "0944112233"; // khách bị blacklist
     req.customerPhone = "0944112233";

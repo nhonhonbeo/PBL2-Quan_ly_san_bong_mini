@@ -107,8 +107,7 @@ PBL2-Quan_ly_san_bong_mini/
 │   ├── Tournament/
 │   │   ├── Tournament.h
 │   │   ├── Team.h
-│   │   ├── TournamentMatch.h
-│   │   └── TournamentResult.h
+│   │   └── TournamentMatch.h
 │   │
 │   ├── Service/
 │   │   ├── AccountService.h
@@ -555,8 +554,7 @@ Có thể giữ:
 Tournament/
 ├── Tournament.h
 ├── Team.h
-├── TournamentMatch.h
-└── TournamentResult.h
+└── TournamentMatch.h
 ```
 
 Nhưng các `TournamentService` và `TournamentRepository` **chưa cần triển khai ngay**.
@@ -570,25 +568,9 @@ Chỉ thêm chúng khi logic Tournament thực sự đủ lớn để cần tác
 Trong phiên bản hiện tại, không cần mở rộng ngay thành:
 
 ```text
-PaymentService
-PaymentRepository
-InvoiceService
 TournamentService
 TournamentRepository
 ...
-```
-
-Đặc biệt, hệ thống hiện tập trung vào **liên hệ/đặt sân**, không phải hệ thống thanh toán trực tuyến.
-
-Nếu sau này yêu cầu đề tài có thanh toán thì mới phát triển:
-
-```text
-Payment/
-├── Payment.h
-└── Invoice.h
-
-Service/
-└── PaymentService.h
 ```
 
 ---
@@ -796,7 +778,6 @@ Làm sau cùng:
 Tournament
 Team
 TournamentMatch
-TournamentResult
 ```
 
 ## Giai đoạn 9 — UI hoàn chỉnh
@@ -840,13 +821,6 @@ Repository/
 
 ```text
 Tournament/
-```
-
-### Tạm thời chưa cần triển khai
-
-```text
-Payment/
-PaymentService.h
 ```
 
 ### Nên bỏ hoặc để dành
@@ -917,7 +891,7 @@ Hệ thống nên được xây dựng với tư duy:
                   (phụ trợ)
 ```
 
-**Đừng làm Tournament, Payment hay các tính năng phụ trước khi nghiệp vụ Field + Booking chạy ổn định.**
+**Đừng mở rộng Tournament hay các tính năng phụ trước khi nghiệp vụ Field + Booking chạy ổn định.**
 
 Mục tiêu cuối cùng của kiến trúc là:
 
