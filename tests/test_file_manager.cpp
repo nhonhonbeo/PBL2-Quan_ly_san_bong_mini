@@ -272,21 +272,6 @@ int main() {
     assert(tournaments.size() == 2);
     assert(tournaments.front().getTournamentId() == "TR-OK");
 
-    const std::filesystem::path teamsPath = "data/teams.txt";
-    writeFile(teamsPath, "TM-OK|TR-OK|Team|0900000000|7\n");
-    LinkedList<Team> teams;
-    assert(tournamentRepository.loadTeams(teams, error));
-    assert(teams.size() == 1);
-    assert(teams.front().getMemberCount() == 7);
-
-    const std::filesystem::path matchesPath = "data/matches.txt";
-    writeFile(matchesPath,
-              "M-OK|TR-OK|TM-OK|TM-02|1|2026-11-14|08:00|0|0|0\n");
-    LinkedList<TournamentMatch> matches;
-    assert(tournamentRepository.loadMatches(matches, error));
-    assert(matches.size() == 1);
-    assert(!matches.front().isPlayed());
-
     const std::string malformedTournament =
         "TR-BAD|Tên giải|Người yêu cầu|US01|2026-11-14|2026-11-15|F1|"
         "08:00-10:00|Ghi chú||invalid-status\n";

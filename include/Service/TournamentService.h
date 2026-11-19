@@ -9,8 +9,8 @@
 class TournamentRepository;
 class BookingRepository;
 
-// LÝ DO CHỌN: TournamentService là điểm tập trung xử lý toàn bộ quy tắc giải đấu,
-// đội thi đấu, lịch và tỷ số trận, đặc biệt là kiểm tra trùng lịch sân bóng.
+// LÝ DO CHỌN: TournamentService tập trung vòng đời yêu cầu giải, quyết định của chủ sân,
+// kiểm tra trùng lịch và tạo hàng đợi lịch trận cho giải đã được duyệt.
 class TournamentService {
 private:
     TournamentRepository& tournament_repository_;

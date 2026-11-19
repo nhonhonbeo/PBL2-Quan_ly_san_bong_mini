@@ -4,7 +4,6 @@
 #include "Booking/BookingDetail.h"
 #include "Core/Core.h"
 #include "Field/Field.h"
-#include "Tournament/Team.h"
 #include "Tournament/Tournament.h"
 #include "Tournament/TournamentMatch.h"
 
@@ -26,12 +25,8 @@ int main() {
 
     Customer customer("KH-01", "kh01", "123456", "Nguyen Van A", "0901112223");
     customer.setStatistics(6, 4);
-    assert(customer.isBlacklistCandidate(3));
-    assert(customer.qualifiesForDiscount(5));
     assert(customer.getReliabilityRate() == 60);
     std::string error;
-    assert(!customer.canBook(true, error));
-    assert(customer.canBook(false, error));
 
     std::cout << "[TEST] Kiểm tra Field...\n";
     Field field("S5-01", "US01", "San 5 so 01", FieldSize::FIVE, 200000,
@@ -52,7 +47,7 @@ int main() {
     assert(booking.isCancelled());
     assert(!booking.canBeCompletedBy("US01", error));
 
-    std::cout << "[TEST] Kiểm tra Tournament, Team và Match...\n";
+    std::cout << "[TEST] Kiểm tra Tournament và Match...\n";
     Tournament tournament("GD-TEST", "0901112223", "Giai Test", "S5-01",
                           "2026-11-10", "2026-11-15", "",
                           TournamentStatus::REQUESTED);
@@ -61,9 +56,6 @@ int main() {
     assert(!tournament.conflictsWithDate("2026-11-20"));
     tournament.confirm("BK-CONFIRMED");
     assert(tournament.isApproved());
-
-    Team team("TM-01", "GD-TEST", "Doi Bong A", "0901112223", 7);
-    assert(team.isValid());
 
     TournamentMatch match("MTH-01", "GD-TEST", "TM-01", "TM-02",
                           1, "2026-11-10", "18:00");

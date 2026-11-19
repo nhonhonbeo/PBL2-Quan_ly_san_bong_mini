@@ -4,7 +4,6 @@
 
 #include "Core/DateTime.h"
 #include "Core/LinkedList.h"
-#include "Customer/Blacklist.h"
 #include "Customer/Customer.h"
 #include "Customer/Review.h"
 #include "Repository/AccountRepository.h"
@@ -25,26 +24,11 @@ int main() {
     CustomerRepository custRepo(fm);
     CustomerService custService(custRepo);
 
-    // 1. Test Single Source of Truth for Blacklist:
     std::string err;
     const std::string testPhone = "0999111222";
-    assert(custService.addToBlacklist(testPhone, "Vi pham quy che dat san", err));
-
-    bool isBlocked = false;
-    std::string reason;
-    assert(custService.isBlacklisted(testPhone, isBlocked, reason));
-    assert(isBlocked);
-
-    // Fresh repository instance: verifies file persistence on disk
     CustomerRepository freshRepo(fm);
-    CustomerService freshCustService(freshRepo);
-    bool freshBlocked = false;
-    std::string freshReason;
-    assert(freshCustService.isBlacklisted(testPhone, freshBlocked, freshReason));
-    assert(freshBlocked);
-    assert(freshReason == "Vi pham quy che dat san");
 
-    // 2. Test Single Source of Truth for Review:
+    // Kiểm tra Review được lưu và đọc lại từ cùng một nguồn dữ liệu.
     Review r("RV-SSOT", testPhone, "S5-01", "", 5, DateTime::today(), "San rat tot", "Nguoi Dung Test");
     assert(custService.addOrUpdateReview(r, err));
 
@@ -61,7 +45,7 @@ int main() {
     }
     assert(foundReview);
 
-    // 3. Test Single Source of Truth for Tournament:
+    // Kiểm tra yêu cầu Tournament được lưu và đọc lại từ cùng một nguồn dữ liệu.
     TournamentRepository tournRepo(fm);
     VenueRepository venueRepo(fm);
     BookingRepository bookRepo(venueRepo);
@@ -91,14 +75,7 @@ int main() {
     assert(tournService.huyGiaiDau(outId, err));
     assert(!freshTournRepo.findById(outId, loadedT, err));
 
-    // Clean up test blacklist & review records
-    LinkedList<std::string> bLines;
-    fm.readAllLines("data/blacklist.txt", bLines, err);
-    bLines.removeIf([&](const std::string& line) {
-        return line.rfind(testPhone + "|", 0) == 0;
-    });
-    fm.writeAllLines("data/blacklist.txt", bLines, err);
-
+    // Dọn bản ghi Review được tạo bởi kiểm thử.
     LinkedList<std::string> lines;
     fm.readAllLines("data/reviews.txt", lines, err);
     lines.removeIf([](const std::string& line) {

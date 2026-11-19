@@ -9,7 +9,6 @@
 
 #include "Core/DateTime.h"
 #include "GUI/App/Facade.h"
-#include "GUI/App/Session.h"
 #include "GUI/Theme/Fonts.h"
 #include "GUI/Theme/Theme.h"
 #include "GUI/Widgets/Badge.h"
@@ -18,7 +17,6 @@
 #include "GUI/Widgets/DatePicker.h"
 #include "GUI/Widgets/ProgressBar.h"
 #include "GUI/Widgets/Toast.h"
-#include "features/Account/User.h"
 #include "GUI/App/ViewFormat.h"
 
 namespace GUI::Screens::Renter {
@@ -43,9 +41,6 @@ void DatSanScreen::onExit() {}
 
 void DatSanScreen::reloadViewModel() {
     GUI::App::Facade& facade = GUI::App::Facade::getInstance();
-    User* user = GUI::App::Session::getInstance().getUser();
-    biChanDatSan_ = user != nullptr &&
-                    facade.laKhachHangBiChan(user->get_phone_number());
     danhSachCoSo_.clear();
     soSanTheoCoSo_.clear();
     giaThapNhatTheoCoSo_.clear();
@@ -109,11 +104,6 @@ void DatSanScreen::reloadViewModel() {
         }
         reloadSlots();
     }
-    if (user != nullptr) {
-        phanTramGiam_ = facade.getMucUuDaiCuaKhach(user->get_phone_number());
-    }
-    soTienGiam_ = giaGoc_ * phanTramGiam_ / 100;
-    tongTien_ = giaGoc_ - soTienGiam_;
 }
 
 void DatSanScreen::reloadSlots() {
@@ -170,8 +160,6 @@ void DatSanScreen::capNhatTongTien() {
          node != nullptr; node = node->next) {
         giaGoc_ += node->data.priceVnd;
     }
-    soTienGiam_ = giaGoc_ * phanTramGiam_ / 100;
-    tongTien_ = giaGoc_ - soTienGiam_;
     khungGioChon_.clear();
     for (auto* slot = danhSachKhungGioTrong_.get_head();
          slot != nullptr; slot = slot->next) {
@@ -206,10 +194,6 @@ void DatSanScreen::chonCoSo(const VenueFacilityRecord& facility) {
 }
 
 void DatSanScreen::render() {
-    if (biChanDatSan_) {
-        renderCanhBaoDanhSachDen();
-        return;
-    }
     if (!loiTaiTaiDuLieu_.empty()) {
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::Danger);
         ImGui::TextWrapped(u8"[!] %s", loiTaiTaiDuLieu_.c_str());
@@ -282,21 +266,6 @@ void DatSanScreen::renderThanhTienTrinh() {
         "",
         ImVec2(-1.0f, 6.0f),
         GUI::Theme::Colors::Primary
-    );
-}
-
-void DatSanScreen::renderCanhBaoDanhSachDen() {
-    Widgets::Card(
-        "renter_blacklist_notice",
-        u8"T\u00E0i kho\u1EA3n b\u1ECB gi\u1EDBi h\u1EA1n \u0111\u1EB7t s\u00E2n",
-        []() {
-            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::Danger);
-            ImGui::TextWrapped(
-                u8"T\u00E0i kho\u1EA3n c\u1EE7a b\u1EA1n hi\u1EC7n \u0111ang n\u1EB1m trong danh s\u00E1ch h\u1EA1n ch\u1EBF \u0111\u1EB7t s\u00E2n do h\u1EE7y \u0111\u01A1n nhi\u1EC1u l\u1EA7n ho\u1EB7c vi ph\u1EA1m quy ch\u1EBF.\n"
-                u8"Vui l\u00F2ng li\u00EAn h\u1EC7 tr\u1EF1c ti\u1EBFp ban qu\u1EA3n tr\u1ECB c\u1EE5m s\u00E2n b\u00F3ng \u0111\u1EC3 \u0111\u01B0\u1EE3c h\u1ED7 tr\u1EE3 m\u1EDF kh\u00F3a."
-            );
-            ImGui::PopStyleColor();
-        }
     );
 }
 

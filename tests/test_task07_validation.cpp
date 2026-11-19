@@ -8,8 +8,6 @@
 #include "Account/Owner.h"
 #include "Account/User.h"
 #include "Core/DateTime.h"
-#include "Customer/Blacklist.h"
-#include "Customer/Discount.h"
 #include "Customer/Review.h"
 #include "Repository/AccountRepository.h"
 #include "Repository/BookingRepository.h"
@@ -96,7 +94,7 @@ int main() {
     std::cout << "[PASS] Blocked cancellation by unauthorized customer: " << err << std::endl;
 
     // =========================================================================
-    // 3. CUSTOMER: Không ghi nhận trùng booking trong thống kê, kiểm tra blacklist
+    // 3. CUSTOMER: Không ghi nhận trùng booking trong thống kê
     // =========================================================================
     std::cout << "\n--- [3. CUSTOMER STATISTICS & DEDUP] ---" << std::endl;
     Customer cBefore;
@@ -133,28 +131,7 @@ int main() {
     }
 
     // =========================================================================
-    // 4. DISCOUNT: Điều kiện sử dụng, không vượt số lần (USED/EXPIRED), kiểm tra thời hạn
-    // =========================================================================
-    std::cout << "\n--- [4. DISCOUNT LIFECYCLE & VALIDATION] ---" << std::endl;
-    Discount availDisc("DC-TEST-01", "US02", 10, 10, "2026-11-01", DiscountStatus::AVAILABLE);
-    assert(custService.validateDiscount(availDisc, "US02", err));
-
-    // Không cho khách hàng khác dùng discount của US02
-    assert(!custService.validateDiscount(availDisc, "US05", err));
-    std::cout << "[PASS] Blocked discount usage by wrong customer: " << err << std::endl;
-
-    // Discount đã USED không cho dùng tiếp
-    Discount usedDisc("DC-TEST-02", "US02", 10, 10, "2026-11-01", DiscountStatus::USED, "BK-OLD");
-    assert(!custService.validateDiscount(usedDisc, "US02", err));
-    std::cout << "[PASS] Blocked already USED discount: " << err << std::endl;
-
-    // Discount EXPIRED không cho dùng tiếp
-    Discount expDisc("DC-TEST-03", "US02", 10, 10, "2026-11-01", DiscountStatus::EXPIRED);
-    assert(!custService.validateDiscount(expDisc, "US02", err));
-    std::cout << "[PASS] Blocked EXPIRED discount: " << err << std::endl;
-
-    // =========================================================================
-    // 5. REVIEW: Không cho đánh giá đơn chưa hoàn tất / trùng đánh giá
+    // 4. REVIEW: Không cho đánh giá đơn chưa hoàn tất / trùng đánh giá
     // =========================================================================
     std::cout << "\n--- [5. REVIEW VALIDATION & PERMISSION] ---" << std::endl;
     // Khách hàng chưa hoàn tất ca ở sân S5-04 không được đánh giá
@@ -168,7 +145,7 @@ int main() {
     std::cout << "[PASS] Blocked invalid star rating: " << err << std::endl;
 
     // =========================================================================
-    // 6. TOURNAMENT: Lịch giải, kiểm tra trùng lịch sân & đơn đặt sân
+    // 5. TOURNAMENT: Lịch giải, kiểm tra trùng lịch sân & đơn đặt sân
     // =========================================================================
     std::cout << "\n--- [6. TOURNAMENT VALIDATION & CONFLICTS] ---" << std::endl;
     TournamentRepository tourRepo(fm);

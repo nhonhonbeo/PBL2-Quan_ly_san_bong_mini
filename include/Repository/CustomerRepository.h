@@ -6,13 +6,10 @@
 #include "Core/HashTable.h"
 #include "Core/LinkedList.h"
 
-class Blacklist;
-class Discount;
 class FileManager;
 class Review;
 
-// LÝ DO CHỌN: CustomerRepository quản lý tuần tự hóa Customer, Blacklist, Discount,
-// Review và nhật ký thống kê booking để chống ghi nhận trùng lặp.
+// LÝ DO CHỌN: CustomerRepository quản lý hồ sơ, Review và nhật ký thống kê booking.
 class CustomerRepository {
 private:
     FileManager& file_manager_;
@@ -34,18 +31,6 @@ public:
     virtual bool loadAllCustomers(LinkedList<Customer>& out, std::string& error) const;
     virtual bool saveCustomer(const Customer& customer, std::string& error);
     virtual bool updateCustomer(const Customer& customer, std::string& error);
-
-    virtual bool findActiveBlacklist(const std::string& customerId, Blacklist& out,
-                                     std::string& error) const;
-    virtual bool loadAllBlacklists(LinkedList<Blacklist>& out, std::string& error) const;
-    virtual bool saveBlacklist(const Blacklist& blacklist, std::string& error);
-    virtual bool removeBlacklist(const std::string& customerId, std::string& error);
-
-    virtual bool saveDiscount(const Discount& discount, std::string& error);
-    virtual bool loadAllDiscounts(LinkedList<Discount>& out, std::string& error) const;
-    virtual bool findDiscountsByCustomerId(const std::string& customerId,
-                                           LinkedList<Discount>& out,
-                                           std::string& error) const;
 
     virtual bool saveReview(const Review& review, std::string& error);
     virtual bool loadAllReviews(LinkedList<Review>& out, std::string& error) const;

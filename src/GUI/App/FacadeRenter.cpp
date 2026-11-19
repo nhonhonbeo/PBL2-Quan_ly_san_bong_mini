@@ -14,10 +14,6 @@ namespace GUI::App {
 
 using namespace detail;
 
-bool Facade::laKhachHangBiChan(const std::string& sdt) const {
-    bool b = false; std::string r; customer_service_.isBlacklisted(sdt, b, r); return b;
-}
-
 int Facade::getSoLanHuyCuaKhach(const std::string& sdt) const {
     Customer c("", "", "", "", ""); std::string err;
     return customer_service_.findCustomer(sdt, c, err) ? c.getCancelCount() : 0;
@@ -26,10 +22,6 @@ int Facade::getSoLanHuyCuaKhach(const std::string& sdt) const {
 int Facade::getSoLanDatCuaKhach(const std::string& sdt) const {
     Customer c("", "", "", "", ""); std::string err;
     return customer_service_.findCustomer(sdt, c, err) ? c.getBookingCount() : 0;
-}
-
-int Facade::getMucUuDaiCuaKhach(const std::string& sdt) const {
-    std::string err; return customer_service_.getCustomerDiscountPercentage(sdt, err);
 }
 
 KetQua Facade::datNhieuCaMoi(
@@ -117,7 +109,6 @@ std::vector<GiaiDauInfo> Facade::getGiaiDauCuaUser(const std::string& sdt) const
 }
 
 KetQua Facade::guiYeuCauTaoGiai(const GiaiDauInfo& giaiMoi) {
-    if (laKhachHangBiChan(giaiMoi.sdtKhach)) return {false, u8"Tài khoản đang bị khóa nên không thể gửi yêu cầu tạo giải."};
     Tournament t = toTournament(giaiMoi, TournamentStatus::REQUESTED);
     std::string outId, error;
     if (!tournament_service_.guiYeuCauTaoGiai(t, outId, error)) return {false, error};

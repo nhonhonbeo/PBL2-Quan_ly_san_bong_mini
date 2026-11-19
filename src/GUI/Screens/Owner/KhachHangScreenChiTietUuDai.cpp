@@ -1,22 +1,14 @@
 ﻿#include "GUI/Screens/Owner/KhachHangScreen.h"
 
-#include <algorithm>
 #include <cstdio>
-#include <iomanip>
-#include <sstream>
+#include <string>
 #include <imgui.h>
 
 #include "GUI/Theme/Theme.h"
 #include "GUI/Theme/Fonts.h"
-#include "GUI/Widgets/Badge.h"
 #include "GUI/Widgets/Button.h"
 #include "GUI/Widgets/Card.h"
-#include "GUI/Widgets/ComboRadio.h"
-#include "GUI/Widgets/InputFields.h"
-#include "GUI/Widgets/Modal.h"
-#include "GUI/Widgets/ProgressBar.h"
 #include "GUI/Widgets/StarRating.h"
-#include "GUI/Widgets/Toast.h"
 
 namespace GUI::Screens::Owner {
 
@@ -65,26 +57,10 @@ void KhachHangScreen::renderPanelChiTietKhachHang() {
         ImGui::Text(u8"SĐT: %s", khachDangChon_.sdt.c_str());
         ImGui::PopStyleColor();
 
-        // Badge trạng thái
-        if (khachDangChon_.biChan) {
-            Widgets::BadgeDanhSachDen(u8"Bị chặn");
-        } else if (khachDangChon_.mucUuDaiPhanTram > 0) {
-            Widgets::BadgeVIP((u8"VIP " + std::to_string(khachDangChon_.mucUuDaiPhanTram) + "%").c_str());
-        } else {
-            Widgets::Badge(u8"Tiêu chuẩn", GUI::Theme::Colors::GrayHover, GUI::Theme::Colors::DarkText);
-        }
         ImGui::EndGroup();
 
         ImGui::Spacing();
         ImGui::Spacing();
-
-        if (khachDangChon_.biChan) {
-            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::RedDanger);
-            ImGui::TextWrapped(u8"Lý do chặn: %s", khachDangChon_.lyDoChan.c_str());
-            ImGui::Text(u8"Ngày chặn: %s", khachDangChon_.ngayChan.c_str());
-            ImGui::PopStyleColor();
-            ImGui::Spacing();
-        }
 
         // 2. Hai thẻ thống kê nhỏ (Metric Cards)
         float statCardW = (availW - 10.0f) * 0.5f;
@@ -157,138 +133,6 @@ void KhachHangScreen::renderPanelChiTietKhachHang() {
         ImGui::Separator();
         ImGui::Spacing();
 
-        // 5. Thao tác chặn / gỡ chặn nhanh
-        if (khachDangChon_.biChan) {
-            if (Widgets::NutChinh(u8"Gỡ khỏi danh sách đen", ImVec2(-1.0f, 34.0f))) {
-                sdtCanGoChan_ = khachDangChon_.sdt;
-                Widgets::MoModalXacNhan(u8"Xác nhận gỡ khỏi danh sách đen");
-            }
-        } else {
-            if (Widgets::NutNguyHiem(u8"Thêm vào danh sách đen (Chặn)", ImVec2(-1.0f, 34.0f))) {
-                sdtCanChan_ = khachDangChon_.sdt;
-                lyDoCanChan_ = u8"Hủy sân nhiều lần hoặc gây mất trật tự";
-                Widgets::MoModalXacNhan(u8"Xác nhận đưa vào danh sách đen");
-            }
-        }
-    });
-}
-
-void KhachHangScreen::renderTabUuDai() {
-    // Khối 1: Bảng cấu hình ngưỡng ưu đãi
-    Widgets::Card("card_tab_tier_config", u8"Cấu hình các ngưỡng ưu đãi thành viên", [this]() {
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-        ImGui::TextWrapped(u8"Chỉnh sửa trực tiếp số lần đặt tối thiểu và mức phần trăm giảm giá cho từng hạng thành viên. Nhấn 'Lưu thay đổi' để cập nhật.");
-        ImGui::PopStyleColor();
-        ImGui::Spacing();
-
-        if (ImGui::BeginTable("##tbl_nguong_uu_dai", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
-            ImGui::TableSetupColumn(u8"Hạng thành viên", ImGuiTableColumnFlags_WidthFixed, 180.0f);
-            ImGui::TableSetupColumn(u8"Số lần đặt tối thiểu", ImGuiTableColumnFlags_WidthFixed, 180.0f);
-            ImGui::TableSetupColumn(u8"Mức giảm giá (%)", ImGuiTableColumnFlags_WidthFixed, 180.0f);
-            ImGui::TableSetupColumn(u8"Thao tác", ImGuiTableColumnFlags_WidthFixed, 140.0f);
-            ImGui::TableHeadersRow();
-
-            for (auto& n : danhSachNguongUuDai_) {
-                ImGui::TableNextRow();
-
-                ImGui::TableSetColumnIndex(0);
-                if (n.phanTramGiam >= 10) {
-                    Widgets::BadgeVIP(n.tenHang.c_str());
-                } else {
-                    Widgets::Badge(n.tenHang.c_str(), GUI::Theme::Colors::GrayHover, GUI::Theme::Colors::DarkText);
-                }
-
-                ImGui::TableSetColumnIndex(1);
-                std::string inputSlId = "##min_book_" + std::to_string(n.id);
-                ImGui::SetNextItemWidth(120.0f);
-                ImGui::InputInt(inputSlId.c_str(), &n.soLanToiThieu, 1, 5);
-
-                ImGui::TableSetColumnIndex(2);
-                std::string inputPctId = "##pct_" + std::to_string(n.id);
-                ImGui::SetNextItemWidth(120.0f);
-                ImGui::InputInt(inputPctId.c_str(), &n.phanTramGiam, 1, 5);
-
-                ImGui::TableSetColumnIndex(3);
-                std::string btnSaveId = u8"Lưu##tier_" + std::to_string(n.id);
-                if (Widgets::NutPhu(btnSaveId.c_str(), ImVec2(80.0f, 26.0f))) {
-                    auto kq = GUI::App::Facade::getInstance().capNhatNguongUuDai(n.id, n.soLanToiThieu, n.phanTramGiam);
-                    if (kq.ok) {
-                        reloadViewModel();
-                    } else {
-                    }
-                }
-            }
-
-            ImGui::EndTable();
-        }
-
-        ImGui::Spacing();
-        ImGui::Spacing();
-
-        if (Widgets::NutChinh(u8"Áp dụng ưu đãi cho toàn bộ khách hàng", ImVec2(340.0f, 38.0f))) {
-            Widgets::MoModalXacNhan(u8"Xác nhận áp dụng ưu đãi");
-        }
-    });
-
-    ImGui::Spacing();
-
-    // Khối 2: Danh sách khách hàng đủ điều kiện nhận ưu đãi
-    Widgets::Card("card_tab_qualified_vip", u8"Danh sách khách hàng đạt chuẩn nhận ưu đãi", [this]() {
-        if (ImGui::BeginTable("##tbl_qualified_vip", 6, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp)) {
-            ImGui::TableSetupColumn(u8"STT", ImGuiTableColumnFlags_WidthFixed, 60.0f);
-            ImGui::TableSetupColumn(u8"Họ và tên", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn(u8"Số điện thoại", ImGuiTableColumnFlags_WidthFixed, 130.0f);
-            ImGui::TableSetupColumn(u8"Số lần đã đặt", ImGuiTableColumnFlags_WidthFixed, 120.0f);
-            ImGui::TableSetupColumn(u8"Hạng đạt chuẩn", ImGuiTableColumnFlags_WidthFixed, 150.0f);
-            ImGui::TableSetupColumn(u8"Ưu đãi hiện tại", ImGuiTableColumnFlags_WidthFixed, 130.0f);
-            ImGui::TableHeadersRow();
-
-            int stt = 1;
-            for (const auto& kh : danhSachKhach_) {
-                if (kh.soLanDat >= 5) {
-                    ImGui::TableNextRow();
-
-                    // Tô nền đỏ nhạt nếu đang bị chặn
-                    if (kh.biChan) {
-                        ImDrawList* dl = ImGui::GetWindowDrawList();
-                        ImVec2 cellMin = ImGui::GetCursorScreenPos();
-                        float colWidth = ImGui::GetContentRegionAvail().x;
-                        ImVec2 cellMax(cellMin.x + colWidth + 8.0f, cellMin.y + ImGui::GetTextLineHeightWithSpacing() + 6.0f);
-                        dl->AddRectFilled(cellMin, cellMax, IM_COL32(254, 226, 226, 160));
-                    }
-
-                    ImGui::TableSetColumnIndex(0);
-                    ImGui::Text("%d", stt++);
-
-                    ImGui::TableSetColumnIndex(1);
-                    ImGui::TextUnformatted(kh.hoTen.c_str());
-
-                    ImGui::TableSetColumnIndex(2);
-                    ImGui::TextUnformatted(kh.sdt.c_str());
-
-                    ImGui::TableSetColumnIndex(3);
-                    ImGui::Text(u8"%d lần", kh.soLanDat);
-
-                    ImGui::TableSetColumnIndex(4);
-                    if (kh.soLanDat >= 20) {
-                        Widgets::BadgeVIP(u8"VIP Vàng (15%)");
-                    } else if (kh.soLanDat >= 10) {
-                        Widgets::BadgeVIP(u8"VIP Bạc (10%)");
-                    } else {
-                        Widgets::Badge(u8"Thân thiết (5%)", GUI::Theme::Colors::GrayHover, GUI::Theme::Colors::DarkText);
-                    }
-
-                    ImGui::TableSetColumnIndex(5);
-                    if (kh.biChan) {
-                        Widgets::BadgeDanhSachDen(u8"Tước quyền (Bị chặn)");
-                    } else {
-                        ImGui::Text(u8"Giảm %d%%", kh.mucUuDaiPhanTram);
-                    }
-                }
-            }
-
-            ImGui::EndTable();
-        }
     });
 }
 

@@ -200,11 +200,32 @@ void runConsistencyTests() {
         assert(guard.currentBookings() == bookingsBefore);
     }
 
+    std::cout << "[TEST 3C] Tu choi booking khi thong tin khach khong khop tai khoan...\n";
+    {
+        guard.restore();
+        const std::string bookingsBefore = guard.currentBookings();
+
+        VenueBookingRequest request;
+        request.customerId = testCustId;
+        request.customerName = testCustName;
+        request.customerPhone = "0900000000";
+        request.fieldId = testField;
+        request.date = "2026-11-22";
+        request.startTime = "10:00";
+        request.durationMinutes = 60;
+
+        std::string bookingId;
+        std::string error;
+        assert(!bookingService.createBooking(request, bookingId, error));
+        assert(error.find(u8"không khớp") != std::string::npos);
+        assert(guard.currentBookings() == bookingsBefore);
+    }
+
     std::cout << "\n>>> BOOKING CONSISTENCY TESTS PASSED! <<<\n";
 }
 
 int main() {
-    std::cout << "=== CORE BUSINESS INTEGRATION: BOOKING AND PAYMENT CONSISTENCY ===\n";
+    std::cout << "=== CORE BUSINESS INTEGRATION: BOOKING CONSISTENCY ===\n";
     try {
         runConsistencyTests();
     } catch (const std::exception& ex) {

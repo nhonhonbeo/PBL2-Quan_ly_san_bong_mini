@@ -99,11 +99,6 @@ void Facade::refreshCache() {
         std::cerr << "Không thể nạp lịch sử đặt sân: " << err << '\n';
     }
 
-    danhSachNguongUuDai_.clear();
-    for (const auto& t : customer_service_.getDiscountThresholds()) {
-        danhSachNguongUuDai_.push_back({t.id, t.minBookings, t.percentage, t.tierName});
-    }
-
     for (const auto& kh : danhSachKhachHang_) {
         mapIndexKhachSDT_.remove(kh.sdt);
     }
@@ -114,34 +109,9 @@ void Facade::refreshCache() {
     }
     for (auto* n = customers.get_head(); n; n = n->next) {
         KhachHangInfo kh{n->data.getUserId(), n->data.get_name(), n->data.get_phone_number(),
-                         n->data.getBookingCount(), n->data.getCancelCount(), false, "", "", 0};
-        if (!customer_service_.isBlacklisted(
-                kh.sdt, kh.biChan, kh.lyDoChan, err)) {
-            std::cerr << "Không thể kiểm tra danh sách đen: " << err << '\n';
-        }
-        std::string discountError;
-        kh.mucUuDaiPhanTram =
-            customer_service_.getCustomerDiscountPercentage(kh.sdt, discountError);
-        if (!discountError.empty()) {
-            std::cerr << "Không thể nạp ưu đãi khách hàng: "
-                      << discountError << '\n';
-        }
+                         n->data.getBookingCount(), n->data.getCancelCount()};
         mapIndexKhachSDT_.insert(kh.sdt, danhSachKhachHang_.size());
         danhSachKhachHang_.push_back(kh);
-    }
-
-    LinkedList<Blacklist> blacklists;
-    if (!customer_service_.getAllBlacklists(blacklists, err)) {
-        std::cerr << "Không thể nạp danh sách đen: " << err << '\n';
-    }
-    for (auto* n = blacklists.get_head(); n; n = n->next) {
-        size_t idx = 0;
-        if (!mapIndexKhachSDT_.search(n->data.getCustomerId(), idx)) {
-            KhachHangInfo bkh{n->data.getCustomerId(), n->data.getCustomerId(), n->data.getCustomerId(),
-                              0, 0, n->data.isActive(), n->data.getReason(), n->data.getCreatedAt(), 0};
-            mapIndexKhachSDT_.insert(bkh.sdt, danhSachKhachHang_.size());
-            danhSachKhachHang_.push_back(bkh);
-        }
     }
 
     danhSachDanhGia_.clear();

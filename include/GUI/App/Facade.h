@@ -78,17 +78,6 @@ struct KhachHangInfo {
     std::string sdt;
     int soLanDat = 0;
     int soLanHuy = 0;
-    bool biChan = false; // Thuộc danh sách đen (Blacklist)
-    std::string lyDoChan;
-    std::string ngayChan;
-    int mucUuDaiPhanTram = 0; // % giảm giá được hưởng
-};
-// Cấu trúc Ngưỡng ưu đãi tích lũy
-struct NguongUuDai {
-    int id = 0;
-    int soLanToiThieu = 5;
-    int phanTramGiam = 5;
-    std::string tenHang = u8"Thân thiết";
 };
 // Cấu trúc Đánh giá nhận xét
 struct DanhGiaInfo {
@@ -222,21 +211,12 @@ public:
     );
     std::map<std::pair<std::string, std::string>, Widgets::SlotInfo> getTinhTrangSlotTheoNgay(const std::string& ngay);
     // ==========================================
-    // 6. QUẢN LÝ KHÁCH HÀNG, ƯU ĐÃI & DANH SÁCH ĐEN
+    // 6. QUẢN LÝ KHÁCH HÀNG & ĐÁNH GIÁ
     // ==========================================
     // LÝ DO CHỌN HashTable: Tra cứu khách hàng theo SĐT trong O(1) thời gian trung bình
     std::vector<KhachHangInfo> getDanhSachKhachHang() const;
     std::vector<KhachHangInfo> getDanhSachKhachHangCuaChuSan() const;
     KhachHangInfo* timKhachHangTheoSDT(const std::string& sdt);
-    // LÝ DO CHỌN LinkedList: Quản lý danh sách đen với thao tác chèn/xóa phần tử linh hoạt O(1)
-    std::vector<KhachHangInfo> getDanhSachDen() const;
-    std::vector<KhachHangInfo> getDeXuatChan(int soLanHuyToiThieu = 3) const;
-    KetQua themVaoDanhSachDen(const std::string& sdt, const std::string& lyDo);
-    KetQua goKhoiDanhSachDen(const std::string& sdt);
-    // Ưu đãi
-    std::vector<NguongUuDai> getNguongUuDai() const;
-    KetQua capNhatNguongUuDai(int id, int soLanToiThieu, int phanTramGiam);
-    KetQua apDungUuDaiChoKhach();
     // LÝ DO CHỌN LinkedList: Danh sách đánh giá mới nhất thêm vào đầu danh sách với O(1)
     std::vector<DanhGiaInfo> getDanhSachDanhGia() const;
     float getDiemTrungBinhToanCoSo() const;
@@ -268,10 +248,8 @@ public:
     // ==========================================
     // 8. NGHIỆP VỤ DÀNH CHO NGƯỜI THUÊ SÂN
     // ==========================================
-    bool laKhachHangBiChan(const std::string& sdt) const;
     int getSoLanHuyCuaKhach(const std::string& sdt) const;
     int getSoLanDatCuaKhach(const std::string& sdt) const;
-    int getMucUuDaiCuaKhach(const std::string& sdt) const;
     KetQua datNhieuCaMoi(const std::string& maSan, const std::string& sdtKhach,
                          const std::string& tenKhach, const std::string& ngay,
                          const LinkedList<std::string>& khungGio, int loaiSan,
@@ -332,11 +310,10 @@ private:
     // Bộ nhớ quản lý sân bóng, khung giờ, bảng giá
     std::vector<SanBongInfo> danhSachSan_;
     std::vector<DonDatSanInfo> danhSachDonDat_;
-    // Bộ nhớ quản lý khách hàng, ưu đãi, danh sách đen và đánh giá
+    // Bộ nhớ quản lý khách hàng và đánh giá
     std::vector<KhachHangInfo> danhSachKhachHang_;
     // LÝ DO CHỌN: HashTable lưu chỉ mục khách hàng theo SĐT để tra cứu siêu tốc O(1)
     HashTable<std::string, size_t> mapIndexKhachSDT_;
-    std::vector<NguongUuDai> danhSachNguongUuDai_;
     std::vector<DanhGiaInfo> danhSachDanhGia_;
     // Bộ nhớ quản lý giải đấu & sự kiện
     std::vector<GiaiDauInfo> danhSachGiaiDau_;

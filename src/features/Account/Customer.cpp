@@ -47,22 +47,6 @@ void Customer::setStatistics(int bookingCount, int cancelCount) {
     cancel_count = cancelCount;
 }
 
-bool Customer::isBlacklistCandidate(int minCancellations) const {
-    return cancel_count >= minCancellations;
-}
-
-bool Customer::qualifiesForDiscount(int minBookings) const {
-    return booking_count >= minBookings;
-}
-
-bool Customer::canBook(bool isBlocked, std::string& error) const {
-    if (isBlocked) {
-        error = u8"Tài khoản đang bị khóa do vi phạm chính sách hủy sân.";
-        return false;
-    }
-    return true;
-}
-
 int Customer::getReliabilityRate() const {
     int total = booking_count + cancel_count;
     if (total == 0) return 100;

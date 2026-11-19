@@ -165,9 +165,7 @@ void DatSanScreen::renderBuoc3ChonNgayVaKhungGio() {
             ImGui::Spacing();
             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextPrimary);
             ImGui::Text(u8"[Đã chọn] %s", khungGioChon_.c_str());
-            ImGui::Text(u8"Giá gốc: %s  |  Ưu đãi VIP: %d%% (-%s)  |  Tổng thanh toán: %s",
-                        dinhDangTien(giaGoc_).c_str(), phanTramGiam_,
-                        dinhDangTien(soTienGiam_).c_str(), dinhDangTien(tongTien_).c_str());
+            ImGui::Text(u8"Tổng tiền thuê sân: %s", dinhDangTien(giaGoc_).c_str());
             ImGui::PopStyleColor();
         }
 
@@ -192,7 +190,7 @@ void DatSanScreen::renderBuoc3ChonNgayVaKhungGio() {
 
 void DatSanScreen::renderBuoc4XacNhan() {
     User* user = GUI::App::Session::getInstance().getUser();
-    Widgets::Card("confirm_booking", u8"Bước 4: Xác nhận phiếu đặt sân & Chiết khấu VIP", [this, user]() {
+    Widgets::Card("confirm_booking", u8"Bước 4: Xác nhận phiếu đặt sân", [this, user]() {
         if (user == nullptr) {
             ImGui::TextWrapped(u8"Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
             return;
@@ -213,16 +211,10 @@ void DatSanScreen::renderBuoc4XacNhan() {
         ImGui::Spacing();
 
         ImGui::Text(u8"Tiền sân niêm yết: %s", dinhDangTien(giaGoc_).c_str());
-        if (phanTramGiam_ > 0) {
-            ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::Primary);
-            ImGui::Text(u8"Chiết khấu thành viên VIP: -%d%% (-%s)", phanTramGiam_, dinhDangTien(soTienGiam_).c_str());
-            ImGui::PopStyleColor();
-        }
-
         ImFont* titleFont = GUI::Theme::getFonts().title;
         if (titleFont != nullptr) ImGui::PushFont(titleFont);
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::PrimaryDark);
-        ImGui::Text(u8"Tổng thanh toán thực tế: %s", dinhDangTien(tongTien_).c_str());
+        ImGui::Text(u8"Tổng tiền thuê sân: %s", dinhDangTien(giaGoc_).c_str());
         ImGui::PopStyleColor();
         if (titleFont != nullptr) ImGui::PopFont();
 
@@ -283,7 +275,7 @@ void DatSanScreen::renderPhieuDatSan() {
         ImGui::Text(u8"• Cơ sở sân: %s", tenCoSoChon_.c_str());
         ImGui::Text(u8"• Sân bóng: %s (%s)", tenSanChon_.c_str(), maSanChon_.c_str());
         ImGui::Text(u8"• Ngày đá: %s  |  Ca: %s (%d phút)", ngayChon_.c_str(), khungGioChon_.c_str(), thoiLuongChon_);
-        ImGui::Text(u8"• Tổng tiền thanh toán: %s", dinhDangTien(tongTien_).c_str());
+        ImGui::Text(u8"• Tổng tiền thuê sân: %s", dinhDangTien(giaGoc_).c_str());
         ImGui::PopStyleColor();
 
         ImGui::Spacing();

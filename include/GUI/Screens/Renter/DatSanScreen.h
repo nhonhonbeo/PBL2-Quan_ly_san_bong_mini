@@ -25,7 +25,6 @@ public:
 
 private:
     void renderThanhTienTrinh();
-    void renderCanhBaoDanhSachDen();
     void renderBuoc1ChonCoSo();
     void renderTheCumSan(const VenueFacilityRecord& facility, int fieldCount, long long lowestPrice);
     void renderBuoc2ChonSan();
@@ -39,7 +38,6 @@ private:
 
     std::function<void()> onXemLichCuaToi_;
     int buocHienTai_ = 1;
-    bool biChanDatSan_ = false;
     bool choPhep60Phut_ = true;
     bool choPhep90Phut_ = true;
     int loaiSanChon_ = 5;
@@ -54,9 +52,6 @@ private:
     std::string khungGioChon_;
     std::string loiChonCa_;
     long long giaGoc_ = 0;
-    int phanTramGiam_ = 0;
-    long long soTienGiam_ = 0;
-    long long tongTien_ = 0;
     std::string maDonDaDat_;
     std::string loiTaiTaiDuLieu_;
     LinkedList<VenueFacilityRecord> danhSachCoSo_;

@@ -9,9 +9,7 @@
 
 namespace GUI::Screens::Owner {
 
-// LÝ DO CHỌN: KhachHangScreen quản lý toàn bộ nghiệp vụ quan hệ khách hàng của cụm sân bóng,
-// chia thành 4 tab: Danh bạ (kèm panel chi tiết), Ngưỡng ưu đãi & VIP, Danh sách đen (Blacklist & đề xuất chặn),
-// và Đánh giá nhận xét của khách hàng.
+// LÝ DO CHỌN: KhachHangScreen tập trung vào danh bạ, thống kê booking và đánh giá khách hàng.
 class KhachHangScreen : public GUI::App::Screen {
 public:
     KhachHangScreen() = default;
@@ -26,15 +24,9 @@ public:
 
 private:
     void renderTabDanhBa();
-    void renderTabUuDai();
-    void renderTabDanhSachDen();
     void renderTabDanhGia();
 
     void renderPanelChiTietKhachHang();
-
-    void renderModalXacNhanChan();
-    void renderModalXacNhanGoChan();
-    void renderModalApDungUuDai();
 
     // ==========================================
     // DỮ LIỆU VIEWMODEL (Nạp ở onEnter & sau thao tác)
@@ -51,20 +43,7 @@ private:
     std::vector<GUI::App::DonDatSanInfo> lichSuDatCuaKhach_;
     std::vector<GUI::App::DanhGiaInfo> danhGiaCuaKhach_;
 
-    // Tab 2: Ngưỡng ưu đãi
-    std::vector<GUI::App::NguongUuDai> danhSachNguongUuDai_;
-
-    // Tab 3: Danh sách đen & Đề xuất
-    int nguongHuyDeXuat_ = 3;
-    std::vector<GUI::App::KhachHangInfo> danhSachDen_;
-    std::vector<GUI::App::KhachHangInfo> danhSachDeXuatChan_;
-
-    // Biến trung gian cho Modal chặn / gỡ chặn
-    std::string sdtCanChan_;
-    std::string lyDoCanChan_ = u8"Hủy đặt sân nhiều lần";
-    std::string sdtCanGoChan_;
-
-    // Tab 4: Đánh giá & Điểm trung bình sân
+    // Đánh giá & Điểm trung bình sân
     std::vector<GUI::App::SanBongInfo> danhSachSan_;
     std::vector<GUI::App::DanhGiaInfo> danhSachDanhGia_;
     int locSanIndex_ = 0;

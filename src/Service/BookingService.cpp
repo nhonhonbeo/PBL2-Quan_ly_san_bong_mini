@@ -16,19 +16,6 @@ bool validateBookingCustomer(
     const VenueBookingRequest& request,
     std::string& error
 ) {
-    bool isBlocked = false;
-    std::string blockReason;
-    if (!customerService.isBlacklisted(
-            request.customerId, isBlocked, blockReason, error)) {
-        if (error.empty()) error = "Không thể kiểm tra danh sách đen.";
-        return false;
-    }
-    if (isBlocked) {
-        error = "Tai khoan cua ban dang bi khoa do vi pham" +
-                (blockReason.empty() ? "." : (": " + blockReason));
-        return false;
-    }
-
     Customer customer;
     if (!customerService.findCustomer(request.customerId, customer, error)) {
         return false;

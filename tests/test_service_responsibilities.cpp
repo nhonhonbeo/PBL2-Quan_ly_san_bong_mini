@@ -3,7 +3,6 @@
 #include <string>
 
 #include "Core/LinkedList.h"
-#include "Customer/Discount.h"
 #include "Storage/FileManager.h"
 #include "Repository/AccountRepository.h"
 #include "Repository/BookingRepository.h"
@@ -36,18 +35,12 @@ int main() {
     assert(user->get_account_type() == "Owner");
     std::cout << "[PASS] AccountService: Auth & credential verification isolated." << std::endl;
 
-    // 2. CustomerService: Single Responsibility = Customer Profile, Blacklist, Discount, Review
+    // 2. CustomerService: Hồ sơ khách hàng, thống kê booking và đánh giá
     CustomerService custService(custRepo);
-    bool isBlocked = false;
-    std::string reason;
-    assert(custService.isBlacklisted("US02", isBlocked, reason, err));
-    assert(!isBlocked);
-
-    LinkedList<Discount> discounts;
-    assert(custRepo.findDiscountsByCustomerId("US02", discounts, err));
-    assert(discounts.size() > 0);
-    assert(custService.validateDiscount(discounts.get_head()->data, "US02", err));
-    std::cout << "[PASS] CustomerService: Profile, Blacklist & Discount lifecycle isolated." << std::endl;
+    Customer customer;
+    assert(custService.findCustomer("US02", customer, err));
+    assert(customer.getUserId() == "US02");
+    std::cout << "[PASS] CustomerService: Customer profile lookup isolated." << std::endl;
 
     // 3. VenueService: Single Responsibility = Facility, Hours, Matrix Pricing, Slots
     VenueRepository venueRepo(fm);
@@ -91,7 +84,7 @@ int main() {
     assert(reportService.buildOwnerDashboard("US01", metrics, revenueDays, recentBookings, err));
     std::cout << "[PASS] ReportService: Aggregation calculations isolated." << std::endl;
 
-    // 8. TournamentService: Single Responsibility = Tournaments, Teams & Matches
+    // 8. TournamentService: Single Responsibility = Tournament requests and decisions
     TournamentRepository tourRepo(fm);
     TournamentService tourService(tourRepo, bookingRepo);
     LinkedList<Tournament> tours;

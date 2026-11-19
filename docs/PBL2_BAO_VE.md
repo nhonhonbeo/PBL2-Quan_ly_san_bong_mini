@@ -76,7 +76,7 @@ FileManager / text files
 
 ### Booking
 
-`BookingService` kiểm tra khách hàng, blacklist và thông tin đặt; `VenueService`/repository
+`BookingService` kiểm tra khách hàng tồn tại, thông tin định danh và yêu cầu đặt; `VenueService`/repository
 kiểm tra sân, thời gian hoạt động và lịch trùng trước khi lưu. Luồng đặt nhiều ca
 theo dõi các ID để rollback toàn bộ booking đã tạo nếu một bước thất bại.
 
@@ -120,7 +120,7 @@ Windows MinGW:
 mingw32-make test
 ```
 
-Các nhóm test bao gồm cấu trúc dữ liệu, booking/payment consistency, customer, file I/O,
+Các nhóm test bao gồm cấu trúc dữ liệu, booking consistency, customer, file I/O,
 domain/service responsibilities, dependency injection, tournament và GUI Facade.
 Một số integration tests thao tác trên `data/`; chỉ chạy trên working copy có thể khôi
 phục, rồi xác nhận dữ liệu mẫu không bị thay đổi.

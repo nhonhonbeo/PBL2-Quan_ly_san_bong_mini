@@ -44,14 +44,6 @@ void ProfileScreen::reloadViewModel() {
     soLanDat_ = facade.getSoLanDatCuaKhach(formSDT_);
     soLanHuy_ = facade.getSoLanHuyCuaKhach(formSDT_);
 
-    int mucUuDai = facade.getMucUuDaiCuaKhach(formSDT_);
-    if (mucUuDai >= 10) {
-        hangThanhVien_ = u8"Thành viên VIP Bạc / Vàng";
-    } else if (mucUuDai > 0) {
-        hangThanhVien_ = u8"Khách hàng Thân thiết";
-    } else {
-        hangThanhVien_ = u8"Khách hàng tiêu chuẩn";
-    }
 }
 
 void ProfileScreen::render() {
@@ -120,21 +112,6 @@ void ProfileScreen::renderFormThongTin() {
         char sHuy[64];
         std::snprintf(sHuy, sizeof(sHuy), u8"%d lần (%.0f%%)", soLanHuy_, tyLeHuy);
         veStatRow(u8"Đã hủy đặt sân", sHuy, (tyLeHuy > 20.0f ? GUI::Theme::Colors::Danger : GUI::Theme::Colors::Warning));
-
-        ImVec2 p0 = ImGui::GetCursorScreenPos();
-        ImVec2 p1(p0.x + rightColW, p0.y + 42.0f);
-        dl->AddRectFilled(p0, p1, GUI::Theme::Colors::toU32(GUI::Theme::Colors::GrayHover), 6.0f);
-        dl->AddRect(p0, p1, GUI::Theme::Colors::toU32(GUI::Theme::Colors::Border), 6.0f);
-        dl->AddRectFilled(p0, ImVec2(p0.x + 3.5f, p1.y), GUI::Theme::Colors::toU32(GUI::Theme::Colors::Info), 6.0f);
-        dl->AddText(ImVec2(p0.x + 12.0f, p0.y + 12.0f), GUI::Theme::Colors::toU32(GUI::Theme::Colors::TextSecondary), u8"Hạng thành viên");
-
-        ImGui::SetCursorScreenPos(ImVec2(p1.x - 150.0f, p0.y + 8.0f));
-        if (hangThanhVien_.find("VIP") != std::string::npos) {
-            Widgets::BadgeVIP(hangThanhVien_.c_str());
-        } else {
-            Widgets::Badge(hangThanhVien_.c_str(), GUI::Theme::Colors::PrimaryLight, GUI::Theme::Colors::Primary);
-        }
-        ImGui::SetCursorScreenPos(ImVec2(p0.x, p1.y + 4.0f));
 
         ImGui::Columns(1);
 

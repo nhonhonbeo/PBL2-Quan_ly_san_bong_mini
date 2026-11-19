@@ -25,7 +25,6 @@ RenterShellScreen::RenterShellScreen() {
 
     lichDatScreen_ = std::make_unique<LichDatScreen>();
     taoGiaiScreen_ = std::make_unique<TaoGiaiScreen>();
-    uuDaiScreen_ = std::make_unique<UuDaiScreen>();
     danhGiaScreen_ = std::make_unique<DanhGiaScreen>();
     profileScreen_ = std::make_unique<ProfileScreen>();
 }
@@ -35,7 +34,6 @@ void RenterShellScreen::onEnter() {
     if (datSanScreen_) datSanScreen_->onEnter();
     if (lichDatScreen_) lichDatScreen_->onEnter();
     if (taoGiaiScreen_) taoGiaiScreen_->onEnter();
-    if (uuDaiScreen_) uuDaiScreen_->onEnter();
     if (danhGiaScreen_) danhGiaScreen_->onEnter();
     if (profileScreen_) profileScreen_->onEnter();
 }
@@ -44,7 +42,6 @@ void RenterShellScreen::onExit() {
     if (datSanScreen_) datSanScreen_->onExit();
     if (lichDatScreen_) lichDatScreen_->onExit();
     if (taoGiaiScreen_) taoGiaiScreen_->onExit();
-    if (uuDaiScreen_) uuDaiScreen_->onExit();
     if (danhGiaScreen_) danhGiaScreen_->onExit();
     if (profileScreen_) profileScreen_->onExit();
 }
@@ -92,7 +89,7 @@ void RenterShellScreen::render() {
         // Modal xác nhận đăng xuất
         Widgets::ModalXacNhan(
             u8"Xác nhận đăng xuất",
-            u8"Xác nhận đăng xuất tài khoản Người thuê.\nThông tin đặt sân và ưu đãi đã lưu sẽ không bị mất.",
+            u8"Xác nhận đăng xuất tài khoản Người thuê.\nThông tin đặt sân đã lưu sẽ không bị mất.",
             []() {
                 GUI::App::Session::getInstance().logout();
                 Widgets::ToastThongTin(u8"Đã đăng xuất tài khoản Người thuê an toàn!");
@@ -115,9 +112,8 @@ void RenterShellScreen::renderSidebar() {
         {"0", "", u8"Đặt sân trực tuyến"},
         {"1", "", u8"Lịch đặt của tôi"},
         {"2", "", u8"Đăng ký tạo giải"},
-        {"3", "", u8"Ưu đãi thành viên"},
-        {"4", "", u8"Đánh giá sân bóng"},
-        {"5", "", u8"Thông tin cá nhân"}
+        {"3", "", u8"Đánh giá sân bóng"},
+        {"4", "", u8"Thông tin cá nhân"}
     };
 
     int prevTab = selectedTab_;
@@ -134,9 +130,8 @@ void RenterShellScreen::renderSidebar() {
         if (selectedTab_ == 0 && datSanScreen_) datSanScreen_->reloadViewModel();
         else if (selectedTab_ == 1 && lichDatScreen_) lichDatScreen_->reloadViewModel();
         else if (selectedTab_ == 2 && taoGiaiScreen_) taoGiaiScreen_->reloadViewModel();
-        else if (selectedTab_ == 3 && uuDaiScreen_) uuDaiScreen_->reloadViewModel();
-        else if (selectedTab_ == 4 && danhGiaScreen_) danhGiaScreen_->reloadViewModel();
-        else if (selectedTab_ == 5 && profileScreen_) profileScreen_->reloadViewModel();
+        else if (selectedTab_ == 3 && danhGiaScreen_) danhGiaScreen_->reloadViewModel();
+        else if (selectedTab_ == 4 && profileScreen_) profileScreen_->reloadViewModel();
     }
 }
 
@@ -145,7 +140,6 @@ void RenterShellScreen::renderTopBar() {
         u8"Đặt sân bóng trực tuyến (Quy trình 4 bước)",
         u8"Lịch đặt của tôi & Quản lý hủy đơn",
         u8"Đăng ký tổ chức giải đấu phong trào",
-        u8"Ưu đãi tích lũy & Hạng thành viên VIP",
         u8"Đánh giá chất lượng dịch vụ & Sân bóng",
         u8"Hồ sơ cá nhân & Đổi mật khẩu tài khoản"
     };
@@ -178,12 +172,9 @@ void RenterShellScreen::renderContentArea() {
             if (taoGiaiScreen_) taoGiaiScreen_->render();
             break;
         case 3:
-            if (uuDaiScreen_) uuDaiScreen_->render();
-            break;
-        case 4:
             if (danhGiaScreen_) danhGiaScreen_->render();
             break;
-        case 5:
+        case 4:
             if (profileScreen_) profileScreen_->render();
             break;
         default:

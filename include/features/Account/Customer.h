@@ -35,10 +35,6 @@ public:
     void recordCancellation();
     void setStatistics(int bookingCount, int cancelCount);
 
-    // Nghiệp vụ tự thân của Khách hàng (Rich Domain Model)
-    bool isBlacklistCandidate(int minCancellations = 3) const;
-    bool qualifiesForDiscount(int minBookings = 5) const;
-    bool canBook(bool isBlocked, std::string& error) const;
     int getReliabilityRate() const;
 };
 #endif

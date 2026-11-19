@@ -15,15 +15,12 @@ lưu cục bộ trong các tệp văn bản dưới `data/`.
 - Tài khoản Owner/Customer: đăng nhập, đăng ký và cập nhật hồ sơ.
 - Sân: cấu hình sân, loại sân, tình trạng, khung giờ và giá thuê.
 - Booking: kiểm tra điều kiện đặt sân, trùng lịch, hủy và hoàn thành.
-- Khách hàng: hồ sơ, thống kê booking, blacklist và ưu đãi.
-- Hóa đơn/thanh toán: tạo hóa đơn và cập nhật trạng thái thủ công qua service.
-- Tournament: yêu cầu, duyệt/từ chối, đội tham gia, lịch trận đơn giản và kết quả.
+- Khách hàng: hồ sơ, thống kê booking và đánh giá sân.
+- Tournament: gửi yêu cầu, duyệt/từ chối và kiểm tra trùng lịch sân.
 - Review: lưu nhận xét, rating và tổng hợp điểm trung bình.
 
 GUI hiện có các màn hình xác thực, dashboard Owner, quản lý sân/khách/giải và các màn
-hình Customer cho đặt sân, lịch sử, hồ sơ, ưu đãi, yêu cầu giải và đánh giá. Chưa có
-màn hình riêng cho toàn bộ nghiệp vụ hóa đơn Owner; một số chức năng có service nhưng
-chưa có luồng GUI độc lập.
+hình Customer cho đặt sân, lịch sử, hồ sơ, yêu cầu giải và đánh giá.
 
 ## Công nghệ
 
@@ -119,7 +116,7 @@ phục, không dùng dữ liệu vận hành thật.
 ## Lưu trữ và dữ liệu mẫu
 
 Các repository đọc/ghi các tệp `.txt` như `accounts.txt`, `fields.txt`, `bookings.txt`,
-`invoices.txt`, `tournaments.txt`, `teams.txt`, `matches.txt` và `reviews.txt`.
+`tournaments.txt` và `reviews.txt`.
 Bản ghi thường dùng dấu `|` phân cách. `data/` là dữ liệu mà ứng dụng chạy từ thư mục
 gốc sử dụng; giữ nguyên dữ liệu này khi dọn build.
 

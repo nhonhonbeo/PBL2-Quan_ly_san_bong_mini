@@ -22,7 +22,7 @@ std::vector<KhachHangInfo> Facade::getDanhSachKhachHangCuaChuSan() const {
     std::unordered_map<std::string, bool> booked;
     for (const auto& b : danhSachDonDat_) if (b.ownerUserId == owner->get_user_id()) booked[b.sdt] = true;
     std::vector<KhachHangInfo> list;
-    for (const auto& kh : danhSachKhachHang_) if (booked[kh.sdt] || kh.biChan) list.push_back(kh);
+    for (const auto& kh : danhSachKhachHang_) if (booked[kh.sdt]) list.push_back(kh);
     return list;
 }
 
@@ -33,55 +33,6 @@ KhachHangInfo* Facade::timKhachHangTheoSDT(const std::string& sdt) {
     return nullptr;
 }
 
-std::vector<KhachHangInfo> Facade::getDanhSachDen() const {
-    std::vector<KhachHangInfo> ds;
-    for (const auto& kh : danhSachKhachHang_) if (kh.biChan) ds.push_back(kh);
-    return ds;
-}
-
-std::vector<KhachHangInfo> Facade::getDeXuatChan(int soLanHuyToiThieu) const {
-    std::vector<KhachHangInfo> deXuat;
-    LinkedList<Customer> candidates;
-    std::string error;
-    customer_service_.getBlacklistCandidates(soLanHuyToiThieu, candidates, error);
-    for (auto* n = candidates.get_head(); n; n = n->next) {
-        deXuat.push_back({n->data.getUserId(), n->data.get_name(), n->data.get_phone_number(),
-                          n->data.getBookingCount(), n->data.getCancelCount(), false, "", "", 0});
-    }
-    return deXuat;
-}
-
-KetQua Facade::themVaoDanhSachDen(const std::string& sdt, const std::string& lyDo) {
-    std::string error;
-    if (!customer_service_.addToBlacklist(sdt, lyDo, error)) return {false, error};
-    refreshCache();
-    return {true, ""};
-}
-
-KetQua Facade::goKhoiDanhSachDen(const std::string& sdt) {
-    std::string error;
-    if (!customer_service_.removeFromBlacklist(sdt, error)) return {false, error};
-    refreshCache();
-    return {true, ""};
-}
-
-std::vector<NguongUuDai> Facade::getNguongUuDai() const { return danhSachNguongUuDai_; }
-
-KetQua Facade::capNhatNguongUuDai(int id, int soLanToiThieu, int phanTramGiam) {
-    std::string error;
-    if (!customer_service_.updateDiscountThreshold(id, soLanToiThieu, phanTramGiam, error)) return {false, error};
-    refreshCache();
-    return {true, ""};
-}
-
-KetQua Facade::apDungUuDaiChoKhach() {
-    std::string error;
-    if (!customer_service_.applyDiscountsToAll(error)) {
-        return {false, error};
-    }
-    refreshCache();
-    return {true, ""};
-}
 std::vector<DanhGiaInfo> Facade::getDanhSachDanhGia() const {
     User* owner = Session::getInstance().getUser();
     std::vector<DanhGiaInfo> reviews;

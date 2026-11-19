@@ -29,7 +29,6 @@ private:
     std::string sdtBanDau_;
     int soLanDat_ = 0;
     int soLanHuy_ = 0;
-    std::string hangThanhVien_;
 
     // Dữ liệu đổi mật khẩu
     std::string formMatKhauCu_;
