@@ -30,7 +30,7 @@ void GiaiScreen::onEnter() {
     daGuiYeuCau_ = false;
     tableColsGiai_ = {
         {u8"Mã giải", 90.0f, ImGuiTableColumnFlags_WidthFixed},
-        {u8"Tên giải đấu", 220.0f, ImGuiTableColumnFlags_None},
+        {u8"Tên giải đấu", 230.0f, ImGuiTableColumnFlags_WidthFixed},
         {u8"Khách đặt", 150.0f, ImGuiTableColumnFlags_WidthFixed},
         {u8"Số điện thoại", 130.0f, ImGuiTableColumnFlags_WidthFixed},
         {u8"Bắt đầu", 110.0f, ImGuiTableColumnFlags_WidthFixed},
@@ -202,7 +202,8 @@ void GiaiScreen::renderTabDanhSachGiai() {
                         Widgets::MoModalXacNhan(u8"Xác nhận hủy giải đấu");
                     }
                 } else {
-                    ImGui::TextUnformatted(row.oDuLieu[col].c_str());
+                    if (col == 1) ImGui::TextWrapped("%s", row.oDuLieu[col].c_str());
+                    else ImGui::TextUnformatted(row.oDuLieu[col].c_str());
                 }
             }
         );

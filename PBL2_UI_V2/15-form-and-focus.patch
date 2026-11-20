@@ -1,0 +1,67 @@
+diff --git a/src/GUI/App/Application.cpp b/src/GUI/App/Application.cpp
+index 40f1e40..e8e9e72 100644
+--- a/src/GUI/App/Application.cpp
++++ b/src/GUI/App/Application.cpp
+@@ -97,6 +97,7 @@ bool Application::init() {
+     // Khởi tạo Dear ImGui context và thiết lập backend GLFW + OpenGL3
+     IMGUI_CHECKVERSION();
+     ImGui::CreateContext();
++    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+     ImGui::GetIO().IniFilename = nullptr;
+ 
+     // Áp dụng bảng màu và kiểu dáng sân bóng mini toàn cục
+@@ -180,5 +181,5 @@ void Application::shutdown() {
+     window_ = nullptr;
+     glfwTerminate();
+     initialized_ = false;
+-}
+-
++}
++
+diff --git a/src/GUI/Screens/Renter/ProfileScreen.cpp b/src/GUI/Screens/Renter/ProfileScreen.cpp
+index 703c984..015b2ad 100644
+--- a/src/GUI/Screens/Renter/ProfileScreen.cpp
++++ b/src/GUI/Screens/Renter/ProfileScreen.cpp
+@@ -141,13 +141,12 @@ void ProfileScreen::renderFormThongTin() {
+ void ProfileScreen::renderFormDoiMatKhau() {
+     Widgets::Card("card_renter_change_password", u8"Đổi mật khẩu tài khoản", [this]() {
+         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
+-        ImGui::TextWrapped(u8"Để bảo vệ an toàn cho tài khoản đặt sân, vui lòng sử dụng mật khẩu mới có tối thiểu 6 ký tự.");
++        ImGui::TextWrapped(u8"Mật khẩu mới cần ít nhất 6 ký tự.");
+         ImGui::PopStyleColor();
+         ImGui::Spacing();
+         ImGui::Separator();
+         ImGui::Spacing();
+ 
+-        ImGui::SetNextItemWidth(360.0f);
+         Widgets::InputPassword(
+             u8"Mật khẩu hiện tại (*)",
+             "##profile_pw_cur",
+@@ -157,9 +156,8 @@ void ProfileScreen::renderFormDoiMatKhau() {
+         );
+         ImGui::Spacing();
+ 
+-        ImGui::SetNextItemWidth(360.0f);
+         Widgets::InputPassword(
+-            u8"Mật khẩu mới (Tối thiểu 6 ký tự) (*)",
++            u8"Mật khẩu mới (*)",
+             "##profile_pw_new",
+             formMatKhauMoi_,
+             hienMatKhauMoi_,
+@@ -167,7 +165,6 @@ void ProfileScreen::renderFormDoiMatKhau() {
+         );
+         ImGui::Spacing();
+ 
+-        ImGui::SetNextItemWidth(360.0f);
+         Widgets::InputPassword(
+             u8"Nhập lại mật khẩu mới (*)",
+             "##profile_pw_confirm",
+@@ -181,7 +178,7 @@ void ProfileScreen::renderFormDoiMatKhau() {
+         ImGui::Separator();
+         ImGui::Spacing();
+ 
+-        if (Widgets::NutChinh(u8"Xác nhận đổi mật khẩu", ImVec2(220.0f, 36.0f))) {
++        if (Widgets::NutChinh(u8"Đổi mật khẩu", ImVec2(220.0f, 36.0f))) {
+             // Kiểm tra tính hợp lệ bằng FormValidator
+             loiMatKhauCu_ = Widgets::FormValidator::kiemTraKhongDeTrong(formMatKhauCu_, u8"Mật khẩu hiện tại");
+             loiMatKhauMoi_ = Widgets::FormValidator::kiemTraMatKhau(formMatKhauMoi_, 6);

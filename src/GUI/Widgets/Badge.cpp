@@ -1,6 +1,7 @@
 #include "GUI/Widgets/Badge.h"
 
 #include "GUI/Theme/Theme.h"
+#include "GUI/Theme/Fonts.h"
 
 namespace Widgets {
 
@@ -9,8 +10,10 @@ void Badge(const char* text, const ImVec4& bgMau, const ImVec4& textMau) {
         return;
     }
 
+    ImFont* font = GUI::Theme::getFonts().small;
+    if (font) ImGui::PushFont(font);
     ImVec2 txtSize = ImGui::CalcTextSize(text);
-    float padX = 10.0f;
+    float padX = 8.0f;
     float padY = 3.0f;
     ImVec2 badgeSize(txtSize.x + padX * 2.0f, txtSize.y + padY * 2.0f);
 
@@ -24,10 +27,11 @@ void Badge(const char* text, const ImVec4& bgMau, const ImVec4& textMau) {
 
     drawList->AddRectFilled(p0, p1, GUI::Theme::Colors::toU32(bgMau), rounding);
     // Viền nhẹ cùng tông chữ để đảm bảo phân tách rõ ràng trên mọi màn hình
-    drawList->AddRect(p0, p1, GUI::Theme::Colors::toU32(textMau, 0.35f), rounding, 0, 1.0f);
+
     drawList->AddText(ImVec2(p0.x + padX, p0.y + padY), GUI::Theme::Colors::toU32(textMau), text);
 
     ImGui::Dummy(badgeSize);
+    if (font) ImGui::PopFont();
 }
 
 void BadgeTrong(const char* text) {

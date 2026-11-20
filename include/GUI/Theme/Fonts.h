@@ -14,6 +14,9 @@ struct Fonts {
     ImFont* heading = nullptr;
     ImFont* title = nullptr;
     ImFont* small = nullptr;
+    ImFont* metric = nullptr;
+    ImFont* label = nullptr;
+    ImFont* brand = nullptr;
 };
 
 // Nạp bộ font UTF-8 tiếng Việt (Segoe UI / Roboto / Arial).

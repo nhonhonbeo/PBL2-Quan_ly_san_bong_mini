@@ -1,0 +1,83 @@
+diff --git a/src/GUI/Screens/Owner/DashboardScreen.cpp b/src/GUI/Screens/Owner/DashboardScreen.cpp
+index 945fe6b..ce4c59a 100644
+--- a/src/GUI/Screens/Owner/DashboardScreen.cpp
++++ b/src/GUI/Screens/Owner/DashboardScreen.cpp
+@@ -52,7 +52,8 @@ void DashboardScreen::render() {
+ void DashboardScreen::renderStatCards() {
+     float availW = ImGui::GetContentRegionAvail().x;
+     float cardSpacing = 16.0f;
+-    float cardW = (availW - cardSpacing * 3.0f) / 4.0f;
++    const int columns = availW >= 1080.0f ? 4 : (availW >= 520.0f ? 2 : 1);
++    float cardW = (availW - cardSpacing * (columns - 1)) / columns;
+ 
+     auto veTheKPI = [cardW](const char* id, const char* icon, const char* tieuDe, const char* giaTri, const char* moTa, ImVec4 accentColor) {
+         ImGui::PushID(id);
+@@ -74,6 +75,7 @@ void DashboardScreen::renderStatCards() {
+ 
+         // 4. Nội dung text
+         ImGui::SetCursorScreenPos(ImVec2(p0.x + 18.0f, p0.y + 14.0f));
++        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + cardW - 36.0f);
+         ImGui::BeginGroup();
+ 
+         ImFont* smallFont = GUI::Theme::getFonts().small;
+@@ -101,9 +103,10 @@ void DashboardScreen::renderStatCards() {
+         if (smallFont != nullptr) ImGui::PopFont();
+ 
+         ImGui::EndGroup();
++        ImGui::PopTextWrapPos();
+ 
+-        ImGui::SetCursorScreenPos(ImVec2(p0.x + cardW, p0.y));
+-        ImGui::Dummy(ImVec2(0.0f, cardH));
++        ImGui::SetCursorScreenPos(p0);
++        ImGui::Dummy(ImVec2(cardW, cardH));
+         ImGui::PopID();
+     };
+ 
+@@ -116,7 +119,7 @@ void DashboardScreen::renderStatCards() {
+         u8"Sân thuộc cơ sở của bạn",
+         GUI::Theme::Colors::Primary
+     );
+-    ImGui::SameLine(0.0f, cardSpacing);
++    if (columns > 1) ImGui::SameLine(0.0f, cardSpacing);
+ 
+     // Thẻ 2: Lượt đặt hôm nay
+     veTheKPI(
+@@ -127,7 +130,7 @@ void DashboardScreen::renderStatCards() {
+         u8"Đơn sẵn sàng phục vụ",
+         GUI::Theme::Colors::Info
+     );
+-    ImGui::SameLine(0.0f, cardSpacing);
++    if (columns == 4) ImGui::SameLine(0.0f, cardSpacing);
+ 
+     // Thẻ 3: Doanh thu tháng
+     std::string dtStr = nhomNghin(metrics_.monthlyRevenueVnd) + u8" đ";
+@@ -139,7 +142,7 @@ void DashboardScreen::renderStatCards() {
+         u8"Đơn đã hoàn thành",
+         GUI::Theme::Colors::Warning
+     );
+-    ImGui::SameLine(0.0f, cardSpacing);
++    if (columns > 1) ImGui::SameLine(0.0f, cardSpacing);
+ 
+     // Thẻ 4: Khách hàng mới
+     veTheKPI(
+@@ -288,11 +291,18 @@ void DashboardScreen::renderUpcomingBookings() {
+                                 ImGuiTableFlags_BordersOuter |
+                                 ImGuiTableFlags_SizingStretchProp;
+ 
+-        if (ImGui::BeginTable("##tbl_upcoming", 8, flags)) {
++        const float minTableWidth = 1050.0f;
++        const bool scrollX = ImGui::GetContentRegionAvail().x < minTableWidth;
++        if (scrollX) {
++            flags |= ImGuiTableFlags_ScrollX;
++            ImGui::TextDisabled(u8"Cuộn ngang để xem các cột còn lại.");
++        }
++        if (ImGui::BeginTable("##tbl_upcoming", 8, flags, ImVec2(0, 0),
++                              scrollX ? minTableWidth : 0.0f)) {
+             ImGui::TableSetupColumn(u8"Mã đơn", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+             ImGui::TableSetupColumn(u8"Mã sân", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+             ImGui::TableSetupColumn(u8"Ngày", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+-            ImGui::TableSetupColumn(u8"Khách hàng", ImGuiTableColumnFlags_WidthStretch);
++            ImGui::TableSetupColumn(u8"Khách hàng", ImGuiTableColumnFlags_WidthFixed, 180.0f);
+             ImGui::TableSetupColumn(u8"Số điện thoại", ImGuiTableColumnFlags_WidthFixed, 115.0f);
+             ImGui::TableSetupColumn(u8"Khung giờ", ImGuiTableColumnFlags_WidthFixed, 130.0f);
+             ImGui::TableSetupColumn(u8"Tiền sân (VNĐ)", ImGuiTableColumnFlags_WidthFixed, 115.0f);

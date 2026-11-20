@@ -113,7 +113,7 @@ void TaoGiaiScreen::render() {
 void TaoGiaiScreen::renderFormTaoGiai() {
     Widgets::Card("card_renter_request_tournament", u8"Đăng ký tổ chức giải đấu bóng đá phong trào", [this]() {
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-        ImGui::TextWrapped(u8"Gửi đề xuất tổ chức giải đấu hoặc cúp giao hữu tới Ban quản lý cụm sân bóng. Chủ sân sẽ kiểm tra xung đột lịch và phê duyệt yêu cầu của bạn.");
+        ImGui::TextWrapped(u8"Chủ sân sẽ kiểm tra lịch và duyệt yêu cầu tổ chức giải.");
         ImGui::PopStyleColor();
         ImGui::Spacing();
         ImGui::Separator();
@@ -179,7 +179,7 @@ void TaoGiaiScreen::renderFormTaoGiai() {
         ImGui::PushStyleColor(ImGuiCol_FrameBg, GUI::Theme::Colors::WhiteCard);
         ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::InputBorder);
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.5f);
-        if (ImGui::InputTextMultiline("##r_t_notes", descBuf, sizeof(descBuf), ImVec2(-1.0f, 90.0f))) {
+        if (ImGui::InputTextMultiline("##r_t_notes", descBuf, sizeof(descBuf), ImVec2(-1.0f, 110.0f))) {
             formGhiChu_ = descBuf;
         }
         ImGui::PopStyleVar();
@@ -193,7 +193,7 @@ void TaoGiaiScreen::renderFormTaoGiai() {
         ImGui::Spacing();
 
         ImGui::BeginDisabled(!startDateValid || !endDateValid);
-        if (Widgets::NutChinh(u8"Gửi yêu cầu tổ chức giải đấu tới Chủ sân", ImVec2(340.0f, 38.0f))) {
+        if (Widgets::NutChinh(u8"Gửi yêu cầu", ImVec2(200.0f, 42.0f))) {
             daGuiYeuCau_ = true;
             if (!Widgets::FormValidator::kiemTraTenGiaiDau(formTenGiai_).empty()) {
                 return;

@@ -1,0 +1,34 @@
+diff --git a/src/GUI/Screens/Renter/DatSanScreenBuoc3Va4.cpp b/src/GUI/Screens/Renter/DatSanScreenBuoc3Va4.cpp
+index fdb4f49..ef6b4ef 100644
+--- a/src/GUI/Screens/Renter/DatSanScreenBuoc3Va4.cpp
++++ b/src/GUI/Screens/Renter/DatSanScreenBuoc3Va4.cpp
+@@ -84,7 +84,12 @@ void DatSanScreen::renderBuoc3ChonNgayVaKhungGio() {
+             ImGui::TextUnformatted(u8"Bấm chọn các ca đá (khung giờ liên tiếp):");
+             ImGui::Spacing();
+ 
++            const float gridWidth = ImGui::GetContentRegionAvail().x;
++            const int columns = gridWidth >= 830.0f ? 3 : (gridWidth >= 550.0f ? 2 : 1);
++            const float slotWidth = (gridWidth - (columns - 1) * 10.0f) / columns;
++            int slotIndex = 0;
+             for (auto* node = danhSachKhungGioTrong_.get_head(); node != nullptr; node = node->next) {
++                if (slotIndex++ % columns != 0) ImGui::SameLine(0.0f, 10.0f);
+                 const VenueSlotRecord& slot = node->data;
+                 ImGui::PushID(slot.startTime.c_str());
+ 
+@@ -117,7 +122,7 @@ void DatSanScreen::renderBuoc3ChonNgayVaKhungGio() {
+                 ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
+ 
+                 ImGui::BeginDisabled(!slot.available || slot.past);
+-                if (ImGui::Button(label.c_str(), ImVec2(270.0f, 40.0f))) {
++                if (ImGui::Button(label.c_str(), ImVec2(slotWidth, 40.0f))) {
+                     if (selected) {
+                         cacCaDangChon_.removeIf([&slot](const VenueSlotRecord& current) {
+                             return current.startTime == slot.startTime;
+@@ -150,7 +155,6 @@ void DatSanScreen::renderBuoc3ChonNgayVaKhungGio() {
+                 ImGui::PopStyleVar(2);
+                 ImGui::PopStyleColor(4);
+                 ImGui::PopID();
+-                ImGui::SameLine(0.0f, 10.0f);
+             }
+         }
+ 

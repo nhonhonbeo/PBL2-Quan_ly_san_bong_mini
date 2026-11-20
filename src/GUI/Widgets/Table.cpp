@@ -112,6 +112,7 @@ bool Table(
     // 4. TÍNH TOÁN PHÂN TRANG
     // ==========================================
     int totalItems = static_cast<int>(filteredIndices.size());
+    state.soDongMoiTrang = std::max(1, state.soDongMoiTrang);
     int totalPages = (totalItems + state.soDongMoiTrang - 1) / state.soDongMoiTrang;
     if (totalPages < 1) totalPages = 1;
     if (state.trangHienTai > totalPages) state.trangHienTai = totalPages;
@@ -124,19 +125,35 @@ bool Table(
     // 5. HIỂN THỊ IMGUI TABLE
     // ==========================================
     ImGuiTableFlags flags = ImGuiTableFlags_RowBg |
-                            ImGuiTableFlags_BordersInnerV |
-                            ImGuiTableFlags_BordersOuter |
+                            ImGuiTableFlags_BordersInnerH |
                             ImGuiTableFlags_Resizable |
                             ImGuiTableFlags_Reorderable |
                             ImGuiTableFlags_Sortable |
                             ImGuiTableFlags_SizingStretchProp |
                             extraFlags;
 
-    if (ImGui::BeginTable("##main_table", static_cast<int>(cacCot.size()), flags)) {
+    // Keep meaningful minimum widths; scroll only when the viewport is too narrow.
+    float minWidth = 0.0f;
+    for (const auto& col : cacCot) {
+        const bool stretch = (col.flags & ImGuiTableColumnFlags_WidthStretch) != 0;
+        const float contentWidth = stretch ? 140.0f : std::max(col.chieuRong, 100.0f);
+        minWidth += std::max(contentWidth, ImGui::CalcTextSize(col.tenCot.c_str()).x + 24.0f)
+                    + 2.0f * ImGui::GetStyle().CellPadding.x;
+    }
+    const bool scrollX = minWidth > availWidth;
+    if (scrollX) {
+        flags |= ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY;
+        ImGui::TextDisabled(u8"Cuộn ngang để xem các cột còn lại.");
+    }
+    const float rowHeight = std::max(46.0f, ImGui::GetTextLineHeight() + 2.0f * ImGui::GetStyle().CellPadding.y + 12.0f);
+    const float tableHeight = scrollX ? std::min(std::max(260.0f, ImGui::GetContentRegionAvail().y - 30.0f), (std::max(1, endIndex - startIndex) + 1) * rowHeight + ImGui::GetStyle().ScrollbarSize) : 0.0f;
+    if (ImGui::BeginTable("##main_table", static_cast<int>(cacCot.size()), flags,
+                          ImVec2(0.0f, tableHeight), scrollX ? minWidth : 0.0f)) {
         for (size_t colIdx = 0; colIdx < cacCot.size(); ++colIdx) {
             const auto& col = cacCot[colIdx];
             ImGui::TableSetupColumn(col.tenCot.c_str(), col.flags, col.chieuRong);
         }
+        if (scrollX) ImGui::TableSetupScrollFreeze(0, 1);
         ImGui::TableHeadersRow();
 
         if (ImGuiTableSortSpecs* sortSpecs = ImGui::TableGetSortSpecs()) {
@@ -147,11 +164,15 @@ bool Table(
             }
         }
 
+        if (totalItems == 0) {
+            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0);
+            ImGui::TextDisabled(u8"Không có kết quả");
+        }
         for (int i = startIndex; i < endIndex; ++i) {
             size_t origIdx = filteredIndices[i];
             const auto& row = danhSachDong[origIdx];
 
-            ImGui::TableNextRow();
+            ImGui::TableNextRow(ImGuiTableRowFlags_None, 42.0f);
             bool isRowSelected = (state.dongDangChon == static_cast<int>(origIdx));
 
             for (size_t colIdx = 0; colIdx < cacCot.size(); ++colIdx) {
@@ -175,6 +196,8 @@ bool Table(
                 } else {
                     std::string cellText = (colIdx < row.oDuLieu.size()) ? row.oDuLieu[colIdx] : "";
                     ImGui::TextUnformatted(cellText.c_str());
+                    if (ImGui::IsItemHovered() && ImGui::CalcTextSize(cellText.c_str()).x > ImGui::GetContentRegionAvail().x)
+                        ImGui::SetTooltip("%s", cellText.c_str());
                 }
             }
         }
@@ -199,9 +222,10 @@ bool Table(
 
     if (smallFont != nullptr) ImGui::PopFont();
 
+    if (totalPages == 1) { ImGui::PopID(); return clickedRowEvent; }
     ImGui::SameLine();
     float navWidth = 260.0f;
-    ImGui::SetCursorPosX(availWidth - navWidth);
+    if (availWidth > 480.0f) ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), availWidth - navWidth));
 
     bool disablePrev = (state.trangHienTai <= 1);
     bool disableNext = (state.trangHienTai >= totalPages);

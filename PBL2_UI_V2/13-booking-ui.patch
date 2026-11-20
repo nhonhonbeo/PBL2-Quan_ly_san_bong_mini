@@ -1,0 +1,140 @@
+diff --git a/src/GUI/Screens/Renter/DatSanScreen.cpp b/src/GUI/Screens/Renter/DatSanScreen.cpp
+index 78a5f51..dbcb9cc 100644
+--- a/src/GUI/Screens/Renter/DatSanScreen.cpp
++++ b/src/GUI/Screens/Renter/DatSanScreen.cpp
+@@ -215,58 +215,24 @@ void DatSanScreen::render() {
+ }
+ 
+ void DatSanScreen::renderThanhTienTrinh() {
+-    // L\u00DD DO CH\u1ECCN: Stepper tr\u1EF1c quan 4 b\u01B0\u1EDBc chu\u1EA9n UX, lo\u1EA1i b\u1ECF ho\u00E0n to\u00E0n c\u00E1c chu\u1ED7i l\u1EB7p "B\u01B0\u1EDBc X",
+-    // hi\u1EC3n th\u1ECB r\u00F5 b\u01B0\u1EDBc \u0111\u00E3 xong (t\u00EDch xanh), b\u01B0\u1EDBc hi\u1EC7n t\u1EA1i (n\u1EC1n n\u1ED5i b\u1EADt) v\u00E0 b\u01B0\u1EDBc ti\u1EBFp theo.
+-    const char* steps[] = {
+-        u8"1. Ch\u1ECDn c\u1EE5m s\u00E2n",
+-        u8"2. Ch\u1ECDn s\u00E2n & lo\u1EA1i s\u00E2n",
+-        u8"3. Ch\u1ECDn ng\u00E0y & ca \u0111\u00E1",
+-        u8"4. X\u00E1c nh\u1EADn & \u01AFu \u0111\u00E3i"
+-    };
+-
+-    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 16.0f);
+-    ImGui::Columns(4, nullptr, false);
+-
++    const char* steps[] = {u8"Chọn cơ sở", u8"Chọn sân", u8"Chọn giờ", u8"Xác nhận"};
++    using C = GUI::Theme::Colors;
++    const float width = ImGui::GetContentRegionAvail().x;
++    const float cell = width / 4.f;
++    const ImVec2 start = ImGui::GetCursorScreenPos();
++    auto* dl = ImGui::GetWindowDrawList();
++    const ImVec2 labelSize = ImGui::CalcTextSize("1");
+     for (int i = 0; i < 4; ++i) {
+-        const bool isDone = (buocHienTai_ > i + 1);
+-        const bool isCurrent = (buocHienTai_ == i + 1);
+-
+-        if (isCurrent) {
+-            ImGui::PushStyleColor(ImGuiCol_Button,        GUI::Theme::Colors::PrimaryLight);
+-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, GUI::Theme::Colors::PrimaryLight);
+-            ImGui::PushStyleColor(ImGuiCol_Text,          GUI::Theme::Colors::PrimaryDark);
+-            ImGui::PushStyleColor(ImGuiCol_Border,        GUI::Theme::Colors::Primary);
+-            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.5f);
+-        } else if (isDone) {
+-            ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.95f, 0.98f, 0.96f, 1.0f));
+-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.95f, 0.98f, 0.96f, 1.0f));
+-            ImGui::PushStyleColor(ImGuiCol_Text,          GUI::Theme::Colors::Success);
+-            ImGui::PushStyleColor(ImGuiCol_Border,        GUI::Theme::Colors::Success);
+-            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+-        } else {
+-            ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.96f, 0.96f, 0.96f, 1.0f));
+-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.96f, 0.96f, 0.96f, 1.0f));
+-            ImGui::PushStyleColor(ImGuiCol_Text,          GUI::Theme::Colors::TextSecondary);
+-            ImGui::PushStyleColor(ImGuiCol_Border,        GUI::Theme::Colors::Border);
+-            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+-        }
+-
+-        std::string label = isDone ? (std::string(u8"\u2713 ") + steps[i]) : steps[i];
+-        ImGui::Button(label.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 32.0f));
+-
+-        ImGui::PopStyleVar();
+-        ImGui::PopStyleColor(4);
+-        ImGui::NextColumn();
++        const ImVec2 center(start.x + cell * (i + .5f), start.y + 15);
++        if (i < 3) dl->AddLine(ImVec2(center.x+16,center.y), ImVec2(center.x+cell-16,center.y), C::toU32(i+1<buocHienTai_?C::Primary:C::Border), 2);
++        const bool active = i+1 <= buocHienTai_;
++        dl->AddCircleFilled(center, 14, C::toU32(active?C::Primary:C::Border));
++        const std::string number = std::to_string(i+1);
++        dl->AddText(ImVec2(center.x-labelSize.x*.5f,center.y-labelSize.y*.5f), C::toU32(active?C::Surface:C::TextSecondary), number.c_str());
++        const ImVec2 size = ImGui::CalcTextSize(steps[i]);
++        dl->AddText(ImVec2(center.x-size.x*.5f,start.y+36), C::toU32(i+1==buocHienTai_?C::PrimaryDark:C::TextSecondary), steps[i]);
+     }
+-    ImGui::Columns(1);
+-    ImGui::PopStyleVar();
+-
+-    Widgets::ProgressBar(
+-        static_cast<float>(buocHienTai_) / 4.0f,
+-        "",
+-        ImVec2(-1.0f, 6.0f),
+-        GUI::Theme::Colors::Primary
+-    );
++    ImGui::Dummy(ImVec2(width, 58));
+ }
+ 
+-}  // namespace GUI::Screens::Renter
++} // namespace GUI::Screens::Renter
+diff --git a/src/GUI/Screens/Renter/DatSanScreenBuoc1Va2.cpp b/src/GUI/Screens/Renter/DatSanScreenBuoc1Va2.cpp
+index 9eadf75..bec81e1 100644
+--- a/src/GUI/Screens/Renter/DatSanScreenBuoc1Va2.cpp
++++ b/src/GUI/Screens/Renter/DatSanScreenBuoc1Va2.cpp
+@@ -118,15 +118,15 @@ void DatSanScreen::renderTheCumSan(const VenueFacilityRecord& facility, int fiel
+     ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::Border);
+ 
+     std::string childId = "##card_" + facility.ownerId;
+-    if (ImGui::BeginChild(childId.c_str(), ImVec2(0.0f, 300.0f), true, ImGuiWindowFlags_None)) {
++    if (ImGui::BeginChild(childId.c_str(), ImVec2(0.0f, 330.0f), true, ImGuiWindowFlags_None)) {
+         ImDrawList* drawList = ImGui::GetWindowDrawList();
+ 
+         ImVec2 bannerP0 = ImGui::GetCursorScreenPos();
+         float bannerWidth = ImGui::GetContentRegionAvail().x;
+-        float bannerHeight = 44.0f;
++        float bannerHeight = 76.0f;
+         ImVec2 bannerP1(bannerP0.x + bannerWidth, bannerP0.y + bannerHeight);
+ 
+-        drawList->AddRectFilledMultiColor(bannerP0, bannerP1, IM_COL32(22, 134, 91, 255), IM_COL32(16, 96, 64, 255), IM_COL32(16, 96, 64, 255), IM_COL32(22, 134, 91, 255));
++        drawList->AddRectFilledMultiColor(bannerP0, bannerP1, IM_COL32(17, 105, 75, 255), IM_COL32(17, 105, 75, 255), IM_COL32(17, 105, 75, 255), IM_COL32(17, 105, 75, 255));
+ 
+         float midX = bannerP0.x + bannerWidth * 0.5f;
+         float midY = bannerP0.y + bannerHeight * 0.5f;
+@@ -134,10 +134,9 @@ void DatSanScreen::renderTheCumSan(const VenueFacilityRecord& facility, int fiel
+         drawList->AddCircle(ImVec2(midX, midY), 13.0f, IM_COL32(255, 255, 255, 80), 24, 1.2f);
+         drawList->AddRect(bannerP0, bannerP1, IM_COL32(255, 255, 255, 60), 4.0f, 0, 1.0f);
+ 
+-        ImGui::SetCursorScreenPos(ImVec2(bannerP0.x + 8.0f, bannerP0.y + 12.0f));
+-        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32_WHITE);
+-        ImGui::TextUnformatted(u8"CỤM SÂN BÓNG MINI");
+-        ImGui::PopStyleColor();
++        drawList->AddRect(ImVec2(bannerP0.x+10,bannerP0.y+8), ImVec2(bannerP1.x-10,bannerP1.y-8), IM_COL32(255,255,255,120), 2);
++        drawList->AddRect(ImVec2(bannerP0.x+10,midY-18),ImVec2(bannerP0.x+34,midY+18),IM_COL32(255,255,255,120));
++        drawList->AddRect(ImVec2(bannerP1.x-34,midY-18),ImVec2(bannerP1.x-10,midY+18),IM_COL32(255,255,255,120));
+ 
+         ImGui::SetCursorScreenPos(ImVec2(bannerP0.x, bannerP1.y + 8.0f));
+         ImFont* titleFont = GUI::Theme::getFonts().title;
+@@ -166,18 +165,19 @@ void DatSanScreen::renderTheCumSan(const VenueFacilityRecord& facility, int fiel
+             Widgets::BadgeBaoTri(u8"Ch\u01B0a c\u00F3 s\u00E2n s\u1EB5n s\u00E0ng");
+         } else {
+             Widgets::BadgeTrong((std::to_string(fieldCount) + u8" s\u00E2n s\u1EB5n s\u00E0ng").c_str());
+-            ImGui::SameLine(0.0f, 6.0f);
+-            Widgets::BadgeNoiBat((u8"T\u1EEB " + dinhDangTien(lowestPrice)).c_str());
++            ImGui::TextColored(GUI::Theme::Colors::PrimaryDark, u8"Giá từ %s", dinhDangTien(lowestPrice).c_str());
+         }
+ 
+         ImGui::Spacing();
+ 
++        const float bottom = ImGui::GetWindowHeight() - 48.0f;
++        ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY(), bottom));
+         if (fieldCount == 0) {
+             ImGui::BeginDisabled(true);
+             Widgets::NutPhu(u8"T\u1EA1m ng\u01B0ng \u0111\u00F3n kh\u00E1ch", ImVec2(ImGui::GetContentRegionAvail().x, 34.0f));
+             ImGui::EndDisabled();
+         } else {
+-            if (Widgets::NutChinh(u8"Ch\u1ECDn c\u1EE5m s\u00E2n n\u00E0y \u2192", ImVec2(ImGui::GetContentRegionAvail().x, 34.0f))) {
++            if (Widgets::NutChinh(u8"Chọn cụm sân", ImVec2(ImGui::GetContentRegionAvail().x, 34.0f))) {
+                 chonCoSo(facility);
+             }
+         }

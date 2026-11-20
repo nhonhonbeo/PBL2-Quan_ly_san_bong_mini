@@ -147,7 +147,8 @@ void buildGlyphRanges(ImGuiIO& io, ImVector<ImWchar>& out) {
         0x2013, 0x2014,  // – —
         0x2018, 0x201F,  // ‘ ’ “ ”
         0x2022, 0x2022,  // •
-        0x2026, 0x2026,  // …
+        0x2026, 0x2026,
+        0x2039, 0x203A,  // …
         0x20AB, 0x20AB,  // ₫
         0x2190, 0x2193,  // ← ↑ → ↓
         0x2264, 0x2265,  // ≤ ≥
@@ -174,7 +175,8 @@ Fonts loadFonts() {
     collectFontsFrom(fs::current_path(ec), candidates);
     collectFontsFrom(executableDirectory(), candidates);
 
-    static std::vector<unsigned char> fontData;
+    static std::vector<unsigned char> fontData, boldData, mediumData;
+    boldData.clear(); mediumData.clear();
     std::string usedPath;
     for (const fs::path& candidate : candidates) {
         std::vector<unsigned char> data;
@@ -193,10 +195,26 @@ Fonts loadFonts() {
     if (usedPath.empty()) {
         std::cerr << "[Font] Không có font hợp lệ. Dùng font mặc định.\n";
         ImFont* fallback = io.Fonts->AddFontDefault();
-        s_CurrentFonts = {fallback, fallback, fallback, fallback};
+        s_CurrentFonts = {fallback, fallback, fallback, fallback, fallback, fallback, fallback};
         return s_CurrentFonts;
     }
 
+    // Use installed font faces, never require a downloaded font.
+    auto loadFace = [&](const std::vector<fs::path>& paths, std::vector<unsigned char>& target) {
+        for (const auto& p : paths) {
+            std::string why;
+            if (readFile(p, target) && validateFont(target, why)) return;
+        }
+        target = fontData;
+    };
+    const fs::path base = fs::path(usedPath).parent_path();
+    const std::string stem = fs::path(usedPath).stem().string();
+    std::vector<fs::path> bold, medium;
+    if (stem == "segoeui") { bold = {base / "segoeuib.ttf"}; medium = {base / "seguisb.ttf", base / "segoeuib.ttf"}; }
+    else if (stem == "arial") { bold = {base / "arialbd.ttf"}; medium = bold; }
+    else if (stem == "DejaVuSans") { bold = {base / "DejaVuSans-Bold.ttf"}; medium = bold; }
+    else { std::string family = stem.substr(0, stem.find('-')); bold = {base / (family + "-Bold.ttf")}; medium = {base / (family + "-SemiBold.ttf"), base / (family + "-Bold.ttf")}; }
+    loadFace(bold, boldData); loadFace(medium, mediumData);
     static ImVector<ImWchar> glyphRanges;
     glyphRanges.clear();
     buildGlyphRanges(io, glyphRanges);
@@ -214,15 +232,19 @@ Fonts loadFonts() {
     // - heading: 24px (tiêu đề màn hình)
     // - title:   18px (tiêu đề khu vực, card header)
     // - small:   14px (nhãn phụ, badge, footnote)
-    fonts.regular = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 16.0F, &config, glyphRanges.Data);
-    fonts.heading = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 24.0F, &config, glyphRanges.Data);
-    fonts.title   = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 18.0F, &config, glyphRanges.Data);
-    fonts.small   = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 14.0F, &config, glyphRanges.Data);
+    fonts.regular = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 17.0F, &config, glyphRanges.Data);
+    fonts.heading = io.Fonts->AddFontFromMemoryTTF(boldData.data(), static_cast<int>(boldData.size()), 30.0F, &config, glyphRanges.Data);
+    fonts.title   = io.Fonts->AddFontFromMemoryTTF(mediumData.data(), static_cast<int>(mediumData.size()), 22.0F, &config, glyphRanges.Data);
+    fonts.small   = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 15.0F, &config, glyphRanges.Data);
 
-    if (fonts.regular == nullptr || fonts.heading == nullptr || fonts.title == nullptr || fonts.small == nullptr) {
+    fonts.metric = io.Fonts->AddFontFromMemoryTTF(boldData.data(), static_cast<int>(boldData.size()), 34.0F, &config, glyphRanges.Data);
+
+    fonts.label = io.Fonts->AddFontFromMemoryTTF(mediumData.data(), static_cast<int>(mediumData.size()), 17.0F, &config, glyphRanges.Data);
+    fonts.brand = io.Fonts->AddFontFromMemoryTTF(boldData.data(), static_cast<int>(boldData.size()), 36.0F, &config, glyphRanges.Data);
+    if (fonts.regular == nullptr || fonts.heading == nullptr || fonts.title == nullptr || fonts.small == nullptr || fonts.metric == nullptr) {
         io.Fonts->Clear();
         ImFont* fallback = io.Fonts->AddFontDefault();
-        s_CurrentFonts = {fallback, fallback, fallback, fallback};
+        s_CurrentFonts = {fallback, fallback, fallback, fallback, fallback, fallback, fallback};
         return s_CurrentFonts;
     }
 

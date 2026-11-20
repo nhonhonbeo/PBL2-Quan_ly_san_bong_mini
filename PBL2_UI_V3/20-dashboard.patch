@@ -1,0 +1,59 @@
+diff --git a/src/GUI/Screens/Owner/DashboardScreen.cpp b/src/GUI/Screens/Owner/DashboardScreen.cpp
+index 4d56405..fcfc012 100644
+--- a/src/GUI/Screens/Owner/DashboardScreen.cpp
++++ b/src/GUI/Screens/Owner/DashboardScreen.cpp
+@@ -3,6 +3,7 @@
+ 
+ #include <algorithm>
+ #include <cstdio>
++#include <cfloat>
+ #include <iomanip>
+ #include <sstream>
+ #include <imgui.h>
+@@ -58,7 +59,7 @@ void DashboardScreen::renderStatCards() {
+     auto veTheKPI = [cardW](const char* id, const char* icon, const char* tieuDe, const char* giaTri, const char* moTa, ImVec4 accentColor) {
+         ImGui::PushID(id);
+         ImVec2 p0 = ImGui::GetCursorScreenPos();
+-        float cardH = 132.0f;
++        float cardH = 144.0f;
+         ImVec2 p1 = ImVec2(p0.x + cardW, p0.y + cardH);
+ 
+         ImDrawList* dl = ImGui::GetWindowDrawList();
+@@ -70,8 +71,7 @@ void DashboardScreen::renderStatCards() {
+         dl->AddRectFilled(p0, p1, GUI::Theme::Colors::toU32(GUI::Theme::Colors::Surface), 8.0f);
+         dl->AddRect(p0, p1, GUI::Theme::Colors::toU32(GUI::Theme::Colors::Border), 8.0f, 0, 1.0f);
+ 
+-        // 3. Vạch màu chỉ báo trên đỉnh
+-
++        dl->AddRectFilled(p0, ImVec2(p1.x,p0.y+4), GUI::Theme::Colors::toU32(accentColor), 8, ImDrawFlags_RoundCornersTop);
+ 
+         // 4. Nội dung text
+         ImGui::SetCursorScreenPos(ImVec2(p0.x + 18.0f, p0.y + 14.0f));
+@@ -88,6 +88,7 @@ void DashboardScreen::renderStatCards() {
+         ImGui::Spacing();
+ 
+         ImFont* headingFont = GUI::Theme::getFonts().metric;
++        if (headingFont != nullptr && headingFont->CalcTextSizeA(headingFont->FontSize, FLT_MAX, 0, giaTri).x > cardW-36) headingFont = GUI::Theme::getFonts().title;
+         if (headingFont != nullptr) ImGui::PushFont(headingFont);
+         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextPrimary);
+         ImGui::TextUnformatted(giaTri);
+@@ -98,7 +99,7 @@ void DashboardScreen::renderStatCards() {
+ 
+         if (smallFont != nullptr) ImGui::PushFont(smallFont);
+         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
+-        ImGui::TextUnformatted(moTa);
++        ImGui::TextWrapped("%s",moTa);
+         ImGui::PopStyleColor();
+         if (smallFont != nullptr) ImGui::PopFont();
+ 
+@@ -168,8 +169,8 @@ void DashboardScreen::renderRevenueChart() {
+         }
+ 
+         float availW = ImGui::GetContentRegionAvail().x;
+-        float chartH = 220.0f;
+-        float labelYWidth = 70.0f;
++        float chartH = 250.0f;
++        float labelYWidth = 94.0f;
+         float plotW = availW - labelYWidth - 10.0f;
+         float plotH = chartH - 40.0f;
+ 

@@ -1,0 +1,45 @@
+diff --git a/src/GUI/Screens/Owner/DashboardScreen.cpp b/src/GUI/Screens/Owner/DashboardScreen.cpp
+index ce4c59a..c1e9704 100644
+--- a/src/GUI/Screens/Owner/DashboardScreen.cpp
++++ b/src/GUI/Screens/Owner/DashboardScreen.cpp
+@@ -52,7 +52,7 @@ void DashboardScreen::render() {
+ void DashboardScreen::renderStatCards() {
+     float availW = ImGui::GetContentRegionAvail().x;
+     float cardSpacing = 16.0f;
+-    const int columns = availW >= 1080.0f ? 4 : (availW >= 520.0f ? 2 : 1);
++    const int columns = availW >= 1000.0f ? 4 : (availW >= 520.0f ? 2 : 1);
+     float cardW = (availW - cardSpacing * (columns - 1)) / columns;
+ 
+     auto veTheKPI = [cardW](const char* id, const char* icon, const char* tieuDe, const char* giaTri, const char* moTa, ImVec4 accentColor) {
+diff --git a/src/GUI/Screens/Renter/LichDatScreen.cpp b/src/GUI/Screens/Renter/LichDatScreen.cpp
+index 7c437ec..08ab663 100644
+--- a/src/GUI/Screens/Renter/LichDatScreen.cpp
++++ b/src/GUI/Screens/Renter/LichDatScreen.cpp
+@@ -136,7 +136,7 @@ void LichDatScreen::reloadViewModel() {
+         row.oDuLieu = {
+             don.maDon,
+             u8"Sân " + don.maSan,
+-            don.ngay,
++            GUI::App::ViewFormat::ngayHienThi(don.ngay),
+             don.khungGio,
+             dinhDangTien(don.giaTien),
+             don.trangThai,
+diff --git a/src/GUI/Widgets/Table.cpp b/src/GUI/Widgets/Table.cpp
+index 8d89b5f..3a80d53 100644
+--- a/src/GUI/Widgets/Table.cpp
++++ b/src/GUI/Widgets/Table.cpp
+@@ -142,11 +142,12 @@ bool Table(
+     }
+     const bool scrollX = minWidth > availWidth;
+     if (scrollX) {
+-        flags |= ImGuiTableFlags_ScrollX;
++        flags |= ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY;
+         ImGui::TextDisabled(u8"Cuộn ngang để xem các cột còn lại.");
+     }
++    const float tableHeight = scrollX ? (std::max(1, endIndex - startIndex) + 1) * (ImGui::GetTextLineHeight() + 2.0f * ImGui::GetStyle().CellPadding.y + 12.0f) + ImGui::GetStyle().ScrollbarSize : 0.0f;
+     if (ImGui::BeginTable("##main_table", static_cast<int>(cacCot.size()), flags,
+-                          ImVec2(0.0f, 0.0f), scrollX ? minWidth : 0.0f)) {
++                          ImVec2(0.0f, tableHeight), scrollX ? minWidth : 0.0f)) {
+         for (size_t colIdx = 0; colIdx < cacCot.size(); ++colIdx) {
+             const auto& col = cacCot[colIdx];
+             ImGui::TableSetupColumn(col.tenCot.c_str(), col.flags, col.chieuRong);

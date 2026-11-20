@@ -62,7 +62,7 @@ void FieldManagementScreen::renderTabKhungGio() {
         ImGui::TextUnformatted(u8"Danh sách khung giờ đang áp dụng:");
         ImGui::Spacing();
 
-        if (ImGui::BeginTable("##tbl_khung_gio", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+        if (ImGui::BeginTable("##tbl_khung_gio", 4, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_RowBg)) {
             ImGui::TableSetupColumn(u8"Mã KG", ImGuiTableColumnFlags_WidthFixed, 80.0f);
             ImGui::TableSetupColumn(u8"Giờ bắt đầu", ImGuiTableColumnFlags_WidthFixed, 120.0f);
             ImGui::TableSetupColumn(u8"Giờ kết thúc", ImGuiTableColumnFlags_WidthFixed, 120.0f);
@@ -107,7 +107,7 @@ void FieldManagementScreen::renderTabGiaThueMaTran() {
         ImGui::Spacing();
 
         auto& facade = GUI::App::Facade::getInstance();
-        ImGuiTableFlags flags = ImGuiTableFlags_Borders |
+        ImGuiTableFlags flags = ImGuiTableFlags_BordersInnerH |
                                 ImGuiTableFlags_RowBg |
                                 ImGuiTableFlags_SizingStretchSame;
 

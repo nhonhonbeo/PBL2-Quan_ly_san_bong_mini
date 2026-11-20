@@ -1,0 +1,13 @@
+diff --git a/src/GUI/Screens/Renter/DatSanScreenBuoc1Va2.cpp b/src/GUI/Screens/Renter/DatSanScreenBuoc1Va2.cpp
+index eb76306..1f7073f 100644
+--- a/src/GUI/Screens/Renter/DatSanScreenBuoc1Va2.cpp
++++ b/src/GUI/Screens/Renter/DatSanScreenBuoc1Va2.cpp
+@@ -88,7 +88,7 @@ void DatSanScreen::renderBuoc1ChonCoSo() {
+         }
+ 
+         float availableWidth = ImGui::GetContentRegionAvail().x - 18.0f;
+-        int numCols = static_cast<int>(availableWidth / 340.0f);
++        int numCols = static_cast<int>(availableWidth / 320.0f);
+         if (numCols < 1) numCols = 1;
+         if (numCols > 3) numCols = 3;
+         numCols = std::min(numCols, matchingCount);

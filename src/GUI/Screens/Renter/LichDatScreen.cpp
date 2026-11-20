@@ -21,6 +21,14 @@ namespace GUI::Screens::Renter {
 
 namespace {
 
+std::string trangThaiHienThi(const std::string& status) {
+    if (status == "PENDING") return u8"Chờ xác nhận";
+    if (status == "CONFIRMED") return u8"Đã xác nhận";
+    if (status == "COMPLETED" || status == u8"Đã hoàn tất" || status == u8"Đã thanh toán") return u8"Đã hoàn thành";
+    if (status == "CANCELLED") return u8"Đã hủy";
+    return status;
+}
+
 int parseNgaySangSo(const std::string& str) {
     if (str.length() == 10) {
         if (str[2] == '/' && str[5] == '/') {
@@ -85,10 +93,11 @@ void LichDatScreen::onExit() {
 void LichDatScreen::reloadViewModel() {
     auto& facade = GUI::App::Facade::getInstance();
     User* curUser = GUI::App::Session::getInstance().getUser();
-    std::string sdt = curUser ? curUser->get_phone_number() : "0909876543";
+    std::string sdt = curUser ? curUser->get_phone_number() : "";
 
     soLanDaHuy_ = facade.getSoLanHuyCuaKhach(sdt);
-    danhSachDonGoc_ = facade.getLichSuDatCuaKhach(sdt);
+    danhSachDonGoc_ = curUser ? facade.getLichSuDatCuaKhach(sdt) : std::vector<GUI::App::DonDatSanInfo>{};
+    for (auto& don : danhSachDonGoc_) don.trangThai = trangThaiHienThi(don.trangThai);
 
     // Lọc theo bộ lọc
     std::string todayStr = layNgayHomNayStr();
@@ -100,12 +109,12 @@ void LichDatScreen::reloadViewModel() {
 
         if (locTrangThai_ == 1) {
             // Sắp tới: ngày >= hôm nay và chưa hủy
-            if (donNgayInt >= todayInt && don.trangThai != u8"Đã hủy") {
+            if (donNgayInt >= todayInt && don.trangThai != u8"Đã hủy" && don.trangThai != u8"Đã hoàn thành") {
                 danhSachDonHienThi_.push_back(don);
             }
         } else if (locTrangThai_ == 2) {
             // Đã qua: ngày < hôm nay hoặc đã hoàn thành
-            if (donNgayInt < todayInt || don.trangThai == u8"Đã hoàn thành") {
+            if (don.trangThai != u8"Đã hủy" && (donNgayInt < todayInt || don.trangThai == u8"Đã hoàn thành")) {
                 danhSachDonHienThi_.push_back(don);
             }
         } else if (locTrangThai_ == 3) {
@@ -127,7 +136,7 @@ void LichDatScreen::reloadViewModel() {
         row.oDuLieu = {
             don.maDon,
             u8"Sân " + don.maSan,
-            don.ngay,
+            GUI::App::ViewFormat::ngayHienThi(don.ngay),
             don.khungGio,
             dinhDangTien(don.giaTien),
             don.trangThai,
@@ -208,8 +217,8 @@ void LichDatScreen::renderTableDonDat() {
                 }
             } else if (col == 6) {
                 // Cột Thao tác: Nút Hủy
-                bool daHuy = (row.oDuLieu[5] == u8"Đã hủy" || row.oDuLieu[5] == u8"Đã hoàn thành");
-                if (!daHuy) {
+                const bool coTheHuy = row.oDuLieu[5] == u8"Chờ xác nhận" || row.oDuLieu[5] == u8"Đã xác nhận" || row.oDuLieu[5] == u8"Chờ duyệt";
+                if (coTheHuy) {
                     std::string btnCancelId = u8"Hủy đơn##" + row.id;
                     if (Widgets::NutNguyHiem(btnCancelId.c_str(), ImVec2(80.0f, 24.0f))) {
                         maDonCanHuy_ = row.id;
@@ -236,12 +245,14 @@ void LichDatScreen::renderModalXacNhanHuy() {
         noiDung.c_str(),
         [this]() {
             User* curUser = GUI::App::Session::getInstance().getUser();
-            std::string sdt = curUser ? curUser->get_phone_number() : "0909876543";
+            std::string sdt = curUser ? curUser->get_phone_number() : "";
 
             auto kq = GUI::App::Facade::getInstance().huyDonDat(maDonCanHuy_, sdt);
             if (kq.ok) {
                 reloadViewModel();
+                Widgets::ToastThanhCong(u8"Đã hủy đơn đặt sân.");
             } else {
+                Widgets::ToastLoi(kq.loi);
             }
         },
         u8"Xác nhận hủy sân",

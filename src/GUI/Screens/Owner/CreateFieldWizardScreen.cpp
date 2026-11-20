@@ -48,7 +48,7 @@ void CreateFieldWizardScreen::onExit() {
 
 void CreateFieldWizardScreen::render() {
     // Tiêu đề trang đã có ở thanh trên nên thẻ không lặp lại; form giới hạn bề rộng để dễ đọc.
-    Widgets::BeginNoiDungHep("##wizard_wrap", 1000.0f);
+    Widgets::BeginNoiDungHep("##wizard_wrap", 1440.0f);
     Widgets::Card("card_create_field_wizard", "", [this]() {
         renderProgressBar();
         ImGui::Spacing();
@@ -90,21 +90,27 @@ void CreateFieldWizardScreen::renderProgressBar() {
 
 void CreateFieldWizardScreen::renderStep1LoaiSan() {
     ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
-    ImGui::TextUnformatted(u8"Vui lòng chọn loại sân bóng bạn muốn khởi tạo:");
+    if (GUI::Theme::getFonts().heading) ImGui::PushFont(GUI::Theme::getFonts().heading);
+    ImGui::TextUnformatted(u8"Chọn loại sân bóng");
+    if (GUI::Theme::getFonts().heading) ImGui::PopFont();
+    ImGui::TextUnformatted(u8"Lựa chọn loại sân phù hợp với cơ sở của bạn.");
     ImGui::PopStyleColor();
     ImGui::Spacing();
 
-    float availW = ImGui::GetContentRegionAvail().x;
+    float availW = ImGui::GetContentRegionAvail().x - 18.0f;
     float cardSpacing = 16.0f;
-    float cardW = (availW - cardSpacing * 2.0f) / 3.0f;
+    const int cols = availW >= 960.0f ? 3 : (availW >= 620.0f ? 2 : 1);
+    float cardW = (availW - cardSpacing * (cols - 1)) / cols;
+    const float cardH = cols == 3 ? 320.0f : 250.0f;
+    const float artH = cols == 3 ? 136.0f : 90.0f;
     float startX = ImGui::GetCursorPosX();
     float startY = ImGui::GetCursorPosY();
 
-    auto veTheLoai = [this, cardW](int loai, const char* tieuDe, const char* kichThuoc, const char* co, const char* giaDeXuat) {
+    auto veTheLoai = [this, cardW, cardH, artH](int loai, const char* tieuDe, const char* kichThuoc, const char* co, const char* giaDeXuat) {
         bool isSelected = (loaiSan_ == loai);
 
         ImVec2 p0 = ImGui::GetCursorScreenPos();
-        ImVec2 p1 = ImVec2(p0.x + cardW, p0.y + 140.0f);
+        ImVec2 p1 = ImVec2(p0.x + cardW, p0.y + cardH);
         ImDrawList* dl = ImGui::GetWindowDrawList();
 
         // Nền thẻ & Viền chuẩn Design System
@@ -119,7 +125,7 @@ void CreateFieldWizardScreen::renderStep1LoaiSan() {
         dl->AddRect(p0, p1, borderCol, 8.0f, 0, isSelected ? 2.0f : 1.0f);
 
         // Nút radio tròn ở góc trên phải
-        ImVec2 radioCenter(p1.x - 20.0f, p0.y + 20.0f);
+        ImVec2 radioCenter(p1.x - 20.0f, p0.y + artH + 45.0f);
         dl->AddCircle(radioCenter, 8.0f, borderCol, 0, 1.5f);
         if (isSelected) {
             dl->AddCircleFilled(radioCenter, 4.5f, GUI::Theme::Colors::toU32(GUI::Theme::Colors::Primary));
@@ -127,12 +133,23 @@ void CreateFieldWizardScreen::renderStep1LoaiSan() {
 
         std::string btnId = "##btn_loai_" + std::to_string(loai);
         ImGui::SetCursorScreenPos(p0);
-        if (ImGui::InvisibleButton(btnId.c_str(), ImVec2(cardW, 140.0f))) {
+        if (ImGui::InvisibleButton(btnId.c_str(), ImVec2(cardW, cardH))) {
             loaiSan_ = loai;
         }
 
+        // Pitch illustration: vector only, no assets or dependencies.
+        const ImVec2 a(p0.x + 16, p0.y + 16), b(p1.x - 16, p0.y + 16 + artH);
+        dl->AddRectFilled(a,b,IM_COL32(21,105,70,255),6);
+        const ImVec2 l(a.x+10,a.y+9), r(b.x-10,b.y-9);
+        const ImU32 white = IM_COL32(210,240,220,255);
+        dl->AddRect(l,r,white,2);
+        const float mid=(l.x+r.x)*.5f, cy=(l.y+r.y)*.5f;
+        dl->AddLine(ImVec2(mid,l.y),ImVec2(mid,r.y),white,1.5f);
+        dl->AddCircle(ImVec2(mid,cy),17,white,24,1.5f);
+        dl->AddRect(ImVec2(l.x,cy-19),ImVec2(l.x+30,cy+19),white);
+        dl->AddRect(ImVec2(r.x-30,cy-19),ImVec2(r.x,cy+19),white);
         // Nội dung trong thẻ
-        ImGui::SetCursorScreenPos(ImVec2(p0.x + 16.0f, p0.y + 14.0f));
+        ImGui::SetCursorScreenPos(ImVec2(p0.x + 16.0f, p0.y + artH + 32.0f));
         ImGui::BeginGroup();
 
         if (GUI::Theme::getFonts().title) ImGui::PushFont(GUI::Theme::getFonts().title);
@@ -144,9 +161,9 @@ void CreateFieldWizardScreen::renderStep1LoaiSan() {
         ImGui::Spacing();
         if (GUI::Theme::getFonts().small) ImGui::PushFont(GUI::Theme::getFonts().small);
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
-        ImGui::Text(u8"• Kích thước: %s", kichThuoc);
-        ImGui::Text(u8"• Mặt sân: %s", co);
-        ImGui::Text(u8"• Đơn giá đề xuất: %s", giaDeXuat);
+        ImGui::Text(u8"Kích thước: %s", kichThuoc);
+        ImGui::Text(u8"Mặt sân: %s", co);
+        ImGui::Text(u8"Giá tham khảo: %s", giaDeXuat);
         ImGui::PopStyleColor();
         if (GUI::Theme::getFonts().small) ImGui::PopFont();
 
@@ -162,11 +179,12 @@ void CreateFieldWizardScreen::renderStep1LoaiSan() {
     const char* matSan[] = {u8"Cỏ nhân tạo 50mm", u8"Khuôn viên ngoài trời", u8"Mặt cỏ thi đấu"};
     const char* giaDeXuat[] = {u8"200k - 350k/h", u8"350k - 550k/h", u8"700k - 1.2tr/h"};
     for (int i = 0; i < 3; ++i) {
-        ImGui::SetCursorPos(ImVec2(startX + i * (cardW + cardSpacing), startY));
+        ImGui::SetCursorPos(ImVec2(startX + (i % cols) * (cardW + cardSpacing), startY + (i / cols) * (cardH + cardSpacing)));
         veTheLoai(loaiSan[i], tieuDe[i], kichThuoc[i], matSan[i], giaDeXuat[i]);
     }
 
-    ImGui::Dummy(ImVec2(availW, 145.0f));
+    ImGui::SetCursorPos(ImVec2(startX, startY + ((3 + cols - 1) / cols) * (cardH + cardSpacing)));
+    ImGui::Dummy(ImVec2(1.0f, 1.0f));
 }
 
 void CreateFieldWizardScreen::renderStep2SoLuong() {
@@ -223,7 +241,7 @@ void CreateFieldWizardScreen::renderStep3QuyDinh() {
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.5f);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
 
-    if (ImGui::InputTextMultiline("##quy_dinh_multiline", quyDinhBuf, sizeof(quyDinhBuf), ImVec2(-1.0f, 150.0f))) {
+    if (ImGui::InputTextMultiline("##quy_dinh_multiline", quyDinhBuf, sizeof(quyDinhBuf), ImVec2(std::max(100.0f, ImGui::GetContentRegionAvail().x - 18.0f), 260.0f))) {
         quyDinh_ = quyDinhBuf;
     }
 
@@ -257,7 +275,7 @@ void CreateFieldWizardScreen::renderStep4XacNhan() {
 }
 
 void CreateFieldWizardScreen::renderNavigationButtons() {
-    constexpr float kChieuCaoNut = 36.0f;
+    constexpr float kChieuCaoNut = 46.0f;
     const float btnW = 120.0f;
     const float confirmW = currentStep_ == 4 ? 180.0f : btnW;
     const float spacing = ImGui::GetStyle().ItemSpacing.x;
@@ -265,7 +283,7 @@ void CreateFieldWizardScreen::renderNavigationButtons() {
     // Tính trước mép phải của hàng để cả ba nút nằm trên cùng một dòng:
     // "Hủy bỏ" bên trái, "Quay lại" + "Tiếp tục" bên phải.
     const float rowStartX = ImGui::GetCursorPosX();
-    const float rightEdgeX = rowStartX + ImGui::GetContentRegionAvail().x;
+    const float rightEdgeX = rowStartX + ImGui::GetContentRegionAvail().x - 18.0f;
     const float rightGroupWidth = btnW + confirmW + spacing;
 
     if (Widgets::NutPhu(u8"Hủy bỏ", ImVec2(btnW, kChieuCaoNut))) {

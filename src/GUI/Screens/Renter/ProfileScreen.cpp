@@ -1,6 +1,8 @@
 #include "GUI/Screens/Renter/ProfileScreen.h"
 
 #include <string>
+#include <algorithm>
+#include "GUI/Widgets/Layout.h"
 #include <imgui.h>
 
 #include "Account/Customer.h"
@@ -47,16 +49,20 @@ void ProfileScreen::reloadViewModel() {
 }
 
 void ProfileScreen::render() {
-    renderFormThongTin();
-    ImGui::Spacing();
-    ImGui::Spacing();
-    renderFormDoiMatKhau();
+    Widgets::BeginNoiDungHep("##profile_wrap", 1280.0f);
+    if (ImGui::GetContentRegionAvail().x >= 1040.0f) {
+        if (ImGui::BeginTable("##profile_grid", 2, ImGuiTableFlags_SizingStretchSame)) {
+            ImGui::TableNextColumn(); renderFormThongTin();
+            ImGui::TableNextColumn(); renderFormDoiMatKhau();
+            ImGui::EndTable();
+        }
+    } else { renderFormThongTin(); ImGui::Spacing(); renderFormDoiMatKhau(); }
+    Widgets::EndNoiDungHep();
 }
 
 void ProfileScreen::renderFormThongTin() {
     Widgets::Card("card_renter_profile_info", u8"Thông tin hồ sơ cá nhân", [this]() {
-        ImGui::Columns(2, "cols_profile_layout", false);
-        ImGui::SetColumnWidth(0, 420.0f);
+
 
         // Ô sửa họ và tên
         Widgets::InputText(
@@ -64,7 +70,8 @@ void ProfileScreen::renderFormThongTin() {
             "##profile_fullname",
             formHoTen_,
             loiHoTen_.empty() ? nullptr : loiHoTen_.c_str(),
-            u8"Nhập họ và tên của bạn"
+            u8"Nhập họ và tên của bạn",
+            std::max(80.0f, ImGui::GetContentRegionAvail().x - 18.0f)
         );
         ImGui::Spacing();
 
@@ -77,28 +84,31 @@ void ProfileScreen::renderFormThongTin() {
         );
         ImGui::Spacing();
 
-        ImGui::NextColumn();
+        ImGui::Spacing();
 
         // Thống kê tài khoản bên phải với các thẻ tóm tắt trực quan
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-        ImGui::TextUnformatted(u8"Thống kê hoạt động tài khoản:");
+        if (GUI::Theme::getFonts().title) ImGui::PushFont(GUI::Theme::getFonts().title);
+        ImGui::TextUnformatted(u8"Hoạt động tài khoản");
+        if (GUI::Theme::getFonts().title) ImGui::PopFont();
         ImGui::PopStyleColor();
         ImGui::Spacing();
 
-        float rightColW = ImGui::GetContentRegionAvail().x;
+        float rightColW = ImGui::GetContentRegionAvail().x - 18.0f;
         ImDrawList* dl = ImGui::GetWindowDrawList();
 
         auto veStatRow = [dl, rightColW](const char* label, const char* val, ImVec4 accent) {
             ImVec2 p0 = ImGui::GetCursorScreenPos();
-            ImVec2 p1(p0.x + rightColW, p0.y + 42.0f);
+            ImVec2 p1(p0.x + rightColW, p0.y + 80.0f);
             dl->AddRectFilled(p0, p1, GUI::Theme::Colors::toU32(GUI::Theme::Colors::GrayHover), 6.0f);
             dl->AddRect(p0, p1, GUI::Theme::Colors::toU32(GUI::Theme::Colors::Border), 6.0f);
             dl->AddRectFilled(p0, ImVec2(p0.x + 3.5f, p1.y), GUI::Theme::Colors::toU32(accent), 6.0f);
 
             dl->AddText(ImVec2(p0.x + 12.0f, p0.y + 12.0f), GUI::Theme::Colors::toU32(GUI::Theme::Colors::TextSecondary), label);
-            ImVec2 valSize = ImGui::CalcTextSize(val);
-            dl->AddText(ImVec2(p1.x - valSize.x - 12.0f, p0.y + 12.0f), GUI::Theme::Colors::toU32(GUI::Theme::Colors::TextPrimary), val);
-            ImGui::Dummy(ImVec2(rightColW, 44.0f));
+            ImFont* metric = GUI::Theme::getFonts().metric;
+            if (metric) dl->AddText(metric, metric->FontSize, ImVec2(p0.x + 12, p0.y + 34), GUI::Theme::Colors::toU32(accent), val);
+            else dl->AddText(ImVec2(p0.x+12,p0.y+34), GUI::Theme::Colors::toU32(accent), val);
+            ImGui::Dummy(ImVec2(rightColW, 82.0f));
         };
 
         std::string sDat = std::to_string(soLanDat_) + u8" lần";
@@ -113,14 +123,14 @@ void ProfileScreen::renderFormThongTin() {
         std::snprintf(sHuy, sizeof(sHuy), u8"%d lần (%.0f%%)", soLanHuy_, tyLeHuy);
         veStatRow(u8"Đã hủy đặt sân", sHuy, (tyLeHuy > 20.0f ? GUI::Theme::Colors::Danger : GUI::Theme::Colors::Warning));
 
-        ImGui::Columns(1);
+
 
         ImGui::Spacing();
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
 
-        if (Widgets::NutChinh(u8"Lưu thay đổi thông tin", ImVec2(220.0f, 36.0f))) {
+        if (Widgets::NutChinh(u8"Lưu thay đổi thông tin", ImVec2(250.0f, 42.0f))) {
             // Kiểm tra tính hợp lệ bằng FormValidator
             loiHoTen_ = Widgets::FormValidator::kiemTraKhongDeTrong(formHoTen_, u8"Họ và tên");
             loiSDT_ = Widgets::FormValidator::kiemTraSDT(formSDT_);
@@ -141,13 +151,12 @@ void ProfileScreen::renderFormThongTin() {
 void ProfileScreen::renderFormDoiMatKhau() {
     Widgets::Card("card_renter_change_password", u8"Đổi mật khẩu tài khoản", [this]() {
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-        ImGui::TextWrapped(u8"Để bảo vệ an toàn cho tài khoản đặt sân, vui lòng sử dụng mật khẩu mới có tối thiểu 6 ký tự.");
+        ImGui::TextWrapped(u8"Mật khẩu mới cần ít nhất 6 ký tự.");
         ImGui::PopStyleColor();
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
 
-        ImGui::SetNextItemWidth(360.0f);
         Widgets::InputPassword(
             u8"Mật khẩu hiện tại (*)",
             "##profile_pw_cur",
@@ -157,9 +166,8 @@ void ProfileScreen::renderFormDoiMatKhau() {
         );
         ImGui::Spacing();
 
-        ImGui::SetNextItemWidth(360.0f);
         Widgets::InputPassword(
-            u8"Mật khẩu mới (Tối thiểu 6 ký tự) (*)",
+            u8"Mật khẩu mới (*)",
             "##profile_pw_new",
             formMatKhauMoi_,
             hienMatKhauMoi_,
@@ -167,7 +175,6 @@ void ProfileScreen::renderFormDoiMatKhau() {
         );
         ImGui::Spacing();
 
-        ImGui::SetNextItemWidth(360.0f);
         Widgets::InputPassword(
             u8"Nhập lại mật khẩu mới (*)",
             "##profile_pw_confirm",
@@ -181,7 +188,7 @@ void ProfileScreen::renderFormDoiMatKhau() {
         ImGui::Separator();
         ImGui::Spacing();
 
-        if (Widgets::NutChinh(u8"Xác nhận đổi mật khẩu", ImVec2(220.0f, 36.0f))) {
+        if (Widgets::NutChinh(u8"Đổi mật khẩu", ImVec2(250.0f, 42.0f))) {
             // Kiểm tra tính hợp lệ bằng FormValidator
             loiMatKhauCu_ = Widgets::FormValidator::kiemTraKhongDeTrong(formMatKhauCu_, u8"Mật khẩu hiện tại");
             loiMatKhauMoi_ = Widgets::FormValidator::kiemTraMatKhau(formMatKhauMoi_, 6);

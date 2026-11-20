@@ -1,0 +1,154 @@
+diff --git a/include/GUI/Theme/Fonts.h b/include/GUI/Theme/Fonts.h
+index 39b071e..48ed3a9 100644
+--- a/include/GUI/Theme/Fonts.h
++++ b/include/GUI/Theme/Fonts.h
+@@ -14,6 +14,7 @@ struct Fonts {
+     ImFont* heading = nullptr;
+     ImFont* title = nullptr;
+     ImFont* small = nullptr;
++    ImFont* metric = nullptr;
+ };
+ 
+ // Nạp bộ font UTF-8 tiếng Việt (Segoe UI / Roboto / Arial).
+@@ -22,4 +23,4 @@ Fonts loadFonts();
+ // Lấy tham chiếu đến bộ font đã nạp để sử dụng trong toàn bộ ứng dụng.
+ const Fonts& getFonts();
+ 
+-}  // namespace GUI::Theme
++}  // namespace GUI::Theme
+diff --git a/include/GUI/Theme/Theme.h b/include/GUI/Theme/Theme.h
+index b4c478d..ecd3358 100644
+--- a/include/GUI/Theme/Theme.h
++++ b/include/GUI/Theme/Theme.h
+@@ -8,7 +8,7 @@ namespace GUI::Theme {
+ // Tương thích 100% với các tên màu cũ và cung cấp đầy đủ các biến màu theo tài liệu đặc tả thiết kế.
+ struct Colors {
+     // 1. Màu nhận diện thương hiệu & Hành động chính (Primary)
+-    static constexpr ImVec4 Primary      = ImVec4(0.086f, 0.525f, 0.357f, 1.0f); // #16865B - Xanh lá thương hiệu
++    static constexpr ImVec4 Primary      = ImVec4(0.078f, 0.490f, 0.345f, 1.0f); // #16865B - Xanh lá thương hiệu
+     static constexpr ImVec4 PrimaryHover = ImVec4(0.067f, 0.420f, 0.282f, 1.0f); // #116B48 - Xanh lá khi hover
+     static constexpr ImVec4 PrimaryDark  = ImVec4(0.063f, 0.329f, 0.235f, 1.0f); // #10543C - Xanh lá đậm khi click
+     static constexpr ImVec4 PrimaryLight = ImVec4(0.910f, 0.965f, 0.937f, 1.0f); // #E8F6EF - Xanh lá nhạt nền active/badge
+@@ -18,7 +18,7 @@ struct Colors {
+     static constexpr ImVec4 DarkGreen    = PrimaryDark;
+ 
+     // 2. Nền & Bề mặt (Background & Surface)
+-    static constexpr ImVec4 Background   = ImVec4(0.953f, 0.965f, 0.973f, 1.0f); // #F3F6F8 - Nền ứng dụng sáng dịu
++    static constexpr ImVec4 Background   = ImVec4(0.961f, 0.969f, 0.965f, 1.0f); // #F3F6F8 - Nền ứng dụng sáng dịu
+     static constexpr ImVec4 LightBg      = Background;
+     static constexpr ImVec4 Surface      = ImVec4(1.000f, 1.000f, 1.000f, 1.0f); // #FFFFFF - Bề mặt card/panel
+     static constexpr ImVec4 WhiteCard    = Surface;
+@@ -37,12 +37,12 @@ struct Colors {
+     static constexpr ImVec4 GrayHover     = ImVec4(0.973f, 0.980f, 0.976f, 1.0f); // #F8FAF9 - Nền hover nhẹ
+ 
+     // 5. Trạng thái ngữ nghĩa (Status / Semantic Colors)
+-    static constexpr ImVec4 Success       = ImVec4(0.086f, 0.639f, 0.416f, 1.0f); // #16A36A - Thành công / Trống
+-    static constexpr ImVec4 Warning       = ImVec4(0.914f, 0.635f, 0.231f, 1.0f); // #E9A23B - Cảnh báo / Chờ duyệt
++    static constexpr ImVec4 Success       = ImVec4(0.078f, 0.435f, 0.267f, 1.0f); // #16A36A - Thành công / Trống
++    static constexpr ImVec4 Warning       = ImVec4(0.620f, 0.365f, 0.075f, 1.0f); // #E9A23B - Cảnh báo / Chờ duyệt
+     static constexpr ImVec4 GoldAccent    = Warning;
+-    static constexpr ImVec4 Danger        = ImVec4(0.863f, 0.322f, 0.322f, 1.0f); // #DC5252 - Lỗi / Nguy hiểm / Đã hủy
++    static constexpr ImVec4 Danger        = ImVec4(0.745f, 0.176f, 0.235f, 1.0f); // #DC5252 - Lỗi / Nguy hiểm / Đã hủy
+     static constexpr ImVec4 RedDanger     = Danger;
+-    static constexpr ImVec4 Info          = ImVec4(0.231f, 0.510f, 0.769f, 1.0f); // #3B82C4 - Thông tin / Đã duyệt
++    static constexpr ImVec4 Info          = ImVec4(0.133f, 0.365f, 0.659f, 1.0f); // #3B82C4 - Thông tin / Đã duyệt
+     static constexpr ImVec4 BlueInfo      = Info;
+ 
+     // LÝ DO CHỌN: Hàm tiện ích chuyển đổi nhanh ImVec4 sang ImU32 cho ImDrawList
+diff --git a/src/GUI/Theme/Fonts.cpp b/src/GUI/Theme/Fonts.cpp
+index 3ddd6bc..3d3777c 100644
+--- a/src/GUI/Theme/Fonts.cpp
++++ b/src/GUI/Theme/Fonts.cpp
+@@ -147,7 +147,8 @@ void buildGlyphRanges(ImGuiIO& io, ImVector<ImWchar>& out) {
+         0x2013, 0x2014,  // – —
+         0x2018, 0x201F,  // ‘ ’ “ ”
+         0x2022, 0x2022,  // •
+-        0x2026, 0x2026,  // …
++        0x2026, 0x2026,
++        0x2039, 0x203A,  // …
+         0x20AB, 0x20AB,  // ₫
+         0x2190, 0x2193,  // ← ↑ → ↓
+         0x2264, 0x2265,  // ≤ ≥
+@@ -193,7 +194,7 @@ Fonts loadFonts() {
+     if (usedPath.empty()) {
+         std::cerr << "[Font] Không có font hợp lệ. Dùng font mặc định.\n";
+         ImFont* fallback = io.Fonts->AddFontDefault();
+-        s_CurrentFonts = {fallback, fallback, fallback, fallback};
++        s_CurrentFonts = {fallback, fallback, fallback, fallback, fallback};
+         return s_CurrentFonts;
+     }
+ 
+@@ -214,15 +215,17 @@ Fonts loadFonts() {
+     // - heading: 24px (tiêu đề màn hình)
+     // - title:   18px (tiêu đề khu vực, card header)
+     // - small:   14px (nhãn phụ, badge, footnote)
+-    fonts.regular = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 16.0F, &config, glyphRanges.Data);
+-    fonts.heading = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 24.0F, &config, glyphRanges.Data);
++    fonts.regular = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 15.0F, &config, glyphRanges.Data);
++    fonts.heading = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 26.0F, &config, glyphRanges.Data);
+     fonts.title   = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 18.0F, &config, glyphRanges.Data);
+-    fonts.small   = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 14.0F, &config, glyphRanges.Data);
++    fonts.small   = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 13.0F, &config, glyphRanges.Data);
+ 
+-    if (fonts.regular == nullptr || fonts.heading == nullptr || fonts.title == nullptr || fonts.small == nullptr) {
++    fonts.metric = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 30.0F, &config, glyphRanges.Data);
++
++    if (fonts.regular == nullptr || fonts.heading == nullptr || fonts.title == nullptr || fonts.small == nullptr || fonts.metric == nullptr) {
+         io.Fonts->Clear();
+         ImFont* fallback = io.Fonts->AddFontDefault();
+-        s_CurrentFonts = {fallback, fallback, fallback, fallback};
++        s_CurrentFonts = {fallback, fallback, fallback, fallback, fallback};
+         return s_CurrentFonts;
+     }
+ 
+diff --git a/src/GUI/Theme/Theme.cpp b/src/GUI/Theme/Theme.cpp
+index 8306550..85d82b2 100644
+--- a/src/GUI/Theme/Theme.cpp
++++ b/src/GUI/Theme/Theme.cpp
+@@ -23,11 +23,11 @@ void apply() {
+     // ==========================================
+     // LÝ DO CHỌN: Hệ thống khoảng cách chuẩn bội số 4-8px (8pt grid system),
+     // đảm bảo phân cấp rõ ràng, dễ nhìn, không chen chúc.
+-    style.WindowPadding     = ImVec2(20.0f, 18.0f);
+-    style.FramePadding      = ImVec2(12.0f, 8.0f);
++    style.WindowPadding     = ImVec2(20.0f, 16.0f);
++    style.FramePadding      = ImVec2(12.0f, 9.0f);
+     style.ButtonTextAlign   = ImVec2(0.5f, 0.5f);
+-    style.CellPadding       = ImVec2(10.0f, 8.0f);
+-    style.ItemSpacing       = ImVec2(10.0f, 8.0f);
++    style.CellPadding       = ImVec2(12.0f, 8.0f);
++    style.ItemSpacing       = ImVec2(12.0f, 8.0f);
+     style.ItemInnerSpacing  = ImVec2(8.0f, 6.0f);
+     style.TouchExtraPadding = ImVec2(0.0f, 0.0f);
+     style.IndentSpacing     = 18.0f;
+@@ -41,7 +41,7 @@ void apply() {
+     style.ChildBorderSize   = 1.0f;
+     style.PopupBorderSize   = 1.0f;
+     style.FrameBorderSize   = 1.0f;
+-    style.TabBorderSize     = 1.0f;
++    style.TabBorderSize     = 0.0f;
+ 
+     // ==========================================
+     // 3. THIẾT LẬP MÀU SẮC (Color Palette)
+@@ -55,7 +55,7 @@ void apply() {
+     colors[ImGuiCol_ChildBg]               = Colors::Surface;
+     colors[ImGuiCol_PopupBg]               = Colors::Surface;
+     colors[ImGuiCol_Border]                = Colors::Border;
+-    colors[ImGuiCol_BorderShadow]          = ImVec4(0.0f, 0.0f, 0.0f, 0.03f);
++    colors[ImGuiCol_BorderShadow]          = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
+ 
+     // Tab bar hiện đại: Tab active nền trắng Surface (#FFFFFF) thanh lịch, viền chỉ báo xanh lá thương hiệu (#16865B) trên đỉnh; Tab inactive nền xám lục nhạt tương phản tốt
+     colors[ImGuiCol_Tab]                       = ImVec4(0.900f, 0.930f, 0.915f, 0.75f);
+@@ -85,9 +85,9 @@ void apply() {
+     colors[ImGuiCol_ScrollbarGrabActive]   = Colors::PrimaryDark;
+ 
+     // Nút bấm mặc định (Xanh lá nhận diện #16865B)
+-    colors[ImGuiCol_Button]                = Colors::Primary;
+-    colors[ImGuiCol_ButtonHovered]         = Colors::PrimaryHover;
+-    colors[ImGuiCol_ButtonActive]          = Colors::PrimaryDark;
++    colors[ImGuiCol_Button]                = Colors::PrimaryLight;
++    colors[ImGuiCol_ButtonHovered]         = Colors::GrayHover;
++    colors[ImGuiCol_ButtonActive]          = Colors::PrimaryLight;
+ 
+     // Checkbox & Radio & Slider
+     colors[ImGuiCol_CheckMark]             = Colors::Primary;

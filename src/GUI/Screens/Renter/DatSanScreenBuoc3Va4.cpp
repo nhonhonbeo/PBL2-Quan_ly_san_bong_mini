@@ -1,6 +1,7 @@
 ﻿#include "GUI/Screens/Renter/DatSanScreen.h"
 
 #include <cstdio>
+#include <algorithm>
 #include <cstring>
 #include <string>
 #include <utility>
@@ -26,9 +27,12 @@ namespace GUI::Screens::Renter {
 using namespace GUI::App::ViewFormat;
 
 void DatSanScreen::renderBuoc3ChonNgayVaKhungGio() {
-    Widgets::Card("choose_date_slot", u8"Bước 3: Chọn ngày thi đấu và ca đá", [this]() {
+    Widgets::Card("choose_date_slot", u8"Chọn lịch thi đấu", [this]() {
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextPrimary);
-        ImGui::Text(u8"Cơ sở: %s  |  Sân: %s (Sân %d người)", tenCoSoChon_.c_str(), tenSanChon_.c_str(), loaiSanChon_);
+        if (GUI::Theme::getFonts().title) ImGui::PushFont(GUI::Theme::getFonts().title);
+        ImGui::TextWrapped("%s", tenCoSoChon_.c_str());
+        if (GUI::Theme::getFonts().title) ImGui::PopFont();
+        ImGui::TextWrapped(u8"%s · Sân %d người", tenSanChon_.c_str(), loaiSanChon_);
         ImGui::PopStyleColor();
 
         ImGui::Spacing();
@@ -38,8 +42,9 @@ void DatSanScreen::renderBuoc3ChonNgayVaKhungGio() {
         ImGui::Spacing();
 
         // Chọn thời lượng ca đá
-        ImGui::TextUnformatted(u8"Thời lượng mỗi ca đá:");
-        ImGui::SameLine(0.0f, 12.0f);
+        if (GUI::Theme::getFonts().title) ImGui::PushFont(GUI::Theme::getFonts().title);
+        ImGui::TextUnformatted(u8"Thời lượng");
+        if (GUI::Theme::getFonts().title) ImGui::PopFont();
 
         int duration = thoiLuongChon_;
         if (choPhep60Phut_) {
@@ -59,7 +64,7 @@ void DatSanScreen::renderBuoc3ChonNgayVaKhungGio() {
 
         // Chọn ngày đá
         ImGui::SetNextItemWidth(260.0f);
-        if (Widgets::DatePicker(u8"Ngày đặt sân đá bóng:", "##renter_booking_date", ngayChon_)) {
+        if (Widgets::DatePicker(u8"Ngày thi đấu", "##renter_booking_date", ngayChon_)) {
             cacCaDangChon_.clear();
             reloadSlots();
         }
@@ -81,10 +86,18 @@ void DatSanScreen::renderBuoc3ChonNgayVaKhungGio() {
             ImGui::TextUnformatted(u8"Không có khung giờ nào còn trống cho lựa chọn ngày này.");
             ImGui::PopStyleColor();
         } else {
-            ImGui::TextUnformatted(u8"Bấm chọn các ca đá (khung giờ liên tiếp):");
+            if (GUI::Theme::getFonts().title) ImGui::PushFont(GUI::Theme::getFonts().title);
+            ImGui::TextUnformatted(u8"Khung giờ thi đấu");
+            if (GUI::Theme::getFonts().title) ImGui::PopFont();
+            ImGui::TextUnformatted(u8"Chọn các ca liên tiếp. Màu xanh đậm: đã chọn.");
             ImGui::Spacing();
 
+            const float gridWidth = ImGui::GetContentRegionAvail().x - 18.0f;
+            const int columns = std::max(1, std::min(6, static_cast<int>((gridWidth + 10.0f) / 225.0f)));
+            const float slotWidth = (gridWidth - (columns - 1) * 10.0f) / columns;
+            int slotIndex = 0;
             for (auto* node = danhSachKhungGioTrong_.get_head(); node != nullptr; node = node->next) {
+                if (slotIndex++ % columns != 0) ImGui::SameLine(0.0f, 10.0f);
                 const VenueSlotRecord& slot = node->data;
                 ImGui::PushID(slot.startTime.c_str());
 
@@ -92,11 +105,11 @@ void DatSanScreen::renderBuoc3ChonNgayVaKhungGio() {
 
                 std::string label = slot.startTime + " - " + slot.endTime;
                 if (!slot.available) {
-                    label += u8" (Đã đặt)";
+                    label += u8"\nĐã đặt";
                 } else if (slot.past) {
-                    label += u8" (Đã qua)";
+                    label += u8"\nĐã qua";
                 } else {
-                    label += " | " + dinhDangTien(slot.priceVnd);
+                    label += "\n" + dinhDangTien(slot.priceVnd);
                 }
 
                 if (selected) {
@@ -112,12 +125,12 @@ void DatSanScreen::renderBuoc3ChonNgayVaKhungGio() {
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.95f, 0.95f, 0.95f, 1.0f));
                     ImGui::PushStyleColor(ImGuiCol_Text,          GUI::Theme::Colors::Gray);
                 }
-                ImGui::PushStyleColor(ImGuiCol_Border, selected ? GUI::Theme::Colors::Primary : (slot.available && !slot.past ? GUI::Theme::Colors::Primary : GUI::Theme::Colors::Border));
+                ImGui::PushStyleColor(ImGuiCol_Border, selected ? GUI::Theme::Colors::Primary : (slot.available && !slot.past ? GUI::Theme::Colors::InputBorder : GUI::Theme::Colors::Border));
                 ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
                 ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
 
                 ImGui::BeginDisabled(!slot.available || slot.past);
-                if (ImGui::Button(label.c_str(), ImVec2(270.0f, 40.0f))) {
+                if (ImGui::Button(label.c_str(), ImVec2(slotWidth, 62.0f))) {
                     if (selected) {
                         cacCaDangChon_.removeIf([&slot](const VenueSlotRecord& current) {
                             return current.startTime == slot.startTime;
@@ -150,7 +163,6 @@ void DatSanScreen::renderBuoc3ChonNgayVaKhungGio() {
                 ImGui::PopStyleVar(2);
                 ImGui::PopStyleColor(4);
                 ImGui::PopID();
-                ImGui::SameLine(0.0f, 10.0f);
             }
         }
 

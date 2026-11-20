@@ -1,0 +1,165 @@
+diff --git a/src/GUI/Widgets/Badge.cpp b/src/GUI/Widgets/Badge.cpp
+index 9a701fb..569089f 100644
+--- a/src/GUI/Widgets/Badge.cpp
++++ b/src/GUI/Widgets/Badge.cpp
+@@ -1,6 +1,7 @@
+ #include "GUI/Widgets/Badge.h"
+ 
+ #include "GUI/Theme/Theme.h"
++#include "GUI/Theme/Fonts.h"
+ 
+ namespace Widgets {
+ 
+@@ -9,8 +10,10 @@ void Badge(const char* text, const ImVec4& bgMau, const ImVec4& textMau) {
+         return;
+     }
+ 
++    ImFont* font = GUI::Theme::getFonts().small;
++    if (font) ImGui::PushFont(font);
+     ImVec2 txtSize = ImGui::CalcTextSize(text);
+-    float padX = 10.0f;
++    float padX = 8.0f;
+     float padY = 3.0f;
+     ImVec2 badgeSize(txtSize.x + padX * 2.0f, txtSize.y + padY * 2.0f);
+ 
+@@ -24,10 +27,11 @@ void Badge(const char* text, const ImVec4& bgMau, const ImVec4& textMau) {
+ 
+     drawList->AddRectFilled(p0, p1, GUI::Theme::Colors::toU32(bgMau), rounding);
+     // Viền nhẹ cùng tông chữ để đảm bảo phân tách rõ ràng trên mọi màn hình
+-    drawList->AddRect(p0, p1, GUI::Theme::Colors::toU32(textMau, 0.35f), rounding, 0, 1.0f);
++
+     drawList->AddText(ImVec2(p0.x + padX, p0.y + padY), GUI::Theme::Colors::toU32(textMau), text);
+ 
+     ImGui::Dummy(badgeSize);
++    if (font) ImGui::PopFont();
+ }
+ 
+ void BadgeTrong(const char* text) {
+diff --git a/src/GUI/Widgets/Button.cpp b/src/GUI/Widgets/Button.cpp
+index 0213106..be6a134 100644
+--- a/src/GUI/Widgets/Button.cpp
++++ b/src/GUI/Widgets/Button.cpp
+@@ -12,6 +12,7 @@ bool NutChinh(const char* label, const ImVec2& kichThuoc) {
+     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
+ 
+     bool clicked = ImGui::Button(label, kichThuoc);
++    if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+ 
+     ImGui::PopStyleVar();
+     ImGui::PopStyleColor(4);
+@@ -28,6 +29,7 @@ bool NutPhu(const char* label, const ImVec2& kichThuoc) {
+     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
+ 
+     bool clicked = ImGui::Button(label, kichThuoc);
++    if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+ 
+     ImGui::PopStyleVar(2);
+     ImGui::PopStyleColor(5);
+@@ -42,10 +44,11 @@ bool NutNguyHiem(const char* label, const ImVec2& kichThuoc) {
+     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
+ 
+     bool clicked = ImGui::Button(label, kichThuoc);
++    if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+ 
+     ImGui::PopStyleVar();
+     ImGui::PopStyleColor(4);
+     return clicked;
+ }
+ 
+-}  // namespace Widgets
++}  // namespace Widgets
+diff --git a/src/GUI/Widgets/Card.cpp b/src/GUI/Widgets/Card.cpp
+index 5bc5c0b..61efe56 100644
+--- a/src/GUI/Widgets/Card.cpp
++++ b/src/GUI/Widgets/Card.cpp
+@@ -29,30 +29,16 @@ void Card(const char* id, const char* tieuDe, float paddingX, float paddingY, co
+ 
+     // Tiêu đề thẻ (nếu có)
+     if (tieuDe != nullptr && tieuDe[0] != '\0') {
+-        ImVec2 titlePos = ImGui::GetCursorScreenPos();
+-        // Vạch màu xanh lá thương hiệu bo tròn bên trái tiêu đề tạo điểm nhấn chuyên nghiệp
+-        ImU32 accentColor = GUI::Theme::Colors::toU32(GUI::Theme::Colors::Primary);
+-        float lineHeight = ImGui::GetTextLineHeight();
+-        drawList->AddRectFilled(
+-            ImVec2(titlePos.x - 8.0f, titlePos.y + 2.0f),
+-            ImVec2(titlePos.x - 4.5f, titlePos.y + lineHeight - 1.0f),
+-            accentColor,
+-            2.0f
+-        );
+-
+         ImFont* titleFont = GUI::Theme::getFonts().title;
+         if (titleFont != nullptr) ImGui::PushFont(titleFont);
+ 
+         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextPrimary);
+-        ImGui::TextUnformatted(tieuDe);
++        ImGui::TextWrapped("%s", tieuDe);
+         ImGui::PopStyleColor();
+ 
+         if (titleFont != nullptr) ImGui::PopFont();
+ 
+         ImGui::Spacing();
+-        ImGui::PushStyleColor(ImGuiCol_Separator, GUI::Theme::Colors::Border);
+-        ImGui::Separator();
+-        ImGui::PopStyleColor();
+         ImGui::Spacing();
+     }
+ 
+@@ -69,20 +55,6 @@ void Card(const char* id, const char* tieuDe, float paddingX, float paddingY, co
+     // Kênh 0: Nền thẻ và đổ bóng mềm
+     splitter.SetCurrentChannel(drawList, 0);
+ 
+-    // LÝ DO CHỌN: Đổ bóng khuếch tán đa tầng (ambient soft shadow) tạo cảm giác chiều sâu nổi khối SaaS
+-    drawList->AddRectFilled(
+-        ImVec2(cardMin.x - 1.0f, cardMin.y + 2.0f),
+-        ImVec2(cardMax.x + 1.0f, cardMax.y + 5.0f),
+-        IM_COL32(0, 0, 0, 10),
+-        8.0f
+-    );
+-    drawList->AddRectFilled(
+-        ImVec2(cardMin.x, cardMin.y + 1.0f),
+-        ImVec2(cardMax.x, cardMax.y + 2.0f),
+-        IM_COL32(0, 0, 0, 16),
+-        8.0f
+-    );
+-
+     // Nền trắng thẻ bo góc 8px
+     ImU32 cardBgColor = GUI::Theme::Colors::toU32(GUI::Theme::Colors::Surface);
+     drawList->AddRectFilled(cardMin, cardMax, cardBgColor, 8.0f);
+@@ -99,4 +71,4 @@ void Card(const char* id, const char* tieuDe, float paddingX, float paddingY, co
+     ImGui::PopID();
+ }
+ 
+-}  // namespace Widgets
++}  // namespace Widgets
+diff --git a/src/GUI/Widgets/InputFields.cpp b/src/GUI/Widgets/InputFields.cpp
+index c2b683c..8e87076 100644
+--- a/src/GUI/Widgets/InputFields.cpp
++++ b/src/GUI/Widgets/InputFields.cpp
+@@ -1,6 +1,7 @@
+ ﻿#include "GUI/Widgets/InputFields.h"
+ 
+ #include <cctype>
++#include <algorithm>
+ #include <vector>
+ #include <imgui.h>
+ #include "GUI/Theme/Fonts.h"
+@@ -75,7 +76,7 @@ void HienThiLoi(const char* loi) {
+         if (smallFont != nullptr) ImGui::PushFont(smallFont);
+ 
+         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::Danger);
+-        ImGui::TextUnformatted(loi);
++        ImGui::TextWrapped("%s", loi);
+         ImGui::PopStyleColor();
+ 
+         if (smallFont != nullptr) ImGui::PopFont();
+@@ -178,8 +179,8 @@ bool InputPassword(
+     }
+ 
+     float nutMatWidth = 72.0f;
+-    float availWidth = ImGui::GetContentRegionAvail().x;
+-    ImGui::SetNextItemWidth(availWidth - nutMatWidth - ImGui::GetStyle().ItemSpacing.x);
++    float availWidth = std::min(480.0f, ImGui::GetContentRegionAvail().x);
++    ImGui::SetNextItemWidth(std::max(40.0f, availWidth - nutMatWidth - ImGui::GetStyle().ItemSpacing.x));
+ 
+     ImGuiInputTextFlags flags = hienMatKhau ? 0 : ImGuiInputTextFlags_Password;
+     bool changed = InputTextStdString("##pw_input", placeholder, &buffer, flags);

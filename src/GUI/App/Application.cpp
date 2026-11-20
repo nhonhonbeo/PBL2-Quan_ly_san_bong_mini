@@ -97,6 +97,7 @@ bool Application::init() {
     // Khởi tạo Dear ImGui context và thiết lập backend GLFW + OpenGL3
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     ImGui::GetIO().IniFilename = nullptr;
 
     // Áp dụng bảng màu và kiểu dáng sân bóng mini toàn cục

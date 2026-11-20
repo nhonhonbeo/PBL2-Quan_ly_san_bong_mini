@@ -270,6 +270,7 @@ FileReadStatus FileManager::readAllLinesWithStatus(
     LinkedList<std::string> loadedLines;
     std::string line;
     while (std::getline(input, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
         loadedLines.push_back(line);
     }
     if (input.bad() || !input.eof()) {

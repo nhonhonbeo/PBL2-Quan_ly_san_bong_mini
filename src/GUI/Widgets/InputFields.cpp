@@ -1,6 +1,7 @@
 ﻿#include "GUI/Widgets/InputFields.h"
 
 #include <cctype>
+#include <algorithm>
 #include <vector>
 #include <imgui.h>
 #include "GUI/Theme/Fonts.h"
@@ -63,7 +64,9 @@ bool InputTextStdString(
 void HienThiNhan(const char* label) {
     if (label != nullptr && label[0] != '\0') {
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextPrimary);
+        if (GUI::Theme::getFonts().label) ImGui::PushFont(GUI::Theme::getFonts().label);
         ImGui::TextUnformatted(label);
+        if (GUI::Theme::getFonts().label) ImGui::PopFont();
         ImGui::PopStyleColor();
         ImGui::Spacing();
     }
@@ -75,7 +78,7 @@ void HienThiLoi(const char* loi) {
         if (smallFont != nullptr) ImGui::PushFont(smallFont);
 
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::Danger);
-        ImGui::TextUnformatted(loi);
+        ImGui::TextWrapped("%s", loi);
         ImGui::PopStyleColor();
 
         if (smallFont != nullptr) ImGui::PopFont();
@@ -177,9 +180,9 @@ bool InputPassword(
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.5f);
     }
 
-    float nutMatWidth = 72.0f;
-    float availWidth = ImGui::GetContentRegionAvail().x;
-    ImGui::SetNextItemWidth(availWidth - nutMatWidth - ImGui::GetStyle().ItemSpacing.x);
+    float nutMatWidth = 42.0f;
+    float availWidth = std::min(480.0f, ImGui::GetContentRegionAvail().x);
+    ImGui::SetNextItemWidth(std::max(40.0f, availWidth - nutMatWidth - ImGui::GetStyle().ItemSpacing.x));
 
     ImGuiInputTextFlags flags = hienMatKhau ? 0 : ImGuiInputTextFlags_Password;
     bool changed = InputTextStdString("##pw_input", placeholder, &buffer, flags);
@@ -191,7 +194,7 @@ bool InputPassword(
 
     ImGui::SameLine();
     // LÝ DO CHỌN: Nút hiện/ẩn mật khẩu được tinh chỉnh giao diện nhỏ gọn, bo góc mềm mại
-    const char* iconText = hienMatKhau ? u8"Ẩn" : u8"Hiện";
+    const char* iconText = "##toggle_password";
     ImGui::PushStyleColor(ImGuiCol_Button, GUI::Theme::Colors::Surface);
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, GUI::Theme::Colors::GrayHover);
     ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::Primary);
@@ -201,6 +204,14 @@ bool InputPassword(
     if (ImGui::Button(iconText, ImVec2(nutMatWidth, 0.0f))) {
         hienMatKhau = !hienMatKhau;
     }
+    const ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+    const ImVec2 c((a.x+b.x)*.5f,(a.y+b.y)*.5f);
+    auto* dl = ImGui::GetWindowDrawList();
+    const ImU32 ink = GUI::Theme::Colors::toU32(GUI::Theme::Colors::TextSecondary);
+    dl->AddEllipse(c, ImVec2(9,5), ink, 0, 20, 1.5f);
+    dl->AddCircle(c, 2.5f, ink, 12, 1.4f);
+    if (!hienMatKhau) dl->AddLine(ImVec2(c.x-8,c.y+7),ImVec2(c.x+8,c.y-7),ink,1.5f);
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", hienMatKhau?u8"Ẩn mật khẩu":u8"Hiện mật khẩu");
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor(4);
 

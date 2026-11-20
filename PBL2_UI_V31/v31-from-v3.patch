@@ -1,0 +1,640 @@
+diff --git a/include/GUI/Theme/Fonts.h b/include/GUI/Theme/Fonts.h
+index 48ed3a9..d9a0b55 100644
+--- a/include/GUI/Theme/Fonts.h
++++ b/include/GUI/Theme/Fonts.h
+@@ -15,6 +15,8 @@ struct Fonts {
+     ImFont* title = nullptr;
+     ImFont* small = nullptr;
+     ImFont* metric = nullptr;
++    ImFont* label = nullptr;
++    ImFont* brand = nullptr;
+ };
+ 
+ // Nạp bộ font UTF-8 tiếng Việt (Segoe UI / Roboto / Arial).
+diff --git a/src/GUI/Screens/Auth/AuthScreen.cpp b/src/GUI/Screens/Auth/AuthScreen.cpp
+index abf71cb..b8a0b18 100644
+--- a/src/GUI/Screens/Auth/AuthScreen.cpp
++++ b/src/GUI/Screens/Auth/AuthScreen.cpp
+@@ -57,7 +57,7 @@ void AuthScreen::render() {
+         float totalH = ImGui::GetWindowHeight();
+ 
+         // LÝ DO CHỌN: Tỷ lệ phân chia 42% (min 450px) cho cột Banner thương hiệu và phần còn lại cho Form
+-        float bannerW = std::max(380.0f, totalW * 0.40f);
++        float bannerW = std::max(380.0f, totalW * 0.46f);
+         float formW = totalW - bannerW;
+ 
+         // 1. Cột trái: Banner nhận diện thương hiệu & Sân bóng vector illustration
+@@ -95,7 +95,9 @@ void AuthScreen::renderBanner(float width, float height) {
+         float centerX = width * 0.5f;
+ 
+         // Vẽ huy hiệu logo hình tròn có vạch bóng thể thao đặt tại trung tâm
+-        const float brandOffset = std::max(0.0f, (height - 440.0f) * 0.5f);
++        const float heroPitchW = std::min(width - 64.0f, std::min(600.0f, std::max(260.0f, (height - 310.0f) / .54f)));
++        const float brandOffset = std::max(0.0f, (height - (heroPitchW * .54f + 245.0f)) * 0.5f);
++        for (int i=0;i<5;++i) drawList->AddCircle(ImVec2(bannerMin.x+width*.9f,bannerMin.y+height*.12f), 80.0f+i*58.0f, IM_COL32(255,255,255,18),64,1.5f);
+         ImVec2 crestCenter(bannerMin.x + centerX, bannerMin.y + 36.0f + brandOffset);
+         float crestR = 20.0f;
+         drawList->AddCircleFilled(crestCenter, crestR, IM_COL32(255, 255, 255, 35));
+@@ -110,7 +112,8 @@ void AuthScreen::renderBanner(float width, float height) {
+ 
+         // Tên dự án: viết to, đẹp và căn chính giữa
+         ImGui::SetCursorPosY(64.0f + brandOffset);
+-        ImFont* headingFont = GUI::Theme::getFonts().heading;
++        ImFont* headingFont = GUI::Theme::getFonts().brand;
++        if (width < 500.0f) headingFont = GUI::Theme::getFonts().heading;
+         if (headingFont != nullptr) ImGui::PushFont(headingFont);
+         const char* projectName = u8"Quản lý sân bóng mini";
+         ImVec2 nameSize = ImGui::CalcTextSize(projectName);
+@@ -123,7 +126,7 @@ void AuthScreen::renderBanner(float width, float height) {
+         // Dòng phụ đề giới thiệu hệ thống (Căn chính giữa)
+         ImFont* smallFont = GUI::Theme::getFonts().small;
+         if (smallFont != nullptr) ImGui::PushFont(smallFont);
+-        const char* subTitle = u8"Quản lý và đặt sân dễ dàng";
++        const char* subTitle = u8"Quản lý sân. Kết nối đam mê.";
+         ImVec2 subSize = ImGui::CalcTextSize(subTitle);
+         ImGui::SetCursorPosX((width - subSize.x) * 0.5f);
+         ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(205, 245, 228, 240));
+@@ -136,8 +139,7 @@ void AuthScreen::renderBanner(float width, float height) {
+         // ==========================================
+         // 2. VECTOR ILLUSTRATION: SÂN BÓNG MINI SẮC NÉT (CĂN GIỮA)
+         // ==========================================
+-        float availW = width - 48.0f;
+-        float pitchW = std::min(availW, 360.0f);
++        float pitchW = heroPitchW;
+         float pitchH = pitchW * 0.54f;
+ 
+         float pitchStartX = bannerMin.x + (width - pitchW) * 0.5f;
+@@ -235,7 +237,7 @@ void AuthScreen::renderBanner(float width, float height) {
+         // 3. GIỚI THIỆU TÍNH NĂNG DỰ ÁN (CĂN LỀ VÀO NGAY CHÍNH GIỮA)
+         // ==========================================
+         auto veTheTinhNang = [width](const char* tieuDe, const char* moTa) {
+-            float cardW = std::min(width - 56.0f, 380.0f);
++            float cardW = std::min(width - 56.0f, 540.0f);
+             float startX = (width - cardW) * 0.5f;
+ 
+             ImGui::SetCursorPosX(startX);
+@@ -283,11 +285,11 @@ void AuthScreen::renderFormCard(float width, float height) {
+     ImGui::PushStyleColor(ImGuiCol_ChildBg, GUI::Theme::Colors::Background);
+ 
+     if (ImGui::BeginChild("##AuthFormArea", ImVec2(width, height), false)) {
+-        float cardWidth = std::min(460.0f, width - 48.0f);
++        float cardWidth = std::min(600.0f, width - 48.0f);
+         float startX = (width - cardWidth) * 0.5f;
+ 
+         // Căn giữa form theo trục dọc với khoảng đệm hợp lý
+-        float cardHeight = std::min(height - 48.0f, activeTab_ == 0 ? 560.0f : 700.0f);
++        float cardHeight = std::min(height - 48.0f, activeTab_ == 0 ? 600.0f : 780.0f);
+         float startY = std::max(24.0f, (height - cardHeight) * 0.5f);
+ 
+         ImGui::SetCursorPos(ImVec2(startX, startY));
+@@ -295,7 +297,7 @@ void AuthScreen::renderFormCard(float width, float height) {
+         ImGui::PushStyleColor(ImGuiCol_ChildBg, GUI::Theme::Colors::Surface);
+         ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::Border);
+         ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 10.0f);
+-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(28.0f, 26.0f));
++        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(32.0f, 30.0f));
+ 
+         if (ImGui::BeginChild("##AuthCardBox", ImVec2(cardWidth, cardHeight), true)) {
+             // ==========================================
+@@ -345,7 +347,7 @@ void AuthScreen::renderFormCard(float width, float height) {
+ }
+ 
+ void AuthScreen::renderTabDangNhap() {
+-    ImFont* titleFont = GUI::Theme::getFonts().title;
++    ImFont* titleFont = GUI::Theme::getFonts().heading;
+     if (titleFont != nullptr) ImGui::PushFont(titleFont);
+     ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextPrimary);
+     ImGui::TextUnformatted(u8"Chào mừng trở lại!");
+@@ -355,7 +357,7 @@ void AuthScreen::renderTabDangNhap() {
+     ImFont* smallFont = GUI::Theme::getFonts().small;
+     if (smallFont != nullptr) ImGui::PushFont(smallFont);
+     ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
+-    ImGui::TextUnformatted(u8"Nhập số điện thoại và mật khẩu để tiếp tục vào hệ thống");
++    ImGui::TextUnformatted(u8"Đăng nhập để quản lý hoặc đặt sân.");
+     ImGui::PopStyleColor();
+     if (smallFont != nullptr) ImGui::PopFont();
+ 
+@@ -366,7 +368,7 @@ void AuthScreen::renderTabDangNhap() {
+     // KHU VỰC TÀI KHOẢN MẪU
+     // ==========================================
+     ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
+-    ImGui::TextUnformatted(u8"Tài khoản dùng thử (bấm để tự điền):");
++    ImGui::TextUnformatted(u8"Trải nghiệm với tài khoản mẫu");
+     ImGui::PopStyleColor();
+     ImGui::Spacing();
+ 
+@@ -441,7 +443,7 @@ void AuthScreen::renderTabDangNhap() {
+         ImGui::BeginDisabled();
+         char lockText[64];
+         std::snprintf(lockText, sizeof(lockText), u8"Tạm khóa (thử lại sau %.0fs)", std::ceil(thoiGianKhoaConLai_));
+-        Widgets::NutPhu(lockText, ImVec2(-1.0f, 42.0f));
++        Widgets::NutPhu(lockText, ImVec2(-1.0f, 50.0f));
+         ImGui::EndDisabled();
+ 
+         ImGui::Spacing();
+@@ -449,14 +451,14 @@ void AuthScreen::renderTabDangNhap() {
+         ImGui::TextWrapped(u8"Bạn đã nhập sai mật khẩu 3 lần. Hệ thống tạm khóa 10 giây để bảo vệ an toàn.");
+         ImGui::PopStyleColor();
+     } else {
+-        if (Widgets::NutChinh(u8"Đăng nhập ngay", ImVec2(-1.0f, 42.0f))) {
++        if (Widgets::NutChinh(u8"Đăng nhập ngay", ImVec2(-1.0f, 50.0f))) {
+             xuLyDangNhap();
+         }
+     }
+ }
+ 
+ void AuthScreen::renderTabDangKy() {
+-    ImFont* titleFont = GUI::Theme::getFonts().title;
++    ImFont* titleFont = GUI::Theme::getFonts().heading;
+     if (titleFont != nullptr) ImGui::PushFont(titleFont);
+     ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextPrimary);
+     ImGui::TextUnformatted(u8"Tạo tài khoản mới");
+@@ -591,7 +593,7 @@ void AuthScreen::renderTabDangKy() {
+     );
+     ImGui::Spacing();
+ 
+-    if (Widgets::NutChinh(u8"Hoàn tất đăng ký tài khoản", ImVec2(-1.0f, 42.0f))) {
++    if (Widgets::NutChinh(u8"Hoàn tất đăng ký tài khoản", ImVec2(-1.0f, 50.0f))) {
+         xuLyDangKy();
+     }
+ }
+diff --git a/src/GUI/Screens/Owner/CreateFieldWizardScreen.cpp b/src/GUI/Screens/Owner/CreateFieldWizardScreen.cpp
+index a3c43d6..e3760f7 100644
+--- a/src/GUI/Screens/Owner/CreateFieldWizardScreen.cpp
++++ b/src/GUI/Screens/Owner/CreateFieldWizardScreen.cpp
+@@ -48,7 +48,7 @@ void CreateFieldWizardScreen::onExit() {
+ 
+ void CreateFieldWizardScreen::render() {
+     // Tiêu đề trang đã có ở thanh trên nên thẻ không lặp lại; form giới hạn bề rộng để dễ đọc.
+-    Widgets::BeginNoiDungHep("##wizard_wrap", 1000.0f);
++    Widgets::BeginNoiDungHep("##wizard_wrap", 1440.0f);
+     Widgets::Card("card_create_field_wizard", "", [this]() {
+         renderProgressBar();
+         ImGui::Spacing();
+@@ -90,21 +90,27 @@ void CreateFieldWizardScreen::renderProgressBar() {
+ 
+ void CreateFieldWizardScreen::renderStep1LoaiSan() {
+     ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
+-    ImGui::TextUnformatted(u8"Vui lòng chọn loại sân bóng bạn muốn khởi tạo:");
++    if (GUI::Theme::getFonts().heading) ImGui::PushFont(GUI::Theme::getFonts().heading);
++    ImGui::TextUnformatted(u8"Chọn loại sân bóng");
++    if (GUI::Theme::getFonts().heading) ImGui::PopFont();
++    ImGui::TextUnformatted(u8"Lựa chọn loại sân phù hợp với cơ sở của bạn.");
+     ImGui::PopStyleColor();
+     ImGui::Spacing();
+ 
+-    float availW = ImGui::GetContentRegionAvail().x;
++    float availW = ImGui::GetContentRegionAvail().x - 18.0f;
+     float cardSpacing = 16.0f;
+-    float cardW = (availW - cardSpacing * 2.0f) / 3.0f;
++    const int cols = availW >= 960.0f ? 3 : (availW >= 620.0f ? 2 : 1);
++    float cardW = (availW - cardSpacing * (cols - 1)) / cols;
++    const float cardH = cols == 3 ? 320.0f : 250.0f;
++    const float artH = cols == 3 ? 136.0f : 90.0f;
+     float startX = ImGui::GetCursorPosX();
+     float startY = ImGui::GetCursorPosY();
+ 
+-    auto veTheLoai = [this, cardW](int loai, const char* tieuDe, const char* kichThuoc, const char* co, const char* giaDeXuat) {
++    auto veTheLoai = [this, cardW, cardH, artH](int loai, const char* tieuDe, const char* kichThuoc, const char* co, const char* giaDeXuat) {
+         bool isSelected = (loaiSan_ == loai);
+ 
+         ImVec2 p0 = ImGui::GetCursorScreenPos();
+-        ImVec2 p1 = ImVec2(p0.x + cardW, p0.y + 140.0f);
++        ImVec2 p1 = ImVec2(p0.x + cardW, p0.y + cardH);
+         ImDrawList* dl = ImGui::GetWindowDrawList();
+ 
+         // Nền thẻ & Viền chuẩn Design System
+@@ -119,7 +125,7 @@ void CreateFieldWizardScreen::renderStep1LoaiSan() {
+         dl->AddRect(p0, p1, borderCol, 8.0f, 0, isSelected ? 2.0f : 1.0f);
+ 
+         // Nút radio tròn ở góc trên phải
+-        ImVec2 radioCenter(p1.x - 20.0f, p0.y + 20.0f);
++        ImVec2 radioCenter(p1.x - 20.0f, p0.y + artH + 45.0f);
+         dl->AddCircle(radioCenter, 8.0f, borderCol, 0, 1.5f);
+         if (isSelected) {
+             dl->AddCircleFilled(radioCenter, 4.5f, GUI::Theme::Colors::toU32(GUI::Theme::Colors::Primary));
+@@ -127,12 +133,23 @@ void CreateFieldWizardScreen::renderStep1LoaiSan() {
+ 
+         std::string btnId = "##btn_loai_" + std::to_string(loai);
+         ImGui::SetCursorScreenPos(p0);
+-        if (ImGui::InvisibleButton(btnId.c_str(), ImVec2(cardW, 140.0f))) {
++        if (ImGui::InvisibleButton(btnId.c_str(), ImVec2(cardW, cardH))) {
+             loaiSan_ = loai;
+         }
+ 
++        // Pitch illustration: vector only, no assets or dependencies.
++        const ImVec2 a(p0.x + 16, p0.y + 16), b(p1.x - 16, p0.y + 16 + artH);
++        dl->AddRectFilled(a,b,IM_COL32(21,105,70,255),6);
++        const ImVec2 l(a.x+10,a.y+9), r(b.x-10,b.y-9);
++        const ImU32 white = IM_COL32(210,240,220,255);
++        dl->AddRect(l,r,white,2);
++        const float mid=(l.x+r.x)*.5f, cy=(l.y+r.y)*.5f;
++        dl->AddLine(ImVec2(mid,l.y),ImVec2(mid,r.y),white,1.5f);
++        dl->AddCircle(ImVec2(mid,cy),17,white,24,1.5f);
++        dl->AddRect(ImVec2(l.x,cy-19),ImVec2(l.x+30,cy+19),white);
++        dl->AddRect(ImVec2(r.x-30,cy-19),ImVec2(r.x,cy+19),white);
+         // Nội dung trong thẻ
+-        ImGui::SetCursorScreenPos(ImVec2(p0.x + 16.0f, p0.y + 14.0f));
++        ImGui::SetCursorScreenPos(ImVec2(p0.x + 16.0f, p0.y + artH + 32.0f));
+         ImGui::BeginGroup();
+ 
+         if (GUI::Theme::getFonts().title) ImGui::PushFont(GUI::Theme::getFonts().title);
+@@ -144,9 +161,9 @@ void CreateFieldWizardScreen::renderStep1LoaiSan() {
+         ImGui::Spacing();
+         if (GUI::Theme::getFonts().small) ImGui::PushFont(GUI::Theme::getFonts().small);
+         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
+-        ImGui::Text(u8"• Kích thước: %s", kichThuoc);
+-        ImGui::Text(u8"• Mặt sân: %s", co);
+-        ImGui::Text(u8"• Đơn giá đề xuất: %s", giaDeXuat);
++        ImGui::Text(u8"Kích thước: %s", kichThuoc);
++        ImGui::Text(u8"Mặt sân: %s", co);
++        ImGui::Text(u8"Giá tham khảo: %s", giaDeXuat);
+         ImGui::PopStyleColor();
+         if (GUI::Theme::getFonts().small) ImGui::PopFont();
+ 
+@@ -162,11 +179,12 @@ void CreateFieldWizardScreen::renderStep1LoaiSan() {
+     const char* matSan[] = {u8"Cỏ nhân tạo 50mm", u8"Khuôn viên ngoài trời", u8"Mặt cỏ thi đấu"};
+     const char* giaDeXuat[] = {u8"200k - 350k/h", u8"350k - 550k/h", u8"700k - 1.2tr/h"};
+     for (int i = 0; i < 3; ++i) {
+-        ImGui::SetCursorPos(ImVec2(startX + i * (cardW + cardSpacing), startY));
++        ImGui::SetCursorPos(ImVec2(startX + (i % cols) * (cardW + cardSpacing), startY + (i / cols) * (cardH + cardSpacing)));
+         veTheLoai(loaiSan[i], tieuDe[i], kichThuoc[i], matSan[i], giaDeXuat[i]);
+     }
+ 
+-    ImGui::Dummy(ImVec2(availW, 145.0f));
++    ImGui::SetCursorPos(ImVec2(startX, startY + ((3 + cols - 1) / cols) * (cardH + cardSpacing)));
++    ImGui::Dummy(ImVec2(1.0f, 1.0f));
+ }
+ 
+ void CreateFieldWizardScreen::renderStep2SoLuong() {
+@@ -223,7 +241,7 @@ void CreateFieldWizardScreen::renderStep3QuyDinh() {
+     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.5f);
+     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
+ 
+-    if (ImGui::InputTextMultiline("##quy_dinh_multiline", quyDinhBuf, sizeof(quyDinhBuf), ImVec2(-1.0f, 150.0f))) {
++    if (ImGui::InputTextMultiline("##quy_dinh_multiline", quyDinhBuf, sizeof(quyDinhBuf), ImVec2(std::max(100.0f, ImGui::GetContentRegionAvail().x - 18.0f), 260.0f))) {
+         quyDinh_ = quyDinhBuf;
+     }
+ 
+@@ -257,7 +275,7 @@ void CreateFieldWizardScreen::renderStep4XacNhan() {
+ }
+ 
+ void CreateFieldWizardScreen::renderNavigationButtons() {
+-    constexpr float kChieuCaoNut = 36.0f;
++    constexpr float kChieuCaoNut = 46.0f;
+     const float btnW = 120.0f;
+     const float confirmW = currentStep_ == 4 ? 180.0f : btnW;
+     const float spacing = ImGui::GetStyle().ItemSpacing.x;
+@@ -265,7 +283,7 @@ void CreateFieldWizardScreen::renderNavigationButtons() {
+     // Tính trước mép phải của hàng để cả ba nút nằm trên cùng một dòng:
+     // "Hủy bỏ" bên trái, "Quay lại" + "Tiếp tục" bên phải.
+     const float rowStartX = ImGui::GetCursorPosX();
+-    const float rightEdgeX = rowStartX + ImGui::GetContentRegionAvail().x;
++    const float rightEdgeX = rowStartX + ImGui::GetContentRegionAvail().x - 18.0f;
+     const float rightGroupWidth = btnW + confirmW + spacing;
+ 
+     if (Widgets::NutPhu(u8"Hủy bỏ", ImVec2(btnW, kChieuCaoNut))) {
+diff --git a/src/GUI/Screens/Renter/DatSanScreenBuoc3Va4.cpp b/src/GUI/Screens/Renter/DatSanScreenBuoc3Va4.cpp
+index ef6b4ef..e33ec99 100644
+--- a/src/GUI/Screens/Renter/DatSanScreenBuoc3Va4.cpp
++++ b/src/GUI/Screens/Renter/DatSanScreenBuoc3Va4.cpp
+@@ -1,6 +1,7 @@
+ ﻿#include "GUI/Screens/Renter/DatSanScreen.h"
+ 
+ #include <cstdio>
++#include <algorithm>
+ #include <cstring>
+ #include <string>
+ #include <utility>
+@@ -26,9 +27,12 @@ namespace GUI::Screens::Renter {
+ using namespace GUI::App::ViewFormat;
+ 
+ void DatSanScreen::renderBuoc3ChonNgayVaKhungGio() {
+-    Widgets::Card("choose_date_slot", u8"Bước 3: Chọn ngày thi đấu và ca đá", [this]() {
++    Widgets::Card("choose_date_slot", u8"Chọn lịch thi đấu", [this]() {
+         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextPrimary);
+-        ImGui::Text(u8"Cơ sở: %s  |  Sân: %s (Sân %d người)", tenCoSoChon_.c_str(), tenSanChon_.c_str(), loaiSanChon_);
++        if (GUI::Theme::getFonts().title) ImGui::PushFont(GUI::Theme::getFonts().title);
++        ImGui::TextWrapped("%s", tenCoSoChon_.c_str());
++        if (GUI::Theme::getFonts().title) ImGui::PopFont();
++        ImGui::TextWrapped(u8"%s · Sân %d người", tenSanChon_.c_str(), loaiSanChon_);
+         ImGui::PopStyleColor();
+ 
+         ImGui::Spacing();
+@@ -38,8 +42,9 @@ void DatSanScreen::renderBuoc3ChonNgayVaKhungGio() {
+         ImGui::Spacing();
+ 
+         // Chọn thời lượng ca đá
+-        ImGui::TextUnformatted(u8"Thời lượng mỗi ca đá:");
+-        ImGui::SameLine(0.0f, 12.0f);
++        if (GUI::Theme::getFonts().title) ImGui::PushFont(GUI::Theme::getFonts().title);
++        ImGui::TextUnformatted(u8"Thời lượng");
++        if (GUI::Theme::getFonts().title) ImGui::PopFont();
+ 
+         int duration = thoiLuongChon_;
+         if (choPhep60Phut_) {
+@@ -59,7 +64,7 @@ void DatSanScreen::renderBuoc3ChonNgayVaKhungGio() {
+ 
+         // Chọn ngày đá
+         ImGui::SetNextItemWidth(260.0f);
+-        if (Widgets::DatePicker(u8"Ngày đặt sân đá bóng:", "##renter_booking_date", ngayChon_)) {
++        if (Widgets::DatePicker(u8"Ngày thi đấu", "##renter_booking_date", ngayChon_)) {
+             cacCaDangChon_.clear();
+             reloadSlots();
+         }
+@@ -81,11 +86,14 @@ void DatSanScreen::renderBuoc3ChonNgayVaKhungGio() {
+             ImGui::TextUnformatted(u8"Không có khung giờ nào còn trống cho lựa chọn ngày này.");
+             ImGui::PopStyleColor();
+         } else {
+-            ImGui::TextUnformatted(u8"Bấm chọn các ca đá (khung giờ liên tiếp):");
++            if (GUI::Theme::getFonts().title) ImGui::PushFont(GUI::Theme::getFonts().title);
++            ImGui::TextUnformatted(u8"Khung giờ thi đấu");
++            if (GUI::Theme::getFonts().title) ImGui::PopFont();
++            ImGui::TextUnformatted(u8"Chọn các ca liên tiếp. Màu xanh đậm: đã chọn.");
+             ImGui::Spacing();
+ 
+-            const float gridWidth = ImGui::GetContentRegionAvail().x;
+-            const int columns = gridWidth >= 830.0f ? 3 : (gridWidth >= 550.0f ? 2 : 1);
++            const float gridWidth = ImGui::GetContentRegionAvail().x - 18.0f;
++            const int columns = std::max(1, std::min(6, static_cast<int>((gridWidth + 10.0f) / 225.0f)));
+             const float slotWidth = (gridWidth - (columns - 1) * 10.0f) / columns;
+             int slotIndex = 0;
+             for (auto* node = danhSachKhungGioTrong_.get_head(); node != nullptr; node = node->next) {
+@@ -97,11 +105,11 @@ void DatSanScreen::renderBuoc3ChonNgayVaKhungGio() {
+ 
+                 std::string label = slot.startTime + " - " + slot.endTime;
+                 if (!slot.available) {
+-                    label += u8" (Đã đặt)";
++                    label += u8"\nĐã đặt";
+                 } else if (slot.past) {
+-                    label += u8" (Đã qua)";
++                    label += u8"\nĐã qua";
+                 } else {
+-                    label += " | " + dinhDangTien(slot.priceVnd);
++                    label += "\n" + dinhDangTien(slot.priceVnd);
+                 }
+ 
+                 if (selected) {
+@@ -117,12 +125,12 @@ void DatSanScreen::renderBuoc3ChonNgayVaKhungGio() {
+                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.95f, 0.95f, 0.95f, 1.0f));
+                     ImGui::PushStyleColor(ImGuiCol_Text,          GUI::Theme::Colors::Gray);
+                 }
+-                ImGui::PushStyleColor(ImGuiCol_Border, selected ? GUI::Theme::Colors::Primary : (slot.available && !slot.past ? GUI::Theme::Colors::Primary : GUI::Theme::Colors::Border));
++                ImGui::PushStyleColor(ImGuiCol_Border, selected ? GUI::Theme::Colors::Primary : (slot.available && !slot.past ? GUI::Theme::Colors::InputBorder : GUI::Theme::Colors::Border));
+                 ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+                 ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
+ 
+                 ImGui::BeginDisabled(!slot.available || slot.past);
+-                if (ImGui::Button(label.c_str(), ImVec2(slotWidth, 40.0f))) {
++                if (ImGui::Button(label.c_str(), ImVec2(slotWidth, 62.0f))) {
+                     if (selected) {
+                         cacCaDangChon_.removeIf([&slot](const VenueSlotRecord& current) {
+                             return current.startTime == slot.startTime;
+diff --git a/src/GUI/Screens/Renter/ProfileScreen.cpp b/src/GUI/Screens/Renter/ProfileScreen.cpp
+index f7f8b38..388e23d 100644
+--- a/src/GUI/Screens/Renter/ProfileScreen.cpp
++++ b/src/GUI/Screens/Renter/ProfileScreen.cpp
+@@ -1,6 +1,8 @@
+ #include "GUI/Screens/Renter/ProfileScreen.h"
+ 
+ #include <string>
++#include <algorithm>
++#include "GUI/Widgets/Layout.h"
+ #include <imgui.h>
+ 
+ #include "Account/Customer.h"
+@@ -47,16 +49,20 @@ void ProfileScreen::reloadViewModel() {
+ }
+ 
+ void ProfileScreen::render() {
+-    renderFormThongTin();
+-    ImGui::Spacing();
+-    ImGui::Spacing();
+-    renderFormDoiMatKhau();
++    Widgets::BeginNoiDungHep("##profile_wrap", 1280.0f);
++    if (ImGui::GetContentRegionAvail().x >= 1040.0f) {
++        if (ImGui::BeginTable("##profile_grid", 2, ImGuiTableFlags_SizingStretchSame)) {
++            ImGui::TableNextColumn(); renderFormThongTin();
++            ImGui::TableNextColumn(); renderFormDoiMatKhau();
++            ImGui::EndTable();
++        }
++    } else { renderFormThongTin(); ImGui::Spacing(); renderFormDoiMatKhau(); }
++    Widgets::EndNoiDungHep();
+ }
+ 
+ void ProfileScreen::renderFormThongTin() {
+     Widgets::Card("card_renter_profile_info", u8"Thông tin hồ sơ cá nhân", [this]() {
+-        ImGui::Columns(2, "cols_profile_layout", false);
+-        ImGui::SetColumnWidth(0, 420.0f);
++
+ 
+         // Ô sửa họ và tên
+         Widgets::InputText(
+@@ -64,7 +70,8 @@ void ProfileScreen::renderFormThongTin() {
+             "##profile_fullname",
+             formHoTen_,
+             loiHoTen_.empty() ? nullptr : loiHoTen_.c_str(),
+-            u8"Nhập họ và tên của bạn"
++            u8"Nhập họ và tên của bạn",
++            std::max(80.0f, ImGui::GetContentRegionAvail().x - 18.0f)
+         );
+         ImGui::Spacing();
+ 
+@@ -77,28 +84,31 @@ void ProfileScreen::renderFormThongTin() {
+         );
+         ImGui::Spacing();
+ 
+-        ImGui::NextColumn();
++        ImGui::Spacing();
+ 
+         // Thống kê tài khoản bên phải với các thẻ tóm tắt trực quan
+         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
+-        ImGui::TextUnformatted(u8"Thống kê hoạt động tài khoản:");
++        if (GUI::Theme::getFonts().title) ImGui::PushFont(GUI::Theme::getFonts().title);
++        ImGui::TextUnformatted(u8"Hoạt động tài khoản");
++        if (GUI::Theme::getFonts().title) ImGui::PopFont();
+         ImGui::PopStyleColor();
+         ImGui::Spacing();
+ 
+-        float rightColW = ImGui::GetContentRegionAvail().x;
++        float rightColW = ImGui::GetContentRegionAvail().x - 18.0f;
+         ImDrawList* dl = ImGui::GetWindowDrawList();
+ 
+         auto veStatRow = [dl, rightColW](const char* label, const char* val, ImVec4 accent) {
+             ImVec2 p0 = ImGui::GetCursorScreenPos();
+-            ImVec2 p1(p0.x + rightColW, p0.y + 62.0f);
++            ImVec2 p1(p0.x + rightColW, p0.y + 80.0f);
+             dl->AddRectFilled(p0, p1, GUI::Theme::Colors::toU32(GUI::Theme::Colors::GrayHover), 6.0f);
+             dl->AddRect(p0, p1, GUI::Theme::Colors::toU32(GUI::Theme::Colors::Border), 6.0f);
+             dl->AddRectFilled(p0, ImVec2(p0.x + 3.5f, p1.y), GUI::Theme::Colors::toU32(accent), 6.0f);
+ 
+             dl->AddText(ImVec2(p0.x + 12.0f, p0.y + 12.0f), GUI::Theme::Colors::toU32(GUI::Theme::Colors::TextSecondary), label);
+-            ImVec2 valSize = ImGui::CalcTextSize(val);
+-            dl->AddText(ImVec2(p1.x - valSize.x - 12.0f, p0.y + 35.0f), GUI::Theme::Colors::toU32(GUI::Theme::Colors::TextPrimary), val);
+-            ImGui::Dummy(ImVec2(rightColW, 64.0f));
++            ImFont* metric = GUI::Theme::getFonts().metric;
++            if (metric) dl->AddText(metric, metric->FontSize, ImVec2(p0.x + 12, p0.y + 34), GUI::Theme::Colors::toU32(accent), val);
++            else dl->AddText(ImVec2(p0.x+12,p0.y+34), GUI::Theme::Colors::toU32(accent), val);
++            ImGui::Dummy(ImVec2(rightColW, 82.0f));
+         };
+ 
+         std::string sDat = std::to_string(soLanDat_) + u8" lần";
+@@ -113,7 +123,7 @@ void ProfileScreen::renderFormThongTin() {
+         std::snprintf(sHuy, sizeof(sHuy), u8"%d lần (%.0f%%)", soLanHuy_, tyLeHuy);
+         veStatRow(u8"Đã hủy đặt sân", sHuy, (tyLeHuy > 20.0f ? GUI::Theme::Colors::Danger : GUI::Theme::Colors::Warning));
+ 
+-        ImGui::Columns(1);
++
+ 
+         ImGui::Spacing();
+         ImGui::Spacing();
+diff --git a/src/GUI/Theme/Fonts.cpp b/src/GUI/Theme/Fonts.cpp
+index f034b42..bb3c1e1 100644
+--- a/src/GUI/Theme/Fonts.cpp
++++ b/src/GUI/Theme/Fonts.cpp
+@@ -175,7 +175,8 @@ Fonts loadFonts() {
+     collectFontsFrom(fs::current_path(ec), candidates);
+     collectFontsFrom(executableDirectory(), candidates);
+ 
+-    static std::vector<unsigned char> fontData;
++    static std::vector<unsigned char> fontData, boldData, mediumData;
++    boldData.clear(); mediumData.clear();
+     std::string usedPath;
+     for (const fs::path& candidate : candidates) {
+         std::vector<unsigned char> data;
+@@ -194,10 +195,26 @@ Fonts loadFonts() {
+     if (usedPath.empty()) {
+         std::cerr << "[Font] Không có font hợp lệ. Dùng font mặc định.\n";
+         ImFont* fallback = io.Fonts->AddFontDefault();
+-        s_CurrentFonts = {fallback, fallback, fallback, fallback, fallback};
++        s_CurrentFonts = {fallback, fallback, fallback, fallback, fallback, fallback, fallback};
+         return s_CurrentFonts;
+     }
+ 
++    // Use installed font faces, never require a downloaded font.
++    auto loadFace = [&](const std::vector<fs::path>& paths, std::vector<unsigned char>& target) {
++        for (const auto& p : paths) {
++            std::string why;
++            if (readFile(p, target) && validateFont(target, why)) return;
++        }
++        target = fontData;
++    };
++    const fs::path base = fs::path(usedPath).parent_path();
++    const std::string stem = fs::path(usedPath).stem().string();
++    std::vector<fs::path> bold, medium;
++    if (stem == "segoeui") { bold = {base / "segoeuib.ttf"}; medium = {base / "seguisb.ttf", base / "segoeuib.ttf"}; }
++    else if (stem == "arial") { bold = {base / "arialbd.ttf"}; medium = bold; }
++    else if (stem == "DejaVuSans") { bold = {base / "DejaVuSans-Bold.ttf"}; medium = bold; }
++    else { std::string family = stem.substr(0, stem.find('-')); bold = {base / (family + "-Bold.ttf")}; medium = {base / (family + "-SemiBold.ttf"), base / (family + "-Bold.ttf")}; }
++    loadFace(bold, boldData); loadFace(medium, mediumData);
+     static ImVector<ImWchar> glyphRanges;
+     glyphRanges.clear();
+     buildGlyphRanges(io, glyphRanges);
+@@ -216,16 +233,18 @@ Fonts loadFonts() {
+     // - title:   18px (tiêu đề khu vực, card header)
+     // - small:   14px (nhãn phụ, badge, footnote)
+     fonts.regular = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 17.0F, &config, glyphRanges.Data);
+-    fonts.heading = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 30.0F, &config, glyphRanges.Data);
+-    fonts.title   = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 21.0F, &config, glyphRanges.Data);
++    fonts.heading = io.Fonts->AddFontFromMemoryTTF(boldData.data(), static_cast<int>(boldData.size()), 30.0F, &config, glyphRanges.Data);
++    fonts.title   = io.Fonts->AddFontFromMemoryTTF(mediumData.data(), static_cast<int>(mediumData.size()), 22.0F, &config, glyphRanges.Data);
+     fonts.small   = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 15.0F, &config, glyphRanges.Data);
+ 
+-    fonts.metric = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 32.0F, &config, glyphRanges.Data);
++    fonts.metric = io.Fonts->AddFontFromMemoryTTF(boldData.data(), static_cast<int>(boldData.size()), 34.0F, &config, glyphRanges.Data);
+ 
++    fonts.label = io.Fonts->AddFontFromMemoryTTF(mediumData.data(), static_cast<int>(mediumData.size()), 17.0F, &config, glyphRanges.Data);
++    fonts.brand = io.Fonts->AddFontFromMemoryTTF(boldData.data(), static_cast<int>(boldData.size()), 36.0F, &config, glyphRanges.Data);
+     if (fonts.regular == nullptr || fonts.heading == nullptr || fonts.title == nullptr || fonts.small == nullptr || fonts.metric == nullptr) {
+         io.Fonts->Clear();
+         ImFont* fallback = io.Fonts->AddFontDefault();
+-        s_CurrentFonts = {fallback, fallback, fallback, fallback, fallback};
++        s_CurrentFonts = {fallback, fallback, fallback, fallback, fallback, fallback, fallback};
+         return s_CurrentFonts;
+     }
+ 
+diff --git a/src/GUI/Widgets/Button.cpp b/src/GUI/Widgets/Button.cpp
+index be6a134..2d4e34c 100644
+--- a/src/GUI/Widgets/Button.cpp
++++ b/src/GUI/Widgets/Button.cpp
+@@ -1,6 +1,7 @@
+ ﻿#include "GUI/Widgets/Button.h"
+ 
+ #include "GUI/Theme/Theme.h"
++#include "GUI/Theme/Fonts.h"
+ 
+ namespace Widgets {
+ 
+@@ -11,7 +12,9 @@ bool NutChinh(const char* label, const ImVec2& kichThuoc) {
+     ImGui::PushStyleColor(ImGuiCol_Text,          GUI::Theme::Colors::Surface);
+     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
+ 
++    if (GUI::Theme::getFonts().label) ImGui::PushFont(GUI::Theme::getFonts().label);
+     bool clicked = ImGui::Button(label, kichThuoc);
++    if (GUI::Theme::getFonts().label) ImGui::PopFont();
+     if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+ 
+     ImGui::PopStyleVar();
+@@ -28,7 +31,9 @@ bool NutPhu(const char* label, const ImVec2& kichThuoc) {
+     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
+ 
++    if (GUI::Theme::getFonts().label) ImGui::PushFont(GUI::Theme::getFonts().label);
+     bool clicked = ImGui::Button(label, kichThuoc);
++    if (GUI::Theme::getFonts().label) ImGui::PopFont();
+     if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+ 
+     ImGui::PopStyleVar(2);
+@@ -43,7 +48,9 @@ bool NutNguyHiem(const char* label, const ImVec2& kichThuoc) {
+     ImGui::PushStyleColor(ImGuiCol_Text,          GUI::Theme::Colors::Surface);
+     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
+ 
++    if (GUI::Theme::getFonts().label) ImGui::PushFont(GUI::Theme::getFonts().label);
+     bool clicked = ImGui::Button(label, kichThuoc);
++    if (GUI::Theme::getFonts().label) ImGui::PopFont();
+     if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+ 
+     ImGui::PopStyleVar();
+diff --git a/src/GUI/Widgets/DatePicker.cpp b/src/GUI/Widgets/DatePicker.cpp
+index 8c77222..f47cb97 100644
+--- a/src/GUI/Widgets/DatePicker.cpp
++++ b/src/GUI/Widgets/DatePicker.cpp
+@@ -1,4 +1,5 @@
+ #include "GUI/Widgets/DatePicker.h"
++#include "GUI/Theme/Fonts.h"
+ 
+ #include <iomanip>
+ #include <algorithm>
+@@ -77,7 +78,9 @@ bool DatePicker(
+ 
+     if (label != nullptr && label[0] != '\0') {
+         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
++        if (GUI::Theme::getFonts().label) ImGui::PushFont(GUI::Theme::getFonts().label);
+         ImGui::TextUnformatted(label);
++        if (GUI::Theme::getFonts().label) ImGui::PopFont();
+         ImGui::PopStyleColor();
+         ImGui::Spacing();
+     }
+@@ -102,7 +105,7 @@ bool DatePicker(
+     }
+ 
+     float nutLichWidth = 76.0f;
+-    float availWidth = ImGui::GetContentRegionAvail().x;
++    float availWidth = std::min(420.0f, ImGui::GetContentRegionAvail().x);
+     float dateInputWidth = std::max(
+         1.0f,
+         availWidth - nutLichWidth - ImGui::GetStyle().ItemSpacing.x
+diff --git a/src/GUI/Widgets/InputFields.cpp b/src/GUI/Widgets/InputFields.cpp
+index f22bc40..5d37933 100644
+--- a/src/GUI/Widgets/InputFields.cpp
++++ b/src/GUI/Widgets/InputFields.cpp
+@@ -64,7 +64,9 @@ bool InputTextStdString(
+ void HienThiNhan(const char* label) {
+     if (label != nullptr && label[0] != '\0') {
+         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextPrimary);
++        if (GUI::Theme::getFonts().label) ImGui::PushFont(GUI::Theme::getFonts().label);
+         ImGui::TextUnformatted(label);
++        if (GUI::Theme::getFonts().label) ImGui::PopFont();
+         ImGui::PopStyleColor();
+         ImGui::Spacing();
+     }

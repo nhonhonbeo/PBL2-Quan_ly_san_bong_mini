@@ -1,6 +1,7 @@
 ﻿#include "GUI/Widgets/Button.h"
 
 #include "GUI/Theme/Theme.h"
+#include "GUI/Theme/Fonts.h"
 
 namespace Widgets {
 
@@ -11,7 +12,10 @@ bool NutChinh(const char* label, const ImVec2& kichThuoc) {
     ImGui::PushStyleColor(ImGuiCol_Text,          GUI::Theme::Colors::Surface);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
 
+    if (GUI::Theme::getFonts().label) ImGui::PushFont(GUI::Theme::getFonts().label);
     bool clicked = ImGui::Button(label, kichThuoc);
+    if (GUI::Theme::getFonts().label) ImGui::PopFont();
+    if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
 
     ImGui::PopStyleVar();
     ImGui::PopStyleColor(4);
@@ -27,7 +31,10 @@ bool NutPhu(const char* label, const ImVec2& kichThuoc) {
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
 
+    if (GUI::Theme::getFonts().label) ImGui::PushFont(GUI::Theme::getFonts().label);
     bool clicked = ImGui::Button(label, kichThuoc);
+    if (GUI::Theme::getFonts().label) ImGui::PopFont();
+    if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
 
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor(5);
@@ -41,7 +48,10 @@ bool NutNguyHiem(const char* label, const ImVec2& kichThuoc) {
     ImGui::PushStyleColor(ImGuiCol_Text,          GUI::Theme::Colors::Surface);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
 
+    if (GUI::Theme::getFonts().label) ImGui::PushFont(GUI::Theme::getFonts().label);
     bool clicked = ImGui::Button(label, kichThuoc);
+    if (GUI::Theme::getFonts().label) ImGui::PopFont();
+    if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
 
     ImGui::PopStyleVar();
     ImGui::PopStyleColor(4);

@@ -1,5 +1,6 @@
 ﻿#include "GUI/Screens/Renter/DatSanScreen.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -42,13 +43,13 @@ void DatSanScreen::renderBuoc1ChonCoSo() {
         char search[256]{};
         const std::size_t count = tuKhoaCoSo_.size() < sizeof(search) - 1 ? tuKhoaCoSo_.size() : sizeof(search) - 1;
         std::memcpy(search, tuKhoaCoSo_.data(), count);
-        ImGui::SetNextItemWidth(380.0f);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x < 520.0f ? ImGui::GetContentRegionAvail().x : 380.0f);
         if (ImGui::InputTextWithHint("##search_facility", u8"T\u00ECm ki\u1EBFm c\u1EE5m s\u00E2n theo t\u00EAn ho\u1EB7c \u0111\u1ECBa ch\u1EC9...", search, sizeof(search))) {
             tuKhoaCoSo_ = search;
         }
 
         if (!tuKhoaCoSo_.empty()) {
-            ImGui::SameLine(0.0f, 8.0f);
+            if (ImGui::GetContentRegionAvail().x >= 140.0f) ImGui::SameLine(0.0f, 8.0f);
             if (ImGui::Button(u8"\u2715 X\u00F3a l\u1ECDc##clear_facility_search")) {
                 tuKhoaCoSo_.clear();
             }
@@ -68,17 +69,14 @@ void DatSanScreen::renderBuoc1ChonCoSo() {
             ++matchingCount;
         }
 
-        ImGui::SameLine(0.0f, 18.0f);
         ImGui::AlignTextToFramePadding();
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
         ImGui::Text(u8"Hi\u1EC3n th\u1ECB %d c\u1EE5m s\u00E2n s\u1EB5n c\u00F3", matchingCount);
         ImGui::PopStyleColor();
 
-        ImGui::Spacing();
         ImGui::PushStyleColor(ImGuiCol_Separator, GUI::Theme::Colors::Border);
         ImGui::Separator();
         ImGui::PopStyleColor();
-        ImGui::Spacing();
 
         if (matchingCount == 0) {
             ImGui::Spacing();
@@ -89,22 +87,27 @@ void DatSanScreen::renderBuoc1ChonCoSo() {
             return;
         }
 
-        float availableWidth = ImGui::GetContentRegionAvail().x;
-        int numCols = static_cast<int>(availableWidth / 330.0f);
+        float availableWidth = ImGui::GetContentRegionAvail().x - 18.0f;
+        int numCols = static_cast<int>(availableWidth / 320.0f);
         if (numCols < 1) numCols = 1;
-        if (numCols > 4) numCols = 4;
+        if (numCols > 3) numCols = 3;
+        numCols = std::min(numCols, matchingCount);
 
-        if (ImGui::BeginTable("##cum_san_grid_table", numCols, ImGuiTableFlags_SizingStretchSame)) {
-            for (auto* node = danhSachCoSo_.get_head(); node != nullptr; node = node->next) {
-                const VenueFacilityRecord& facility = node->data;
-                if (!tuKhoaCoSo_.empty() &&
-                    facility.name.find(tuKhoaCoSo_) == std::string::npos &&
-                    facility.address.find(tuKhoaCoSo_) == std::string::npos) {
-                    continue;
+        if (ImGui::BeginTable("##cum_san_grid_table", numCols, ImGuiTableFlags_SizingStretchSame, ImVec2(availableWidth,0))) {
+            // Active facilities first; keep original relative order in each group.
+            for (int pass = 0; pass < 2; ++pass) {
+                for (auto* node = danhSachCoSo_.get_head(); node != nullptr; node = node->next) {
+                    const VenueFacilityRecord& facility = node->data;
+                    if ((soSanTheoCoSo_[facility.ownerId] > 0) != (pass == 0)) continue;
+                    if (!tuKhoaCoSo_.empty() &&
+                        facility.name.find(tuKhoaCoSo_) == std::string::npos &&
+                        facility.address.find(tuKhoaCoSo_) == std::string::npos) {
+                        continue;
+                    }
+
+                    ImGui::TableNextColumn();
+                    renderTheCumSan(facility, soSanTheoCoSo_[facility.ownerId], giaThapNhatTheoCoSo_[facility.ownerId]);
                 }
-
-                ImGui::TableNextColumn();
-                renderTheCumSan(facility, soSanTheoCoSo_[facility.ownerId], giaThapNhatTheoCoSo_[facility.ownerId]);
             }
             ImGui::EndTable();
         }
@@ -119,15 +122,15 @@ void DatSanScreen::renderTheCumSan(const VenueFacilityRecord& facility, int fiel
     ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::Border);
 
     std::string childId = "##card_" + facility.ownerId;
-    if (ImGui::BeginChild(childId.c_str(), ImVec2(0.0f, 355.0f), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+    if (ImGui::BeginChild(childId.c_str(), ImVec2(0.0f, 310.0f), true, ImGuiWindowFlags_None)) {
         ImDrawList* drawList = ImGui::GetWindowDrawList();
 
         ImVec2 bannerP0 = ImGui::GetCursorScreenPos();
         float bannerWidth = ImGui::GetContentRegionAvail().x;
-        float bannerHeight = 44.0f;
+        float bannerHeight = 60.0f;
         ImVec2 bannerP1(bannerP0.x + bannerWidth, bannerP0.y + bannerHeight);
 
-        drawList->AddRectFilledMultiColor(bannerP0, bannerP1, IM_COL32(22, 134, 91, 255), IM_COL32(16, 96, 64, 255), IM_COL32(16, 96, 64, 255), IM_COL32(22, 134, 91, 255));
+        drawList->AddRectFilledMultiColor(bannerP0, bannerP1, IM_COL32(15, 95, 63, 255), IM_COL32(35, 143, 85, 255), IM_COL32(23, 116, 70, 255), IM_COL32(10, 83, 54, 255));
 
         float midX = bannerP0.x + bannerWidth * 0.5f;
         float midY = bannerP0.y + bannerHeight * 0.5f;
@@ -135,59 +138,60 @@ void DatSanScreen::renderTheCumSan(const VenueFacilityRecord& facility, int fiel
         drawList->AddCircle(ImVec2(midX, midY), 13.0f, IM_COL32(255, 255, 255, 80), 24, 1.2f);
         drawList->AddRect(bannerP0, bannerP1, IM_COL32(255, 255, 255, 60), 4.0f, 0, 1.0f);
 
-        ImGui::SetCursorScreenPos(ImVec2(bannerP0.x + 8.0f, bannerP0.y + 12.0f));
-        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32_WHITE);
-        ImGui::TextUnformatted(u8"\u26BD C\u1EE4M S\u00C2N MINI CHU\u1EA8N FIFA");
-        ImGui::PopStyleColor();
+        drawList->AddRect(ImVec2(bannerP0.x+10,bannerP0.y+8), ImVec2(bannerP1.x-10,bannerP1.y-8), IM_COL32(255,255,255,120), 2);
+        drawList->AddRect(ImVec2(bannerP0.x+10,midY-18),ImVec2(bannerP0.x+34,midY+18),IM_COL32(255,255,255,120));
+        drawList->AddRect(ImVec2(bannerP1.x-34,midY-18),ImVec2(bannerP1.x-10,midY+18),IM_COL32(255,255,255,120));
 
         ImGui::SetCursorScreenPos(ImVec2(bannerP0.x, bannerP1.y + 8.0f));
         ImFont* titleFont = GUI::Theme::getFonts().title;
         if (titleFont != nullptr) ImGui::PushFont(titleFont);
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextPrimary);
-        ImGui::TextUnformatted(facility.name.c_str());
+        const auto oneLine = [](const std::string& value) {
+            const auto p = ImGui::GetCursorScreenPos();
+            const float width = ImGui::GetContentRegionAvail().x;
+            const float height = ImGui::GetTextLineHeight();
+            auto* dl = ImGui::GetWindowDrawList();
+            dl->PushClipRect(p, ImVec2(p.x+width,p.y+height), true);
+            dl->AddText(p, ImGui::GetColorU32(ImGuiCol_Text), value.c_str());
+            dl->PopClipRect();
+            ImGui::Dummy(ImVec2(width,height));
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s",value.c_str());
+        };
+        oneLine(facility.name);
         ImGui::PopStyleColor();
         if (titleFont != nullptr) ImGui::PopFont();
 
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.85f, 0.55f, 0.05f, 1.0f));
-        ImGui::TextUnformatted(u8"\u2605 4.9");
-        ImGui::PopStyleColor();
-        ImGui::SameLine(0.0f, 4.0f);
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
-        ImGui::TextUnformatted(u8"(48 l\u01B0\u1EE3t \u0111\u00E1nh gi\u00E1)");
+        oneLine(facility.address);
+
+        if (!facility.openTime.empty() && !facility.closeTime.empty())
+            ImGui::Text(u8"• Giờ mở cửa: %s - %s", facility.openTime.c_str(), facility.closeTime.c_str());
+        else ImGui::TextUnformatted(u8"• Giờ mở cửa: Chưa cập nhật");
+        if (!facility.phone.empty()) ImGui::Text(u8"• Liên hệ: %s", facility.phone.c_str());
         ImGui::PopStyleColor();
 
-        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
-        ImGui::TextWrapped(u8"• Địa chỉ: %s", facility.address.c_str());
-        ImGui::TextUnformatted(u8"• Khoảng cách: ~1.5 km (gần bạn)");
-
-        std::string gioMo = facility.openTime.empty() ? "06:00" : facility.openTime;
-        std::string gioDong = facility.closeTime.empty() ? "23:00" : facility.closeTime;
-        ImGui::Text(u8"• Giờ mở cửa: %s - %s", gioMo.c_str(), gioDong.c_str());
-        ImGui::TextUnformatted(u8"• Tiện ích: Đèn LED • Bãi xe • Căn tin");
-        ImGui::PopStyleColor();
-
-        ImGui::Spacing();
         ImGui::PushStyleColor(ImGuiCol_Separator, GUI::Theme::Colors::Border);
         ImGui::Separator();
         ImGui::PopStyleColor();
-        ImGui::Spacing();
 
         if (fieldCount == 0) {
-            Widgets::BadgeBaoTri(u8"Ch\u01B0a c\u00F3 s\u00E2n s\u1EB5n s\u00E0ng");
+            Widgets::BadgeBaoTri(u8"Chưa có sân sẵn sàng");
+            ImGui::TextDisabled(u8"Chưa có giá thuê");
         } else {
             Widgets::BadgeTrong((std::to_string(fieldCount) + u8" s\u00E2n s\u1EB5n s\u00E0ng").c_str());
-            ImGui::SameLine(0.0f, 6.0f);
-            Widgets::BadgeNoiBat((u8"T\u1EEB " + dinhDangTien(lowestPrice)).c_str());
+            ImGui::TextColored(GUI::Theme::Colors::PrimaryDark, u8"Giá từ %s", dinhDangTien(lowestPrice).c_str());
         }
 
         ImGui::Spacing();
 
+        const float bottom = ImGui::GetWindowHeight() - 56.0f;
+        ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY(), bottom));
         if (fieldCount == 0) {
             ImGui::BeginDisabled(true);
-            Widgets::NutPhu(u8"T\u1EA1m ng\u01B0ng \u0111\u00F3n kh\u00E1ch", ImVec2(ImGui::GetContentRegionAvail().x, 34.0f));
+            Widgets::NutPhu(u8"T\u1EA1m ng\u01B0ng \u0111\u00F3n kh\u00E1ch", ImVec2(ImGui::GetContentRegionAvail().x, 42.0f));
             ImGui::EndDisabled();
         } else {
-            if (Widgets::NutChinh(u8"Ch\u1ECDn c\u1EE5m s\u00E2n n\u00E0y \u2192", ImVec2(ImGui::GetContentRegionAvail().x, 34.0f))) {
+            if (Widgets::NutChinh(u8"Chọn cụm sân", ImVec2(ImGui::GetContentRegionAvail().x, 42.0f))) {
                 chonCoSo(facility);
             }
         }

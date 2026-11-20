@@ -23,11 +23,11 @@ void apply() {
     // ==========================================
     // LÝ DO CHỌN: Hệ thống khoảng cách chuẩn bội số 4-8px (8pt grid system),
     // đảm bảo phân cấp rõ ràng, dễ nhìn, không chen chúc.
-    style.WindowPadding     = ImVec2(20.0f, 18.0f);
-    style.FramePadding      = ImVec2(12.0f, 8.0f);
+    style.WindowPadding     = ImVec2(20.0f, 16.0f);
+    style.FramePadding      = ImVec2(12.0f, 9.0f);
     style.ButtonTextAlign   = ImVec2(0.5f, 0.5f);
-    style.CellPadding       = ImVec2(10.0f, 8.0f);
-    style.ItemSpacing       = ImVec2(10.0f, 8.0f);
+    style.CellPadding       = ImVec2(12.0f, 8.0f);
+    style.ItemSpacing       = ImVec2(12.0f, 8.0f);
     style.ItemInnerSpacing  = ImVec2(8.0f, 6.0f);
     style.TouchExtraPadding = ImVec2(0.0f, 0.0f);
     style.IndentSpacing     = 18.0f;
@@ -41,7 +41,7 @@ void apply() {
     style.ChildBorderSize   = 1.0f;
     style.PopupBorderSize   = 1.0f;
     style.FrameBorderSize   = 1.0f;
-    style.TabBorderSize     = 1.0f;
+    style.TabBorderSize     = 0.0f;
 
     // ==========================================
     // 3. THIẾT LẬP MÀU SẮC (Color Palette)
@@ -55,7 +55,7 @@ void apply() {
     colors[ImGuiCol_ChildBg]               = Colors::Surface;
     colors[ImGuiCol_PopupBg]               = Colors::Surface;
     colors[ImGuiCol_Border]                = Colors::Border;
-    colors[ImGuiCol_BorderShadow]          = ImVec4(0.0f, 0.0f, 0.0f, 0.03f);
+    colors[ImGuiCol_BorderShadow]          = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
 
     // Tab bar hiện đại: Tab active nền trắng Surface (#FFFFFF) thanh lịch, viền chỉ báo xanh lá thương hiệu (#16865B) trên đỉnh; Tab inactive nền xám lục nhạt tương phản tốt
     colors[ImGuiCol_Tab]                       = ImVec4(0.900f, 0.930f, 0.915f, 0.75f);
@@ -85,9 +85,9 @@ void apply() {
     colors[ImGuiCol_ScrollbarGrabActive]   = Colors::PrimaryDark;
 
     // Nút bấm mặc định (Xanh lá nhận diện #16865B)
-    colors[ImGuiCol_Button]                = Colors::Primary;
-    colors[ImGuiCol_ButtonHovered]         = Colors::PrimaryHover;
-    colors[ImGuiCol_ButtonActive]          = Colors::PrimaryDark;
+    colors[ImGuiCol_Button]                = Colors::PrimaryLight;
+    colors[ImGuiCol_ButtonHovered]         = Colors::GrayHover;
+    colors[ImGuiCol_ButtonActive]          = Colors::PrimaryLight;
 
     // Checkbox & Radio & Slider
     colors[ImGuiCol_CheckMark]             = Colors::Primary;

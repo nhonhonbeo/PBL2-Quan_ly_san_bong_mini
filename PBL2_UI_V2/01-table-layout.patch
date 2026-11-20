@@ -1,0 +1,50 @@
+diff --git a/src/GUI/Screens/Owner/GiaiScreen.cpp b/src/GUI/Screens/Owner/GiaiScreen.cpp
+index 9d8026a..61631b5 100644
+--- a/src/GUI/Screens/Owner/GiaiScreen.cpp
++++ b/src/GUI/Screens/Owner/GiaiScreen.cpp
+@@ -30,7 +30,7 @@ void GiaiScreen::onEnter() {
+     daGuiYeuCau_ = false;
+     tableColsGiai_ = {
+         {u8"Mã giải", 90.0f, ImGuiTableColumnFlags_WidthFixed},
+-        {u8"Tên giải đấu", 220.0f, ImGuiTableColumnFlags_None},
++        {u8"Tên giải đấu", 230.0f, ImGuiTableColumnFlags_WidthFixed},
+         {u8"Khách đặt", 150.0f, ImGuiTableColumnFlags_WidthFixed},
+         {u8"Số điện thoại", 130.0f, ImGuiTableColumnFlags_WidthFixed},
+         {u8"Bắt đầu", 110.0f, ImGuiTableColumnFlags_WidthFixed},
+@@ -202,7 +202,8 @@ void GiaiScreen::renderTabDanhSachGiai() {
+                         Widgets::MoModalXacNhan(u8"Xác nhận hủy giải đấu");
+                     }
+                 } else {
+-                    ImGui::TextUnformatted(row.oDuLieu[col].c_str());
++                    if (col == 1) ImGui::TextWrapped("%s", row.oDuLieu[col].c_str());
++                    else ImGui::TextUnformatted(row.oDuLieu[col].c_str());
+                 }
+             }
+         );
+diff --git a/src/GUI/Widgets/Table.cpp b/src/GUI/Widgets/Table.cpp
+index eff249b..8d89b5f 100644
+--- a/src/GUI/Widgets/Table.cpp
++++ b/src/GUI/Widgets/Table.cpp
+@@ -132,7 +132,21 @@ bool Table(
+                             ImGuiTableFlags_SizingStretchProp |
+                             extraFlags;
+ 
+-    if (ImGui::BeginTable("##main_table", static_cast<int>(cacCot.size()), flags)) {
++    // Keep meaningful minimum widths; scroll only when the viewport is too narrow.
++    float minWidth = 0.0f;
++    for (const auto& col : cacCot) {
++        const bool stretch = (col.flags & ImGuiTableColumnFlags_WidthStretch) != 0;
++        const float contentWidth = stretch ? 140.0f : std::max(col.chieuRong, 100.0f);
++        minWidth += std::max(contentWidth, ImGui::CalcTextSize(col.tenCot.c_str()).x + 24.0f)
++                    + 2.0f * ImGui::GetStyle().CellPadding.x;
++    }
++    const bool scrollX = minWidth > availWidth;
++    if (scrollX) {
++        flags |= ImGuiTableFlags_ScrollX;
++        ImGui::TextDisabled(u8"Cuộn ngang để xem các cột còn lại.");
++    }
++    if (ImGui::BeginTable("##main_table", static_cast<int>(cacCot.size()), flags,
++                          ImVec2(0.0f, 0.0f), scrollX ? minWidth : 0.0f)) {
+         for (size_t colIdx = 0; colIdx < cacCot.size(); ++colIdx) {
+             const auto& col = cacCot[colIdx];
+             ImGui::TableSetupColumn(col.tenCot.c_str(), col.flags, col.chieuRong);

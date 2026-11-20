@@ -215,58 +215,24 @@ void DatSanScreen::render() {
 }
 
 void DatSanScreen::renderThanhTienTrinh() {
-    // L\u00DD DO CH\u1ECCN: Stepper tr\u1EF1c quan 4 b\u01B0\u1EDBc chu\u1EA9n UX, lo\u1EA1i b\u1ECF ho\u00E0n to\u00E0n c\u00E1c chu\u1ED7i l\u1EB7p "B\u01B0\u1EDBc X",
-    // hi\u1EC3n th\u1ECB r\u00F5 b\u01B0\u1EDBc \u0111\u00E3 xong (t\u00EDch xanh), b\u01B0\u1EDBc hi\u1EC7n t\u1EA1i (n\u1EC1n n\u1ED5i b\u1EADt) v\u00E0 b\u01B0\u1EDBc ti\u1EBFp theo.
-    const char* steps[] = {
-        u8"1. Ch\u1ECDn c\u1EE5m s\u00E2n",
-        u8"2. Ch\u1ECDn s\u00E2n & lo\u1EA1i s\u00E2n",
-        u8"3. Ch\u1ECDn ng\u00E0y & ca \u0111\u00E1",
-        u8"4. X\u00E1c nh\u1EADn & \u01AFu \u0111\u00E3i"
-    };
-
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 16.0f);
-    ImGui::Columns(4, nullptr, false);
-
+    const char* steps[] = {u8"Chọn cơ sở", u8"Chọn sân", u8"Chọn giờ", u8"Xác nhận"};
+    using C = GUI::Theme::Colors;
+    const float width = ImGui::GetContentRegionAvail().x;
+    const float cell = width / 4.f;
+    const ImVec2 start = ImGui::GetCursorScreenPos();
+    auto* dl = ImGui::GetWindowDrawList();
+    const ImVec2 labelSize = ImGui::CalcTextSize("1");
     for (int i = 0; i < 4; ++i) {
-        const bool isDone = (buocHienTai_ > i + 1);
-        const bool isCurrent = (buocHienTai_ == i + 1);
-
-        if (isCurrent) {
-            ImGui::PushStyleColor(ImGuiCol_Button,        GUI::Theme::Colors::PrimaryLight);
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, GUI::Theme::Colors::PrimaryLight);
-            ImGui::PushStyleColor(ImGuiCol_Text,          GUI::Theme::Colors::PrimaryDark);
-            ImGui::PushStyleColor(ImGuiCol_Border,        GUI::Theme::Colors::Primary);
-            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.5f);
-        } else if (isDone) {
-            ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.95f, 0.98f, 0.96f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.95f, 0.98f, 0.96f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_Text,          GUI::Theme::Colors::Success);
-            ImGui::PushStyleColor(ImGuiCol_Border,        GUI::Theme::Colors::Success);
-            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
-        } else {
-            ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.96f, 0.96f, 0.96f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.96f, 0.96f, 0.96f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_Text,          GUI::Theme::Colors::TextSecondary);
-            ImGui::PushStyleColor(ImGuiCol_Border,        GUI::Theme::Colors::Border);
-            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
-        }
-
-        std::string label = isDone ? (std::string(u8"\u2713 ") + steps[i]) : steps[i];
-        ImGui::Button(label.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 32.0f));
-
-        ImGui::PopStyleVar();
-        ImGui::PopStyleColor(4);
-        ImGui::NextColumn();
+        const ImVec2 center(start.x + cell * (i + .5f), start.y + 15);
+        if (i < 3) dl->AddLine(ImVec2(center.x+16,center.y), ImVec2(center.x+cell-16,center.y), C::toU32(i+1<buocHienTai_?C::Primary:C::Border), 2);
+        const bool active = i+1 <= buocHienTai_;
+        dl->AddCircleFilled(center, 14, C::toU32(active?C::Primary:C::Border));
+        const std::string number = std::to_string(i+1);
+        dl->AddText(ImVec2(center.x-labelSize.x*.5f,center.y-labelSize.y*.5f), C::toU32(active?C::Surface:C::TextSecondary), number.c_str());
+        const ImVec2 size = ImGui::CalcTextSize(steps[i]);
+        dl->AddText(ImVec2(center.x-size.x*.5f,start.y+36), C::toU32(i+1==buocHienTai_?C::PrimaryDark:C::TextSecondary), steps[i]);
     }
-    ImGui::Columns(1);
-    ImGui::PopStyleVar();
-
-    Widgets::ProgressBar(
-        static_cast<float>(buocHienTai_) / 4.0f,
-        "",
-        ImVec2(-1.0f, 6.0f),
-        GUI::Theme::Colors::Primary
-    );
+    ImGui::Dummy(ImVec2(width, 58));
 }
 
-}  // namespace GUI::Screens::Renter
+} // namespace GUI::Screens::Renter

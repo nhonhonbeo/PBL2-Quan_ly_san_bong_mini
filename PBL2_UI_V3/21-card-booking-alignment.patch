@@ -1,0 +1,120 @@
+diff --git a/src/GUI/Screens/Renter/DatSanScreenBuoc1Va2.cpp b/src/GUI/Screens/Renter/DatSanScreenBuoc1Va2.cpp
+index a4256ef..fff3bca 100644
+--- a/src/GUI/Screens/Renter/DatSanScreenBuoc1Va2.cpp
++++ b/src/GUI/Screens/Renter/DatSanScreenBuoc1Va2.cpp
+@@ -89,9 +89,10 @@ void DatSanScreen::renderBuoc1ChonCoSo() {
+         }
+ 
+         float availableWidth = ImGui::GetContentRegionAvail().x;
+-        int numCols = static_cast<int>(availableWidth / 330.0f);
++        int numCols = static_cast<int>(availableWidth / 340.0f);
+         if (numCols < 1) numCols = 1;
+-        if (numCols > 4) numCols = 4;
++        if (numCols > 3) numCols = 3;
++        numCols = std::min(numCols, matchingCount);
+ 
+         if (ImGui::BeginTable("##cum_san_grid_table", numCols, ImGuiTableFlags_SizingStretchSame)) {
+             // Active facilities first; keep original relative order in each group.
+@@ -122,15 +123,15 @@ void DatSanScreen::renderTheCumSan(const VenueFacilityRecord& facility, int fiel
+     ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::Border);
+ 
+     std::string childId = "##card_" + facility.ownerId;
+-    if (ImGui::BeginChild(childId.c_str(), ImVec2(0.0f, 330.0f), true, ImGuiWindowFlags_None)) {
++    if (ImGui::BeginChild(childId.c_str(), ImVec2(0.0f, 348.0f), true, ImGuiWindowFlags_None)) {
+         ImDrawList* drawList = ImGui::GetWindowDrawList();
+ 
+         ImVec2 bannerP0 = ImGui::GetCursorScreenPos();
+         float bannerWidth = ImGui::GetContentRegionAvail().x;
+-        float bannerHeight = 66.0f;
++        float bannerHeight = 60.0f;
+         ImVec2 bannerP1(bannerP0.x + bannerWidth, bannerP0.y + bannerHeight);
+ 
+-        drawList->AddRectFilledMultiColor(bannerP0, bannerP1, IM_COL32(17, 105, 75, 255), IM_COL32(17, 105, 75, 255), IM_COL32(17, 105, 75, 255), IM_COL32(17, 105, 75, 255));
++        drawList->AddRectFilledMultiColor(bannerP0, bannerP1, IM_COL32(15, 95, 63, 255), IM_COL32(35, 143, 85, 255), IM_COL32(23, 116, 70, 255), IM_COL32(10, 83, 54, 255));
+ 
+         float midX = bannerP0.x + bannerWidth * 0.5f;
+         float midY = bannerP0.y + bannerHeight * 0.5f;
+@@ -146,12 +147,14 @@ void DatSanScreen::renderTheCumSan(const VenueFacilityRecord& facility, int fiel
+         ImFont* titleFont = GUI::Theme::getFonts().title;
+         if (titleFont != nullptr) ImGui::PushFont(titleFont);
+         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextPrimary);
+-        ImGui::TextWrapped("%s", facility.name.c_str());
++        ImGui::TextUnformatted(facility.name.c_str());
++        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s",facility.name.c_str());
+         ImGui::PopStyleColor();
+         if (titleFont != nullptr) ImGui::PopFont();
+ 
+         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
+-        ImGui::TextWrapped(u8"• Địa chỉ: %s", facility.address.c_str());
++        ImGui::TextUnformatted(facility.address.c_str());
++        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s",facility.address.c_str());
+ 
+         if (!facility.openTime.empty() && !facility.closeTime.empty())
+             ImGui::Text(u8"• Giờ mở cửa: %s - %s", facility.openTime.c_str(), facility.closeTime.c_str());
+@@ -166,7 +169,8 @@ void DatSanScreen::renderTheCumSan(const VenueFacilityRecord& facility, int fiel
+         ImGui::Spacing();
+ 
+         if (fieldCount == 0) {
+-            Widgets::BadgeBaoTri(u8"Ch\u01B0a c\u00F3 s\u00E2n s\u1EB5n s\u00E0ng");
++            Widgets::BadgeBaoTri(u8"Chưa có sân sẵn sàng");
++            ImGui::TextDisabled(u8"Chưa có giá thuê");
+         } else {
+             Widgets::BadgeTrong((std::to_string(fieldCount) + u8" s\u00E2n s\u1EB5n s\u00E0ng").c_str());
+             ImGui::TextColored(GUI::Theme::Colors::PrimaryDark, u8"Giá từ %s", dinhDangTien(lowestPrice).c_str());
+@@ -174,14 +178,14 @@ void DatSanScreen::renderTheCumSan(const VenueFacilityRecord& facility, int fiel
+ 
+         ImGui::Spacing();
+ 
+-        const float bottom = ImGui::GetWindowHeight() - 48.0f;
++        const float bottom = ImGui::GetWindowHeight() - 56.0f;
+         ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY(), bottom));
+         if (fieldCount == 0) {
+             ImGui::BeginDisabled(true);
+-            Widgets::NutPhu(u8"T\u1EA1m ng\u01B0ng \u0111\u00F3n kh\u00E1ch", ImVec2(ImGui::GetContentRegionAvail().x, 34.0f));
++            Widgets::NutPhu(u8"T\u1EA1m ng\u01B0ng \u0111\u00F3n kh\u00E1ch", ImVec2(ImGui::GetContentRegionAvail().x, 42.0f));
+             ImGui::EndDisabled();
+         } else {
+-            if (Widgets::NutChinh(u8"Chọn cụm sân", ImVec2(ImGui::GetContentRegionAvail().x, 34.0f))) {
++            if (Widgets::NutChinh(u8"Chọn cụm sân", ImVec2(ImGui::GetContentRegionAvail().x, 42.0f))) {
+                 chonCoSo(facility);
+             }
+         }
+diff --git a/src/GUI/Widgets/Card.cpp b/src/GUI/Widgets/Card.cpp
+index 61efe56..fe73564 100644
+--- a/src/GUI/Widgets/Card.cpp
++++ b/src/GUI/Widgets/Card.cpp
+@@ -24,7 +24,8 @@ void Card(const char* id, const char* tieuDe, float paddingX, float paddingY, co
+ 
+     // Kênh 1: Nội dung bên trong thẻ
+     splitter.SetCurrentChannel(drawList, 1);
+-    ImGui::SetCursorScreenPos(ImVec2(startCursor.x + paddingX, startCursor.y + paddingY));
++    ImGui::SetCursorScreenPos(ImVec2(startCursor.x, startCursor.y + paddingY));
++    ImGui::Indent(paddingX);
+     ImGui::BeginGroup();
+ 
+     // Tiêu đề thẻ (nếu có)
+@@ -39,7 +40,6 @@ void Card(const char* id, const char* tieuDe, float paddingX, float paddingY, co
+         if (titleFont != nullptr) ImGui::PopFont();
+ 
+         ImGui::Spacing();
+-        ImGui::Spacing();
+     }
+ 
+     // Thực thi lambda vẽ nội dung
+@@ -48,6 +48,7 @@ void Card(const char* id, const char* tieuDe, float paddingX, float paddingY, co
+     ImGui::EndGroup();
+ 
+     ImVec2 contentMax = ImGui::GetItemRectMax();
++    ImGui::Unindent(paddingX);
+     float finalHeight = (contentMax.y - startCursor.y) + paddingY;
+     ImVec2 cardMin = startCursor;
+     ImVec2 cardMax = ImVec2(startCursor.x + availableWidth, startCursor.y + finalHeight);
+@@ -66,7 +67,7 @@ void Card(const char* id, const char* tieuDe, float paddingX, float paddingY, co
+     splitter.Merge(drawList);
+ 
+     // Đẩy con trỏ layout xuống dưới thẻ vừa vẽ kèm khoảng cách 14px
+-    ImGui::SetCursorScreenPos(ImVec2(startCursor.x, cardMax.y + 14.0f));
++    ImGui::SetCursorScreenPos(ImVec2(startCursor.x, cardMax.y + 10.0f));
+ 
+     ImGui::PopID();
+ }

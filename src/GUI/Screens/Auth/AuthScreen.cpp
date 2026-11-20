@@ -57,7 +57,7 @@ void AuthScreen::render() {
         float totalH = ImGui::GetWindowHeight();
 
         // LÝ DO CHỌN: Tỷ lệ phân chia 42% (min 450px) cho cột Banner thương hiệu và phần còn lại cho Form
-        float bannerW = std::max(450.0f, totalW * 0.42f);
+        float bannerW = std::max(380.0f, totalW * 0.46f);
         float formW = totalW - bannerW;
 
         // 1. Cột trái: Banner nhận diện thương hiệu & Sân bóng vector illustration
@@ -95,7 +95,10 @@ void AuthScreen::renderBanner(float width, float height) {
         float centerX = width * 0.5f;
 
         // Vẽ huy hiệu logo hình tròn có vạch bóng thể thao đặt tại trung tâm
-        ImVec2 crestCenter(bannerMin.x + centerX, bannerMin.y + 36.0f);
+        const float heroPitchW = std::min(width - 64.0f, std::min(600.0f, std::max(260.0f, (height - 310.0f) / .54f)));
+        const float brandOffset = std::max(0.0f, (height - (heroPitchW * .54f + 245.0f)) * 0.5f);
+        for (int i=0;i<5;++i) drawList->AddCircle(ImVec2(bannerMin.x+width*.9f,bannerMin.y+height*.12f), 80.0f+i*58.0f, IM_COL32(255,255,255,18),64,1.5f);
+        ImVec2 crestCenter(bannerMin.x + centerX, bannerMin.y + 36.0f + brandOffset);
         float crestR = 20.0f;
         drawList->AddCircleFilled(crestCenter, crestR, IM_COL32(255, 255, 255, 35));
         drawList->AddCircle(crestCenter, crestR, IM_COL32(255, 255, 255, 220), 28, 2.0f);
@@ -108,10 +111,11 @@ void AuthScreen::renderBanner(float width, float height) {
         }
 
         // Tên dự án: viết to, đẹp và căn chính giữa
-        ImGui::SetCursorPosY(64.0f);
-        ImFont* headingFont = GUI::Theme::getFonts().heading;
+        ImGui::SetCursorPosY(64.0f + brandOffset);
+        ImFont* headingFont = GUI::Theme::getFonts().brand;
+        if (width < 500.0f) headingFont = GUI::Theme::getFonts().heading;
         if (headingFont != nullptr) ImGui::PushFont(headingFont);
-        const char* projectName = u8"QUẢN LÝ SÂN BÓNG MINI";
+        const char* projectName = u8"Quản lý sân bóng mini";
         ImVec2 nameSize = ImGui::CalcTextSize(projectName);
         ImGui::SetCursorPosX((width - nameSize.x) * 0.5f);
         ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 255, 255, 255));
@@ -122,7 +126,7 @@ void AuthScreen::renderBanner(float width, float height) {
         // Dòng phụ đề giới thiệu hệ thống (Căn chính giữa)
         ImFont* smallFont = GUI::Theme::getFonts().small;
         if (smallFont != nullptr) ImGui::PushFont(smallFont);
-        const char* subTitle = u8"Hệ Thống Quản Lý & Đặt Sân Bóng Đá Chuyên Nghiệp";
+        const char* subTitle = u8"Quản lý sân. Kết nối đam mê.";
         ImVec2 subSize = ImGui::CalcTextSize(subTitle);
         ImGui::SetCursorPosX((width - subSize.x) * 0.5f);
         ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(205, 245, 228, 240));
@@ -135,8 +139,7 @@ void AuthScreen::renderBanner(float width, float height) {
         // ==========================================
         // 2. VECTOR ILLUSTRATION: SÂN BÓNG MINI SẮC NÉT (CĂN GIỮA)
         // ==========================================
-        float availW = width - 48.0f;
-        float pitchW = std::min(availW, 360.0f);
+        float pitchW = heroPitchW;
         float pitchH = pitchW * 0.54f;
 
         float pitchStartX = bannerMin.x + (width - pitchW) * 0.5f;
@@ -234,7 +237,7 @@ void AuthScreen::renderBanner(float width, float height) {
         // 3. GIỚI THIỆU TÍNH NĂNG DỰ ÁN (CĂN LỀ VÀO NGAY CHÍNH GIỮA)
         // ==========================================
         auto veTheTinhNang = [width](const char* tieuDe, const char* moTa) {
-            float cardW = std::min(width - 56.0f, 380.0f);
+            float cardW = std::min(width - 56.0f, 540.0f);
             float startX = (width - cardW) * 0.5f;
 
             ImGui::SetCursorPosX(startX);
@@ -269,9 +272,7 @@ void AuthScreen::renderBanner(float width, float height) {
             ImGui::SetCursorScreenPos(ImVec2(c0.x, c1.y + 8.0f));
         };
 
-        veTheTinhNang(u8"Quản lý sân & Lịch thi đấu thông minh", u8"Tự động phân bổ ca đá, kiểm soát khung giờ, chống trùng lịch.");
-        veTheTinhNang(u8"Đặt sân trực tuyến & Giữ chỗ tức thì 24/7", u8"Tra cứu tình trạng sân theo thời gian thực, bảng giá minh bạch.");
-        veTheTinhNang(u8"Thông tin khách hàng & Giải đấu phong trào", u8"Theo dõi lịch sử đặt sân, đánh giá và quản lý giải giao hữu.");
+        veTheTinhNang(u8"Sân bóng, lịch đặt và giải đấu", u8"Mọi thao tác trong một không gian quản lý.");
 
     }
     ImGui::EndChild();
@@ -284,11 +285,11 @@ void AuthScreen::renderFormCard(float width, float height) {
     ImGui::PushStyleColor(ImGuiCol_ChildBg, GUI::Theme::Colors::Background);
 
     if (ImGui::BeginChild("##AuthFormArea", ImVec2(width, height), false)) {
-        float cardWidth = std::min(460.0f, width - 48.0f);
+        float cardWidth = std::min(600.0f, width - 48.0f);
         float startX = (width - cardWidth) * 0.5f;
 
         // Căn giữa form theo trục dọc với khoảng đệm hợp lý
-        float cardHeight = std::min(height - 48.0f, activeTab_ == 0 ? 560.0f : 660.0f);
+        float cardHeight = std::min(height - 48.0f, activeTab_ == 0 ? 600.0f : 780.0f);
         float startY = std::max(24.0f, (height - cardHeight) * 0.5f);
 
         ImGui::SetCursorPos(ImVec2(startX, startY));
@@ -296,7 +297,7 @@ void AuthScreen::renderFormCard(float width, float height) {
         ImGui::PushStyleColor(ImGuiCol_ChildBg, GUI::Theme::Colors::Surface);
         ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::Border);
         ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 10.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(28.0f, 26.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(32.0f, 30.0f));
 
         if (ImGui::BeginChild("##AuthCardBox", ImVec2(cardWidth, cardHeight), true)) {
             // ==========================================
@@ -346,7 +347,7 @@ void AuthScreen::renderFormCard(float width, float height) {
 }
 
 void AuthScreen::renderTabDangNhap() {
-    ImFont* titleFont = GUI::Theme::getFonts().title;
+    ImFont* titleFont = GUI::Theme::getFonts().heading;
     if (titleFont != nullptr) ImGui::PushFont(titleFont);
     ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextPrimary);
     ImGui::TextUnformatted(u8"Chào mừng trở lại!");
@@ -356,7 +357,7 @@ void AuthScreen::renderTabDangNhap() {
     ImFont* smallFont = GUI::Theme::getFonts().small;
     if (smallFont != nullptr) ImGui::PushFont(smallFont);
     ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
-    ImGui::TextUnformatted(u8"Nhập số điện thoại và mật khẩu để tiếp tục vào hệ thống");
+    ImGui::TextUnformatted(u8"Đăng nhập để quản lý hoặc đặt sân.");
     ImGui::PopStyleColor();
     if (smallFont != nullptr) ImGui::PopFont();
 
@@ -367,7 +368,7 @@ void AuthScreen::renderTabDangNhap() {
     // KHU VỰC TÀI KHOẢN MẪU
     // ==========================================
     ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
-    ImGui::TextUnformatted(u8"Tài khoản dùng thử (bấm để tự điền):");
+    ImGui::TextUnformatted(u8"Trải nghiệm với tài khoản mẫu");
     ImGui::PopStyleColor();
     ImGui::Spacing();
 
@@ -442,7 +443,7 @@ void AuthScreen::renderTabDangNhap() {
         ImGui::BeginDisabled();
         char lockText[64];
         std::snprintf(lockText, sizeof(lockText), u8"Tạm khóa (thử lại sau %.0fs)", std::ceil(thoiGianKhoaConLai_));
-        Widgets::NutPhu(lockText, ImVec2(-1.0f, 42.0f));
+        Widgets::NutPhu(lockText, ImVec2(-1.0f, 50.0f));
         ImGui::EndDisabled();
 
         ImGui::Spacing();
@@ -450,14 +451,14 @@ void AuthScreen::renderTabDangNhap() {
         ImGui::TextWrapped(u8"Bạn đã nhập sai mật khẩu 3 lần. Hệ thống tạm khóa 10 giây để bảo vệ an toàn.");
         ImGui::PopStyleColor();
     } else {
-        if (Widgets::NutChinh(u8"Đăng nhập ngay", ImVec2(-1.0f, 42.0f))) {
+        if (Widgets::NutChinh(u8"Đăng nhập ngay", ImVec2(-1.0f, 50.0f))) {
             xuLyDangNhap();
         }
     }
 }
 
 void AuthScreen::renderTabDangKy() {
-    ImFont* titleFont = GUI::Theme::getFonts().title;
+    ImFont* titleFont = GUI::Theme::getFonts().heading;
     if (titleFont != nullptr) ImGui::PushFont(titleFont);
     ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextPrimary);
     ImGui::TextUnformatted(u8"Tạo tài khoản mới");
@@ -592,7 +593,7 @@ void AuthScreen::renderTabDangKy() {
     );
     ImGui::Spacing();
 
-    if (Widgets::NutChinh(u8"Hoàn tất đăng ký tài khoản", ImVec2(-1.0f, 42.0f))) {
+    if (Widgets::NutChinh(u8"Hoàn tất đăng ký tài khoản", ImVec2(-1.0f, 50.0f))) {
         xuLyDangKy();
     }
 }

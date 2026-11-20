@@ -88,6 +88,17 @@ int main() {
     assert(manager.writeAllLines(target.string(), originalLines, error));
     const std::string originalContent = readFile(target);
 
+    // Windows CRLF and Unix LF must produce identical logical records.
+    writeFile("data/crlf.txt", "first|record\r\nsecond|record\nlast|record");
+    LinkedList<std::string> normalized;
+    assert(manager.readAllLines("data/crlf.txt", normalized, error));
+    auto* line = normalized.get_head();
+    assert(line && line->data == "first|record");
+    line = line->next;
+    assert(line && line->data == "second|record");
+    line = line->next;
+    assert(line && line->data == "last|record" && !line->next);
+
     LinkedList<std::string> invalidLines;
     invalidLines.push_back("first line\ninjected record");
     assert(!manager.writeAllLines(target.string(), invalidLines, error));

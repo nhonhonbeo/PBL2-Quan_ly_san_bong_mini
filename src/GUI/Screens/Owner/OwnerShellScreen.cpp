@@ -98,7 +98,7 @@ void OwnerShellScreen::render() {
         // Modal xác nhận đăng xuất
         Widgets::ModalXacNhan(
             u8"Xác nhận đăng xuất",
-            u8"Xác nhận đăng xuất khỏi phiên làm việc của Chủ sân.\nMọi thay đổi chưa lưu sẽ được hệ thống tự động đồng bộ an toàn.",
+            u8"Xác nhận đăng xuất khỏi phiên làm việc của Chủ sân.\nHãy lưu các thay đổi cần thiết trước khi đăng xuất.",
             []() {
                 GUI::App::Session::getInstance().logout();
                 Widgets::ToastThongTin(u8"Đã đăng xuất tài khoản Chủ sân an toàn!");
@@ -118,18 +118,18 @@ void OwnerShellScreen::render() {
 
 void OwnerShellScreen::renderSidebar() {
     std::vector<Widgets::SidebarItem> menuItems = {
-        {"0", "", u8"Tổng quan cơ sở"},
-        {"1", "", u8"Quản lý sân bóng"},
-        {"2", "", u8"Khởi tạo sân mới"},
-        {"3", "", u8"Quản lý khách hàng"},
-        {"4", "", u8"Quản lý giải đấu"}
+        {"0", "dashboard", u8"Tổng quan"},
+        {"1", "pitch", u8"Sân bóng"},
+        {"2", "plus", u8"Khởi tạo sân"},
+        {"3", "users", u8"Khách hàng"},
+        {"4", "trophy", u8"Giải đấu"}
     };
 
     int prevTab = selectedTab_;
     Widgets::Sidebar(
         menuItems,
         selectedTab_,
-        240.0f,
+        224.0f,
         [this]() {
             yeuCauDangXuat_ = true;
         }
@@ -146,15 +146,15 @@ void OwnerShellScreen::renderSidebar() {
 
 void OwnerShellScreen::renderTopBar() {
     const char* tabTitles[] = {
-        u8"Tổng quan & Báo cáo cơ sở sân",
-        u8"Quản lý danh sách sân & Lịch đặt",
-        u8"Khởi tạo sân bóng mới (Wizard 4 bước)",
-        u8"Quản lý danh bạ khách hàng & Thống kê đặt sân",
-        u8"Quản lý sự kiện & Giải đấu thể thao"
+        u8"Tổng quan",
+        u8"Sân bóng",
+        u8"Khởi tạo sân",
+        u8"Khách hàng",
+        u8"Giải đấu"
     };
 
     std::string currentTabName = tabTitles[selectedTab_];
-    std::vector<std::string> breadcrumbs = {u8"Chủ sân", currentTabName};
+    std::vector<std::string> breadcrumbs = {u8"Chủ sân"};
 
     User* user = GUI::App::Session::getInstance().getUser();
     std::string userName = user ? user->get_name() : u8"Chủ sân bóng";
@@ -164,7 +164,7 @@ void OwnerShellScreen::renderTopBar() {
         breadcrumbs,
         userName.c_str(),
         u8"Chủ sân",
-        60.0f,
+        84.0f,
         nullptr  // Đăng xuất chỉ đặt ở sidebar, tránh trùng lặp
     );
 }

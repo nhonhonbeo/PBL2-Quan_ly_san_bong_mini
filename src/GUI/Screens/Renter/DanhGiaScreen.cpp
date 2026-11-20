@@ -90,7 +90,7 @@ void DanhGiaScreen::renderFormDanhGia() {
         }
 
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-        ImGui::TextWrapped(u8"Chia sẻ cảm nhận thực tế của bạn về chất lượng sân bãi, dàn đèn chiếu sáng, mặt cỏ và dịch vụ:");
+        ImGui::TextWrapped(u8"Chia sẻ trải nghiệm của bạn về sân và dịch vụ.");
         ImGui::PopStyleColor();
         ImGui::Spacing();
         ImGui::Spacing();
@@ -137,7 +137,7 @@ void DanhGiaScreen::renderFormDanhGia() {
         ImGui::PushStyleColor(ImGuiCol_FrameBg, GUI::Theme::Colors::WhiteCard);
         ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::InputBorder);
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.5f);
-        if (ImGui::InputTextMultiline("##r_review_text", buf, sizeof(buf), ImVec2(-1.0f, 90.0f))) {
+        if (ImGui::InputTextMultiline("##r_review_text", buf, sizeof(buf), ImVec2(-1.0f, 110.0f))) {
             formNoiDung_ = buf;
         }
         ImGui::PopStyleVar();
@@ -162,7 +162,7 @@ void DanhGiaScreen::renderFormDanhGia() {
         // Nút Gửi / Cập nhật
         if (formDanhGiaIdDangSua_.empty()) {
             ImGui::BeginDisabled(!duDieuKienDanhGia || formNoiDung_.empty());
-            if (Widgets::NutChinh(u8"Gửi đánh giá & Nhận xét", ImVec2(240.0f, 36.0f))) {
+            if (Widgets::NutChinh(u8"Gửi đánh giá", ImVec2(240.0f, 36.0f))) {
                 User* curUser = GUI::App::Session::getInstance().getUser();
                 std::string sdt = curUser ? curUser->get_phone_number() : "0909876543";
                 std::string ten = curUser ? curUser->get_name() : u8"Người thuê";
@@ -184,7 +184,7 @@ void DanhGiaScreen::renderFormDanhGia() {
             ImGui::EndDisabled();
         } else {
             ImGui::BeginDisabled(!duDieuKienDanhGia || formNoiDung_.empty());
-            if (Widgets::NutChinh(u8"Lưu cập nhật đánh giá", ImVec2(200.0f, 36.0f))) {
+            if (Widgets::NutChinh(u8"Lưu thay đổi", ImVec2(200.0f, 36.0f))) {
                 User* curUser = GUI::App::Session::getInstance().getUser();
                 std::string sdt = curUser ? curUser->get_phone_number() : "0909876543";
                 std::string ten = curUser ? curUser->get_name() : u8"Người thuê";
@@ -240,7 +240,7 @@ void DanhGiaScreen::renderDanhSachDanhGiaCuaToi() {
 
             // Nút Chỉnh sửa đánh giá cũ của mình
             std::string btnEditId = u8"Chỉnh sửa##dg_" + dg.id;
-            if (Widgets::NutPhu(btnEditId.c_str(), ImVec2(80.0f, 22.0f))) {
+            if (Widgets::NutPhu(btnEditId.c_str(), ImVec2(96.0f, 34.0f))) {
                 formDanhGiaIdDangSua_ = dg.id;
                 formSoSao_ = dg.soSao;
                 formNoiDung_ = dg.noiDung;

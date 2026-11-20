@@ -109,18 +109,18 @@ void RenterShellScreen::render() {
 
 void RenterShellScreen::renderSidebar() {
     std::vector<Widgets::SidebarItem> menuItems = {
-        {"0", "", u8"Đặt sân trực tuyến"},
-        {"1", "", u8"Lịch đặt của tôi"},
-        {"2", "", u8"Đăng ký tạo giải"},
-        {"3", "", u8"Đánh giá sân bóng"},
-        {"4", "", u8"Thông tin cá nhân"}
+        {"0", "pitch", u8"Đặt sân"},
+        {"1", "calendar", u8"Lịch đặt của tôi"},
+        {"2", "trophy", u8"Tổ chức giải"},
+        {"3", "star", u8"Đánh giá sân"},
+        {"4", "users", u8"Hồ sơ cá nhân"}
     };
 
     int prevTab = selectedTab_;
     Widgets::Sidebar(
         menuItems,
         selectedTab_,
-        240.0f,
+        224.0f,
         [this]() {
             yeuCauDangXuat_ = true;
         }
@@ -137,15 +137,15 @@ void RenterShellScreen::renderSidebar() {
 
 void RenterShellScreen::renderTopBar() {
     const char* tabTitles[] = {
-        u8"Đặt sân bóng trực tuyến (Quy trình 4 bước)",
-        u8"Lịch đặt của tôi & Quản lý hủy đơn",
-        u8"Đăng ký tổ chức giải đấu phong trào",
-        u8"Đánh giá chất lượng dịch vụ & Sân bóng",
-        u8"Hồ sơ cá nhân & Đổi mật khẩu tài khoản"
+        u8"Đặt sân bóng",
+        u8"Lịch đặt của tôi",
+        u8"Tổ chức giải đấu",
+        u8"Đánh giá sân",
+        u8"Hồ sơ cá nhân"
     };
 
     std::string currentTabName = tabTitles[selectedTab_];
-    std::vector<std::string> breadcrumbs = {u8"Người thuê", currentTabName};
+    std::vector<std::string> breadcrumbs = {u8"Người thuê"};
 
     User* user = GUI::App::Session::getInstance().getUser();
     std::string userName = user ? user->get_name() : u8"Người thuê sân";
@@ -155,7 +155,7 @@ void RenterShellScreen::renderTopBar() {
         breadcrumbs,
         userName.c_str(),
         u8"Người thuê",
-        60.0f,
+        84.0f,
         nullptr  // Đăng xuất chỉ đặt ở sidebar, tránh trùng lặp
     );
 }

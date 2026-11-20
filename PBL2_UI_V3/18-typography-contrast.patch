@@ -1,0 +1,57 @@
+diff --git a/include/GUI/Theme/Theme.h b/include/GUI/Theme/Theme.h
+index ecd3358..65d5105 100644
+--- a/include/GUI/Theme/Theme.h
++++ b/include/GUI/Theme/Theme.h
+@@ -18,23 +18,23 @@ struct Colors {
+     static constexpr ImVec4 DarkGreen    = PrimaryDark;
+ 
+     // 2. Nền & Bề mặt (Background & Surface)
+-    static constexpr ImVec4 Background   = ImVec4(0.961f, 0.969f, 0.965f, 1.0f); // #F3F6F8 - Nền ứng dụng sáng dịu
++    static constexpr ImVec4 Background   = ImVec4(0.941f, 0.949f, 0.961f, 1.0f); // #F3F6F8 - Nền ứng dụng sáng dịu
+     static constexpr ImVec4 LightBg      = Background;
+     static constexpr ImVec4 Surface      = ImVec4(1.000f, 1.000f, 1.000f, 1.0f); // #FFFFFF - Bề mặt card/panel
+     static constexpr ImVec4 WhiteCard    = Surface;
+ 
+     // 3. Văn bản & Phân cấp thị giác (Typography Colors)
+-    static constexpr ImVec4 TextPrimary   = ImVec4(0.094f, 0.169f, 0.141f, 1.0f); // #182B24 - Chữ chính đậm nét
++    static constexpr ImVec4 TextPrimary   = ImVec4(0.067f, 0.094f, 0.153f, 1.0f); // #182B24 - Chữ chính đậm nét
+     static constexpr ImVec4 DarkText      = TextPrimary;
+-    static constexpr ImVec4 TextSecondary = ImVec4(0.373f, 0.420f, 0.392f, 1.0f); // #5F6B64 - Chữ phụ/nhãn/breadcrumb (tương phản >= 4.5:1 trên nền trắng)
++    static constexpr ImVec4 TextSecondary = ImVec4(0.204f, 0.255f, 0.333f, 1.0f); // #5F6B64 - Chữ phụ/nhãn/breadcrumb (tương phản >= 4.5:1 trên nền trắng)
+     static constexpr ImVec4 MutedText     = TextSecondary;
+-    static constexpr ImVec4 Gray          = ImVec4(0.612f, 0.639f, 0.686f, 1.0f); // #9CA3AF - Xám vô hiệu hóa
++    static constexpr ImVec4 Gray          = ImVec4(0.40f, 0.46f, 0.54f, 1.0f); // #9CA3AF - Xám vô hiệu hóa
+ 
+     // 4. Đường viền & Tương tác (Borders & Hover)
+-    static constexpr ImVec4 Border        = ImVec4(0.886f, 0.910f, 0.898f, 1.0f); // #E2E8E5 - Viền chuẩn
++    static constexpr ImVec4 Border        = ImVec4(0.855f, 0.882f, 0.906f, 1.0f); // #E2E8E5 - Viền chuẩn
+     static constexpr ImVec4 BorderLight   = Border;
+-    static constexpr ImVec4 InputBorder   = ImVec4(0.824f, 0.863f, 0.843f, 1.0f); // #D2DCD7 - Viền ô nhập tương phản tốt
+-    static constexpr ImVec4 GrayHover     = ImVec4(0.973f, 0.980f, 0.976f, 1.0f); // #F8FAF9 - Nền hover nhẹ
++    static constexpr ImVec4 InputBorder   = ImVec4(0.64f, 0.70f, 0.74f, 1.0f); // #D2DCD7 - Viền ô nhập tương phản tốt
++    static constexpr ImVec4 GrayHover     = ImVec4(0.938f, 0.950f, 0.958f, 1.0f); // #F8FAF9 - Nền hover nhẹ
+ 
+     // 5. Trạng thái ngữ nghĩa (Status / Semantic Colors)
+     static constexpr ImVec4 Success       = ImVec4(0.078f, 0.435f, 0.267f, 1.0f); // #16A36A - Thành công / Trống
+diff --git a/src/GUI/Theme/Fonts.cpp b/src/GUI/Theme/Fonts.cpp
+index 3d3777c..f034b42 100644
+--- a/src/GUI/Theme/Fonts.cpp
++++ b/src/GUI/Theme/Fonts.cpp
+@@ -215,12 +215,12 @@ Fonts loadFonts() {
+     // - heading: 24px (tiêu đề màn hình)
+     // - title:   18px (tiêu đề khu vực, card header)
+     // - small:   14px (nhãn phụ, badge, footnote)
+-    fonts.regular = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 15.0F, &config, glyphRanges.Data);
+-    fonts.heading = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 26.0F, &config, glyphRanges.Data);
+-    fonts.title   = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 18.0F, &config, glyphRanges.Data);
+-    fonts.small   = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 13.0F, &config, glyphRanges.Data);
++    fonts.regular = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 17.0F, &config, glyphRanges.Data);
++    fonts.heading = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 30.0F, &config, glyphRanges.Data);
++    fonts.title   = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 21.0F, &config, glyphRanges.Data);
++    fonts.small   = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 15.0F, &config, glyphRanges.Data);
+ 
+-    fonts.metric = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 30.0F, &config, glyphRanges.Data);
++    fonts.metric = io.Fonts->AddFontFromMemoryTTF(fontData.data(), dataSize, 32.0F, &config, glyphRanges.Data);
+ 
+     if (fonts.regular == nullptr || fonts.heading == nullptr || fonts.title == nullptr || fonts.small == nullptr || fonts.metric == nullptr) {
+         io.Fonts->Clear();

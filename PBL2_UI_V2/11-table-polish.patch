@@ -1,0 +1,97 @@
+diff --git a/src/GUI/Screens/Owner/DashboardScreen.cpp b/src/GUI/Screens/Owner/DashboardScreen.cpp
+index c1e9704..0169731 100644
+--- a/src/GUI/Screens/Owner/DashboardScreen.cpp
++++ b/src/GUI/Screens/Owner/DashboardScreen.cpp
+@@ -287,8 +287,8 @@ void DashboardScreen::renderUpcomingBookings() {
+         }
+ 
+         ImGuiTableFlags flags = ImGuiTableFlags_RowBg |
+-                                ImGuiTableFlags_BordersInnerV |
+-                                ImGuiTableFlags_BordersOuter |
++                                ImGuiTableFlags_BordersInnerH |
++                                
+                                 ImGuiTableFlags_SizingStretchProp;
+ 
+         const float minTableWidth = 1050.0f;
+diff --git a/src/GUI/Screens/Owner/FieldManagementScreenTabs.cpp b/src/GUI/Screens/Owner/FieldManagementScreenTabs.cpp
+index 4279c2f..fce1d62 100644
+--- a/src/GUI/Screens/Owner/FieldManagementScreenTabs.cpp
++++ b/src/GUI/Screens/Owner/FieldManagementScreenTabs.cpp
+@@ -62,7 +62,7 @@ void FieldManagementScreen::renderTabKhungGio() {
+         ImGui::TextUnformatted(u8"Danh sách khung giờ đang áp dụng:");
+         ImGui::Spacing();
+ 
+-        if (ImGui::BeginTable("##tbl_khung_gio", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
++        if (ImGui::BeginTable("##tbl_khung_gio", 4, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_RowBg)) {
+             ImGui::TableSetupColumn(u8"Mã KG", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+             ImGui::TableSetupColumn(u8"Giờ bắt đầu", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+             ImGui::TableSetupColumn(u8"Giờ kết thúc", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+@@ -107,7 +107,7 @@ void FieldManagementScreen::renderTabGiaThueMaTran() {
+         ImGui::Spacing();
+ 
+         auto& facade = GUI::App::Facade::getInstance();
+-        ImGuiTableFlags flags = ImGuiTableFlags_Borders |
++        ImGuiTableFlags flags = ImGuiTableFlags_BordersInnerH |
+                                 ImGuiTableFlags_RowBg |
+                                 ImGuiTableFlags_SizingStretchSame;
+ 
+diff --git a/src/GUI/Widgets/Table.cpp b/src/GUI/Widgets/Table.cpp
+index 3a80d53..7e1ea88 100644
+--- a/src/GUI/Widgets/Table.cpp
++++ b/src/GUI/Widgets/Table.cpp
+@@ -112,6 +112,7 @@ bool Table(
+     // 4. TÍNH TOÁN PHÂN TRANG
+     // ==========================================
+     int totalItems = static_cast<int>(filteredIndices.size());
++    state.soDongMoiTrang = std::max(1, state.soDongMoiTrang);
+     int totalPages = (totalItems + state.soDongMoiTrang - 1) / state.soDongMoiTrang;
+     if (totalPages < 1) totalPages = 1;
+     if (state.trangHienTai > totalPages) state.trangHienTai = totalPages;
+@@ -124,8 +125,7 @@ bool Table(
+     // 5. HIỂN THỊ IMGUI TABLE
+     // ==========================================
+     ImGuiTableFlags flags = ImGuiTableFlags_RowBg |
+-                            ImGuiTableFlags_BordersInnerV |
+-                            ImGuiTableFlags_BordersOuter |
++                            ImGuiTableFlags_BordersInnerH |
+                             ImGuiTableFlags_Resizable |
+                             ImGuiTableFlags_Reorderable |
+                             ImGuiTableFlags_Sortable |
+@@ -162,11 +162,15 @@ bool Table(
+             }
+         }
+ 
++        if (totalItems == 0) {
++            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0);
++            ImGui::TextDisabled(u8"Không có kết quả");
++        }
+         for (int i = startIndex; i < endIndex; ++i) {
+             size_t origIdx = filteredIndices[i];
+             const auto& row = danhSachDong[origIdx];
+ 
+-            ImGui::TableNextRow();
++            ImGui::TableNextRow(ImGuiTableRowFlags_None, 42.0f);
+             bool isRowSelected = (state.dongDangChon == static_cast<int>(origIdx));
+ 
+             for (size_t colIdx = 0; colIdx < cacCot.size(); ++colIdx) {
+@@ -190,6 +194,8 @@ bool Table(
+                 } else {
+                     std::string cellText = (colIdx < row.oDuLieu.size()) ? row.oDuLieu[colIdx] : "";
+                     ImGui::TextUnformatted(cellText.c_str());
++                    if (ImGui::IsItemHovered() && ImGui::CalcTextSize(cellText.c_str()).x > ImGui::GetContentRegionAvail().x)
++                        ImGui::SetTooltip("%s", cellText.c_str());
+                 }
+             }
+         }
+@@ -214,9 +220,10 @@ bool Table(
+ 
+     if (smallFont != nullptr) ImGui::PopFont();
+ 
++    if (totalPages == 1) { ImGui::PopID(); return clickedRowEvent; }
+     ImGui::SameLine();
+     float navWidth = 260.0f;
+-    ImGui::SetCursorPosX(availWidth - navWidth);
++    if (availWidth > 480.0f) ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), availWidth - navWidth));
+ 
+     bool disablePrev = (state.trangHienTai <= 1);
+     bool disableNext = (state.trangHienTai >= totalPages);

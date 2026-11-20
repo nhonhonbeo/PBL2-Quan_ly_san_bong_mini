@@ -1,0 +1,65 @@
+diff --git a/src/GUI/Screens/Owner/DashboardScreen.cpp b/src/GUI/Screens/Owner/DashboardScreen.cpp
+index 0169731..8078f66 100644
+--- a/src/GUI/Screens/Owner/DashboardScreen.cpp
++++ b/src/GUI/Screens/Owner/DashboardScreen.cpp
+@@ -52,26 +52,26 @@ void DashboardScreen::render() {
+ void DashboardScreen::renderStatCards() {
+     float availW = ImGui::GetContentRegionAvail().x;
+     float cardSpacing = 16.0f;
+-    const int columns = availW >= 1000.0f ? 4 : (availW >= 520.0f ? 2 : 1);
++    const int columns = availW >= 980.0f ? 4 : (availW >= 520.0f ? 2 : 1);
+     float cardW = (availW - cardSpacing * (columns - 1)) / columns;
+ 
+     auto veTheKPI = [cardW](const char* id, const char* icon, const char* tieuDe, const char* giaTri, const char* moTa, ImVec4 accentColor) {
+         ImGui::PushID(id);
+         ImVec2 p0 = ImGui::GetCursorScreenPos();
+-        float cardH = 118.0f;
++        float cardH = 132.0f;
+         ImVec2 p1 = ImVec2(p0.x + cardW, p0.y + cardH);
+ 
+         ImDrawList* dl = ImGui::GetWindowDrawList();
+ 
+         // 1. Bóng đổ khuếch tán nhẹ
+-        dl->AddRectFilled(ImVec2(p0.x, p0.y + 2.0f), ImVec2(p1.x, p1.y + 4.0f), IM_COL32(0, 0, 0, 10), 8.0f);
++
+ 
+         // 2. Nền trắng và viền chuẩn
+         dl->AddRectFilled(p0, p1, GUI::Theme::Colors::toU32(GUI::Theme::Colors::Surface), 8.0f);
+         dl->AddRect(p0, p1, GUI::Theme::Colors::toU32(GUI::Theme::Colors::Border), 8.0f, 0, 1.0f);
+ 
+         // 3. Vạch màu chỉ báo trên đỉnh
+-        dl->AddRectFilled(p0, ImVec2(p1.x, p0.y + 3.5f), GUI::Theme::Colors::toU32(accentColor), 8.0f, ImDrawFlags_RoundCornersTop);
++
+ 
+         // 4. Nội dung text
+         ImGui::SetCursorScreenPos(ImVec2(p0.x + 18.0f, p0.y + 14.0f));
+@@ -87,7 +87,7 @@ void DashboardScreen::renderStatCards() {
+ 
+         ImGui::Spacing();
+ 
+-        ImFont* headingFont = GUI::Theme::getFonts().heading;
++        ImFont* headingFont = GUI::Theme::getFonts().metric;
+         if (headingFont != nullptr) ImGui::PushFont(headingFont);
+         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextPrimary);
+         ImGui::TextUnformatted(giaTri);
+@@ -97,7 +97,7 @@ void DashboardScreen::renderStatCards() {
+         ImGui::Spacing();
+ 
+         if (smallFont != nullptr) ImGui::PushFont(smallFont);
+-        ImGui::PushStyleColor(ImGuiCol_Text, accentColor);
++        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
+         ImGui::TextUnformatted(moTa);
+         ImGui::PopStyleColor();
+         if (smallFont != nullptr) ImGui::PopFont();
+@@ -159,7 +159,10 @@ void DashboardScreen::renderRevenueChart() {
+     Widgets::Card("card_revenue_chart", u8"Biểu đồ doanh thu 7 ngày gần nhất", [this]() {
+         if (doanhThu7Ngay_.isEmpty()) {
+             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
+-            ImGui::TextUnformatted(u8"Chưa có dữ liệu doanh thu gần đây.");
++            ImGui::Dummy(ImVec2(0, 18));
++            ImGui::TextUnformatted(u8"Chưa có dữ liệu doanh thu");
++            ImGui::TextWrapped(u8"Doanh thu từ các đơn hoàn thành sẽ hiển thị tại đây.");
++            ImGui::Dummy(ImVec2(0, 18));
+             ImGui::PopStyleColor();
+             return;
+         }

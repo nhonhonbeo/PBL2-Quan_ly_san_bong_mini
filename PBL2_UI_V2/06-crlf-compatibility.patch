@@ -1,0 +1,34 @@
+diff --git a/src/features/Storage/FileManager.cpp b/src/features/Storage/FileManager.cpp
+index 4bfb6ce..ff073da 100644
+--- a/src/features/Storage/FileManager.cpp
++++ b/src/features/Storage/FileManager.cpp
+@@ -270,6 +270,7 @@ FileReadStatus FileManager::readAllLinesWithStatus(
+     LinkedList<std::string> loadedLines;
+     std::string line;
+     while (std::getline(input, line)) {
++        if (!line.empty() && line.back() == '\r') line.pop_back();
+         loadedLines.push_back(line);
+     }
+     if (input.bad() || !input.eof()) {
+diff --git a/tests/test_file_manager.cpp b/tests/test_file_manager.cpp
+index 1774647..d0e6e50 100644
+--- a/tests/test_file_manager.cpp
++++ b/tests/test_file_manager.cpp
+@@ -88,6 +88,17 @@ int main() {
+     assert(manager.writeAllLines(target.string(), originalLines, error));
+     const std::string originalContent = readFile(target);
+ 
++    // Windows CRLF and Unix LF must produce identical logical records.
++    writeFile("data/crlf.txt", "first|record\r\nsecond|record\nlast|record");
++    LinkedList<std::string> normalized;
++    assert(manager.readAllLines("data/crlf.txt", normalized, error));
++    auto* line = normalized.get_head();
++    assert(line && line->data == "first|record");
++    line = line->next;
++    assert(line && line->data == "second|record");
++    line = line->next;
++    assert(line && line->data == "last|record" && !line->next);
++
+     LinkedList<std::string> invalidLines;
+     invalidLines.push_back("first line\ninjected record");
+     assert(!manager.writeAllLines(target.string(), invalidLines, error));

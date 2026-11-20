@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cfloat>
 #include <iomanip>
 #include <sstream>
 #include <imgui.h>
@@ -52,28 +53,29 @@ void DashboardScreen::render() {
 void DashboardScreen::renderStatCards() {
     float availW = ImGui::GetContentRegionAvail().x;
     float cardSpacing = 16.0f;
-    float cardW = (availW - cardSpacing * 3.0f) / 4.0f;
+    const int columns = availW >= 980.0f ? 4 : (availW >= 520.0f ? 2 : 1);
+    float cardW = (availW - cardSpacing * (columns - 1)) / columns;
 
     auto veTheKPI = [cardW](const char* id, const char* icon, const char* tieuDe, const char* giaTri, const char* moTa, ImVec4 accentColor) {
         ImGui::PushID(id);
         ImVec2 p0 = ImGui::GetCursorScreenPos();
-        float cardH = 118.0f;
+        float cardH = 128.0f;
         ImVec2 p1 = ImVec2(p0.x + cardW, p0.y + cardH);
 
         ImDrawList* dl = ImGui::GetWindowDrawList();
 
         // 1. Bóng đổ khuếch tán nhẹ
-        dl->AddRectFilled(ImVec2(p0.x, p0.y + 2.0f), ImVec2(p1.x, p1.y + 4.0f), IM_COL32(0, 0, 0, 10), 8.0f);
+
 
         // 2. Nền trắng và viền chuẩn
         dl->AddRectFilled(p0, p1, GUI::Theme::Colors::toU32(GUI::Theme::Colors::Surface), 8.0f);
         dl->AddRect(p0, p1, GUI::Theme::Colors::toU32(GUI::Theme::Colors::Border), 8.0f, 0, 1.0f);
 
-        // 3. Vạch màu chỉ báo trên đỉnh
-        dl->AddRectFilled(p0, ImVec2(p1.x, p0.y + 3.5f), GUI::Theme::Colors::toU32(accentColor), 8.0f, ImDrawFlags_RoundCornersTop);
+        dl->AddRectFilled(p0, ImVec2(p1.x,p0.y+4), GUI::Theme::Colors::toU32(accentColor), 8, ImDrawFlags_RoundCornersTop);
 
         // 4. Nội dung text
         ImGui::SetCursorScreenPos(ImVec2(p0.x + 18.0f, p0.y + 14.0f));
+        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + cardW - 36.0f);
         ImGui::BeginGroup();
 
         ImFont* smallFont = GUI::Theme::getFonts().small;
@@ -85,7 +87,8 @@ void DashboardScreen::renderStatCards() {
 
         ImGui::Spacing();
 
-        ImFont* headingFont = GUI::Theme::getFonts().heading;
+        ImFont* headingFont = GUI::Theme::getFonts().metric;
+        if (headingFont != nullptr && headingFont->CalcTextSizeA(headingFont->FontSize, FLT_MAX, 0, giaTri).x > cardW-36) headingFont = GUI::Theme::getFonts().title;
         if (headingFont != nullptr) ImGui::PushFont(headingFont);
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextPrimary);
         ImGui::TextUnformatted(giaTri);
@@ -95,15 +98,16 @@ void DashboardScreen::renderStatCards() {
         ImGui::Spacing();
 
         if (smallFont != nullptr) ImGui::PushFont(smallFont);
-        ImGui::PushStyleColor(ImGuiCol_Text, accentColor);
-        ImGui::TextUnformatted(moTa);
+        ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
+        ImGui::TextWrapped("%s",moTa);
         ImGui::PopStyleColor();
         if (smallFont != nullptr) ImGui::PopFont();
 
         ImGui::EndGroup();
+        ImGui::PopTextWrapPos();
 
-        ImGui::SetCursorScreenPos(ImVec2(p0.x + cardW, p0.y));
-        ImGui::Dummy(ImVec2(0.0f, cardH));
+        ImGui::SetCursorScreenPos(p0);
+        ImGui::Dummy(ImVec2(cardW, cardH));
         ImGui::PopID();
     };
 
@@ -116,7 +120,7 @@ void DashboardScreen::renderStatCards() {
         u8"Sân thuộc cơ sở của bạn",
         GUI::Theme::Colors::Primary
     );
-    ImGui::SameLine(0.0f, cardSpacing);
+    if (columns > 1) ImGui::SameLine(0.0f, cardSpacing);
 
     // Thẻ 2: Lượt đặt hôm nay
     veTheKPI(
@@ -127,7 +131,7 @@ void DashboardScreen::renderStatCards() {
         u8"Đơn sẵn sàng phục vụ",
         GUI::Theme::Colors::Info
     );
-    ImGui::SameLine(0.0f, cardSpacing);
+    if (columns == 4) ImGui::SameLine(0.0f, cardSpacing);
 
     // Thẻ 3: Doanh thu tháng
     std::string dtStr = nhomNghin(metrics_.monthlyRevenueVnd) + u8" đ";
@@ -139,7 +143,7 @@ void DashboardScreen::renderStatCards() {
         u8"Đơn đã hoàn thành",
         GUI::Theme::Colors::Warning
     );
-    ImGui::SameLine(0.0f, cardSpacing);
+    if (columns > 1) ImGui::SameLine(0.0f, cardSpacing);
 
     // Thẻ 4: Khách hàng mới
     veTheKPI(
@@ -156,14 +160,17 @@ void DashboardScreen::renderRevenueChart() {
     Widgets::Card("card_revenue_chart", u8"Biểu đồ doanh thu 7 ngày gần nhất", [this]() {
         if (doanhThu7Ngay_.isEmpty()) {
             ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::TextSecondary);
-            ImGui::TextUnformatted(u8"Chưa có dữ liệu doanh thu gần đây.");
+            ImGui::Dummy(ImVec2(0, 6));
+            ImGui::TextUnformatted(u8"Chưa có dữ liệu doanh thu");
+            ImGui::TextWrapped(u8"Doanh thu từ các đơn hoàn thành sẽ hiển thị tại đây.");
+            ImGui::Dummy(ImVec2(0, 6));
             ImGui::PopStyleColor();
             return;
         }
 
         float availW = ImGui::GetContentRegionAvail().x;
-        float chartH = 220.0f;
-        float labelYWidth = 70.0f;
+        float chartH = 250.0f;
+        float labelYWidth = 94.0f;
         float plotW = availW - labelYWidth - 10.0f;
         float plotH = chartH - 40.0f;
 
@@ -284,15 +291,22 @@ void DashboardScreen::renderUpcomingBookings() {
         }
 
         ImGuiTableFlags flags = ImGuiTableFlags_RowBg |
-                                ImGuiTableFlags_BordersInnerV |
-                                ImGuiTableFlags_BordersOuter |
+                                ImGuiTableFlags_BordersInnerH |
+
                                 ImGuiTableFlags_SizingStretchProp;
 
-        if (ImGui::BeginTable("##tbl_upcoming", 8, flags)) {
+        const float minTableWidth = 1050.0f;
+        const bool scrollX = ImGui::GetContentRegionAvail().x < minTableWidth;
+        if (scrollX) {
+            flags |= ImGuiTableFlags_ScrollX;
+            ImGui::TextDisabled(u8"Cuộn ngang để xem các cột còn lại.");
+        }
+        if (ImGui::BeginTable("##tbl_upcoming", 8, flags, ImVec2(0, 0),
+                              scrollX ? minTableWidth : 0.0f)) {
             ImGui::TableSetupColumn(u8"Mã đơn", ImGuiTableColumnFlags_WidthFixed, 80.0f);
             ImGui::TableSetupColumn(u8"Mã sân", ImGuiTableColumnFlags_WidthFixed, 80.0f);
             ImGui::TableSetupColumn(u8"Ngày", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-            ImGui::TableSetupColumn(u8"Khách hàng", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn(u8"Khách hàng", ImGuiTableColumnFlags_WidthFixed, 180.0f);
             ImGui::TableSetupColumn(u8"Số điện thoại", ImGuiTableColumnFlags_WidthFixed, 115.0f);
             ImGui::TableSetupColumn(u8"Khung giờ", ImGuiTableColumnFlags_WidthFixed, 130.0f);
             ImGui::TableSetupColumn(u8"Tiền sân (VNĐ)", ImGuiTableColumnFlags_WidthFixed, 115.0f);

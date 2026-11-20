@@ -1,4 +1,5 @@
 #include "GUI/Widgets/DatePicker.h"
+#include "GUI/Theme/Fonts.h"
 
 #include <iomanip>
 #include <algorithm>
@@ -77,7 +78,9 @@ bool DatePicker(
 
     if (label != nullptr && label[0] != '\0') {
         ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::DarkText);
+        if (GUI::Theme::getFonts().label) ImGui::PushFont(GUI::Theme::getFonts().label);
         ImGui::TextUnformatted(label);
+        if (GUI::Theme::getFonts().label) ImGui::PopFont();
         ImGui::PopStyleColor();
         ImGui::Spacing();
     }
@@ -102,7 +105,7 @@ bool DatePicker(
     }
 
     float nutLichWidth = 76.0f;
-    float availWidth = ImGui::GetContentRegionAvail().x;
+    float availWidth = std::min(420.0f, ImGui::GetContentRegionAvail().x);
     float dateInputWidth = std::max(
         1.0f,
         availWidth - nutLichWidth - ImGui::GetStyle().ItemSpacing.x
