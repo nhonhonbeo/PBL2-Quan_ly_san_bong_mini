@@ -104,12 +104,22 @@ KetQua Facade::xacNhanDaHoanThanhDon(const std::string& maDon) {
 
 std::vector<GiaiDauInfo> Facade::getGiaiDauCuaUser(const std::string& sdt) const {
     std::vector<GiaiDauInfo> ds;
-    for (const auto& g : danhSachGiaiDau_) if (g.sdtKhach == sdt) ds.push_back(g);
+    User* actor = Session::getInstance().getUser();
+    if (!actor || actor->get_account_type() != "Customer" || actor->get_phone_number() != sdt) return ds;
+    for (const auto& g : danhSachGiaiDau_) if (g.sdtKhach == sdt || g.sdtKhach == actor->get_user_id()) ds.push_back(g);
     return ds;
 }
 
 KetQua Facade::guiYeuCauTaoGiai(const GiaiDauInfo& giaiMoi) {
+    User* actor = Session::getInstance().getUser();
+    if (!actor || actor->get_account_type() != "Customer" || actor->get_phone_number() != giaiMoi.sdtKhach)
+        return {false, "Tournament request requires the current customer"};
+    bool available = false;
+    for (const auto& field : danhSachSan_) if (field.maSan == giaiMoi.maSan && !field.dangBaoTri) available = true;
+    if (!available) return {false, "Field is not available"};
     Tournament t = toTournament(giaiMoi, TournamentStatus::REQUESTED);
+    t.setRequesterUserId(actor->get_user_id());
+    t.setRequesterName(actor->get_name());
     std::string outId, error;
     if (!tournament_service_.guiYeuCauTaoGiai(t, outId, error)) return {false, error};
     refreshCache();
@@ -132,7 +142,11 @@ std::vector<SanBongInfo> Facade::getDanhSachSanDaThueXong(const std::string& sdt
 KetQua Facade::guiHoacSuaDanhGia(const std::string& sdt, const std::string& tenKhach,
                                 const std::string& maSan, int soSao, const std::string& noiDung,
                                 const std::string& danhGiaId) {
-    Review r(danhGiaId, sdt, maSan, "", soSao, DateTime::today(), noiDung, tenKhach);
+    User* actor = Session::getInstance().getUser();
+    if (!actor || actor->get_account_type() != "Customer" || actor->get_phone_number() != sdt)
+        return {false, "Review requires the current customer"};
+    (void)tenKhach;
+    Review r(danhGiaId, actor->get_user_id(), maSan, "", soSao, DateTime::today(), noiDung, actor->get_name());
     std::string error;
     if (!customer_service_.addOrUpdateReview(r, error)) return {false, error};
     refreshCache();
@@ -142,6 +156,8 @@ KetQua Facade::guiHoacSuaDanhGia(const std::string& sdt, const std::string& tenK
 KetQua Facade::capNhatThongTinUser(const std::string& sdt, const std::string& hoTenMoi) { return capNhatThongTinUser(sdt, hoTenMoi, sdt); }
 
 KetQua Facade::capNhatThongTinUser(const std::string& sdtCu, const std::string& hoTenMoi, const std::string& sdtMoi) {
+    User* actor = Session::getInstance().getUser();
+    if (!actor || actor->get_phone_number() != sdtCu || hoTenMoi.empty()) return {false, "Invalid profile update"};
     std::string error;
     if (!account_service_.updateUser(sdtCu, hoTenMoi, sdtMoi, error)) return {false, error};
     refreshCache();
@@ -149,6 +165,8 @@ KetQua Facade::capNhatThongTinUser(const std::string& sdtCu, const std::string& 
 }
 
 KetQua Facade::doiMatKhauUser(const std::string& sdt, const std::string& matKhauCu, const std::string& matKhauMoi) {
+    User* actor = Session::getInstance().getUser();
+    if (!actor || actor->get_phone_number() != sdt) return {false, "Account ownership mismatch"};
     std::string err;
     if (!account_service_.authenticate(sdt, matKhauCu, err)) return {false, u8"Mật khẩu hiện tại không chính xác!"};
     if (!account_service_.resetPassword(sdt, matKhauMoi, err)) return {false, err};

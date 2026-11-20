@@ -75,10 +75,19 @@ public:
     bool deleteField(const std::string& requesterOwnerId,
                      const std::string& fieldId,
                      std::string& error) const;
+    bool createBookings(const LinkedList<VenueBookingRequest>& requests,
+                        LinkedList<std::string>& ids, std::string& error) const;
     bool createBooking(const VenueBookingRequest& request,
                        std::string& bookingId,
                        std::string& error) const;
 
 private:
+    bool prepareBooking(const VenueBookingRequest& request,
+                         const LinkedList<VenueFacilityRecord>& facilities,
+                         const LinkedList<VenueFieldRecord>& fields,
+                         const LinkedList<VenuePriceRecord>& prices,
+                         const LinkedList<Tournament>& tournaments,
+                         LinkedList<VenueBookingRecord>& bookings,
+                         std::string& id, std::string& error) const;
     const VenueRepository& repository_;
 };

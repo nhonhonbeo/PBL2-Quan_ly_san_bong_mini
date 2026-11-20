@@ -56,17 +56,15 @@ void AuthScreen::render() {
         float totalW = ImGui::GetWindowWidth();
         float totalH = ImGui::GetWindowHeight();
 
-        // LÝ DO CHỌN: Tỷ lệ phân chia 42% (min 450px) cho cột Banner thương hiệu và phần còn lại cho Form
-        float bannerW = std::max(380.0f, totalW * 0.46f);
-        float formW = totalW - bannerW;
-
-        // 1. Cột trái: Banner nhận diện thương hiệu & Sân bóng vector illustration
-        renderBanner(bannerW, totalH);
-
-        ImGui::SameLine(0.0f, 0.0f);
-
-        // 2. Cột phải: Form Đăng nhập / Đăng ký hiện đại
-        renderFormCard(formW, totalH);
+        // Prioritize the form on narrow windows; decorative artwork is optional.
+        if (totalW < 900.0f) {
+            renderFormCard(totalW, totalH);
+        } else {
+            const float bannerW = std::min(totalW - 500.0f, totalW * 0.40f);
+            renderBanner(bannerW, totalH);
+            ImGui::SameLine(0.0f, 0.0f);
+            renderFormCard(totalW - bannerW, totalH);
+        }
     }
     ImGui::End();
 
@@ -297,7 +295,7 @@ void AuthScreen::renderFormCard(float width, float height) {
         ImGui::PushStyleColor(ImGuiCol_ChildBg, GUI::Theme::Colors::Surface);
         ImGui::PushStyleColor(ImGuiCol_Border, GUI::Theme::Colors::Border);
         ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 10.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(32.0f, 30.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(24.0f, 20.0f));
 
         if (ImGui::BeginChild("##AuthCardBox", ImVec2(cardWidth, cardHeight), true)) {
             // ==========================================

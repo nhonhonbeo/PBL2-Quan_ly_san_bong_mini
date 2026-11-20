@@ -221,21 +221,23 @@ void FieldManagementScreen::renderTabTinhTrangTheoNgay() {
             [this](const std::string& maSan, const std::string& khungGio) {
                 const auto slot = maTranSlot_.find({maSan, khungGio});
                 if (slot == maTranSlot_.end()) return;
-                if (slot->second.status == Widgets::SlotStatus::DaDat) {
-                    const auto result = GUI::App::Facade::getInstance().xacNhanDaHoanThanhDon(slot->second.ghiChu);
-                    if (result.ok) {
-                        reloadViewModel();
-                    } else if (!result.loi.empty()) {
-                        Widgets::ToastLoi(result.loi);
-                    }
+                if (slot->second.status == Widgets::SlotStatus::DaDat && !slot->second.ghiChu.empty()) {
+                    bookingToComplete_ = slot->second.ghiChu;
+                    Widgets::MoModalXacNhan(u8"Xác nhận hoàn thành ca");
                 }
-            }
+            }, true
         );
 
         if (coDoiNgay) {
             reloadViewModel();
         }
     });
+    const std::string message = u8"Xác nhận ca đã kết thúc và khách đã sử dụng sân? Mã đơn: " + bookingToComplete_;
+    Widgets::ModalXacNhan(u8"Xác nhận hoàn thành ca", message.c_str(), [this]() {
+        const auto result = GUI::App::Facade::getInstance().xacNhanDaHoanThanhDon(bookingToComplete_);
+        if (result.ok) { reloadViewModel(); Widgets::ToastThanhCong(u8"Đã hoàn thành ca."); }
+        else Widgets::ToastLoi(result.loi);
+    }, u8"Hoàn thành", u8"Quay lại");
 }
 
 }  // namespace GUI::Screens::Owner

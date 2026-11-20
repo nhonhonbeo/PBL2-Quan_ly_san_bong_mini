@@ -1,4 +1,6 @@
 ﻿#include "Repository/CustomerRepository.h"
+#include "Repository/VenueRepository.h"
+#include "Booking/Booking.h"
 
 #include <sstream>
 
@@ -388,29 +390,16 @@ bool CustomerRepository::loadAllReviews(LinkedList<Review>& out, std::string& er
 
 bool CustomerRepository::hasCompletedBooking(const std::string& customerId,
                                              const std::string& fieldId) const {
-    LinkedList<std::string> lines;
-    std::string err;
-    if (!file_manager_.readAllLines("data/bookings.txt", lines, err)) {
-        return false;
-    }
-    std::string phone = customerId;
-    Customer c("", "", "", "", "");
-    std::string ignoredErr;
-    if (findCustomerByUserId(customerId, c, ignoredErr)) {
-        phone = c.get_phone_number();
-    }
-    for (auto* node = lines.get_head(); node != nullptr; node = node->next) {
-        LinkedList<std::string> parts;
-        tachTruong(node->data, parts);
-        if (parts.size() < 6) continue;
-        const std::string* cId = layTruong(parts, 1);
-        const std::string* fId = layTruong(parts, 3);
-        const std::string* st = layTruong(parts, 4);
-        if (cId && fId && st) {
-            if ((*cId == customerId || *cId == phone) && *fId == fieldId && *st == "2") {
-                return true;
-            }
-        }
+    Customer customer; std::string error;
+    if (!findCustomerByUserId(customerId, customer, error)) return false;
+    VenueRepository venue(file_manager_);
+    LinkedList<VenueBookingRecord> bookings;
+    if (!venue.loadBookings(bookings, error)) return false;
+    for (auto* n = bookings.get_head(); n; n = n->next) {
+        const auto& b = n->data;
+        if (b.fieldId == fieldId && (b.customerId == customer.getUserId() ||
+            (b.customerId.empty() && b.customerPhone == customer.get_phone_number())) &&
+            Booking::textToStatus(b.status) == BookingStatus::COMPLETED) return true;
     }
     return false;
 }

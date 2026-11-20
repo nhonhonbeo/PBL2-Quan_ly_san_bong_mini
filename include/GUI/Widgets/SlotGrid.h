@@ -13,7 +13,9 @@ enum class SlotStatus {
     DaDat,     // Đỏ (#DC3545)
     BaoTri,    // Xám (#9CA3AF)
     DaQua,     // LÝ DO CHỌN: Tách ca đã qua khỏi ca đã đặt để không thể chọn nhầm.
-    DangChon   // Vàng nhấn (#F5B301)
+    DangChon,  // Vàng nhấn
+    Unknown,   // No availability record: never imply free.
+    GiaiDau    // Tournament reservation
 };
 
 struct SlotInfo {
@@ -39,7 +41,8 @@ public:
         bool choPhepChon = false,
         const std::string& maSanDangChon = "",
         const std::string& khungGioDangChon = "",
-        const std::function<void(const std::string& maSan, const std::string& khungGio)>& onSlotClicked = nullptr
+        const std::function<void(const std::string& maSan, const std::string& khungGio)>& onSlotClicked = nullptr,
+        bool allowBookedAction = false
     );
 };
 

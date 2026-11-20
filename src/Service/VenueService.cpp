@@ -6,6 +6,8 @@
 
 #include "Core/DateTime.h"
 #include "Core/HashTable.h"
+#include "Service/AvailabilityService.h"
+#include "Core/IdGenerator.h"
 
 namespace {
 
@@ -297,6 +299,11 @@ bool VenueService::getSlots(
         error = "Giờ hoạt động của cơ sở không hợp lệ.";
         return false;
     }
+    LinkedList<Tournament> tournaments;
+    LinkedList<AvailabilityService::Interval> occupied;
+    if (!repository_.loadTournaments(tournaments, error) ||
+        !AvailabilityService::collectDay(bookings, tournaments, fieldId,
+                                        chuanHoaNgay(date), occupied, error)) return false;
     for (int start = opening; start + durationMinutes <= closing; start += 30) {
         VenueSlotRecord slot;
         slot.startTime = gioTuPhut(start);
@@ -307,22 +314,8 @@ bool VenueService::getSlots(
         }
         slot.past = DateTime::isPastSlot(date, slot.startTime);
         slot.available = !slot.past;
-        for (auto* node = bookings.get_head(); node != nullptr; node = node->next) {
-            const VenueBookingRecord& booking = node->data;
-            if (booking.fieldId != fieldId ||
-                chuanHoaNgay(booking.date) != chuanHoaNgay(date) ||
-                laDonHuy(booking.status)) {
-                continue;
-            }
-            const int bookedStart = phutSangSo(booking.startTime);
-            const int bookedEnd = phutSangSo(booking.endTime);
-            if (bookedStart >= 0 && bookedEnd > bookedStart &&
-                xungDot(start, start + durationMinutes, bookedStart, bookedEnd)) {
-                slot.available = false;
-                slot.bookingId = booking.bookingId;
-                break;
-            }
-        }
+        if (AvailabilityService::hasConflict(occupied, start, start + durationMinutes, slot.bookingId))
+            slot.available = false;
         slots.push_back(slot);
     }
     return true;
@@ -479,6 +472,22 @@ bool VenueService::updateField(
             error = "Thông tin sân không hợp lệ.";
             return false;
         }
+        if (current->status == 0 && field.status != 0) {
+            LinkedList<VenueBookingRecord> bookings;
+            LinkedList<Tournament> tournaments;
+            if (!repository_.loadBookings(bookings, error) || !repository_.loadTournaments(tournaments, error)) return false;
+            for (auto* n = bookings.get_head(); n; n = n->next) {
+                const auto& b = n->data;
+                if (b.fieldId == field.fieldId && !laDonHuy(b.status) &&
+                    Booking::textToStatus(b.status) != BookingStatus::COMPLETED &&
+                    !DateTime::isPastDate(b.date)) { error = "Field has active bookings"; return false; }
+            }
+            for (auto* n = tournaments.get_head(); n; n = n->next) {
+                const auto& t = n->data;
+                if (t.getRequestedFieldId() == field.fieldId && t.isApproved() &&
+                    !DateTime::isPastDate(t.getEndDate())) { error = "Field has active tournaments"; return false; }
+            }
+        }
         *current = field;
         return repository_.saveFields(fields, error) &&
                repository_.seedIfNeeded(error);
@@ -513,10 +522,15 @@ bool VenueService::deleteField(
         return false;
     }
     for (auto* node = bookings.get_head(); node != nullptr; node = node->next) {
-        if (node->data.fieldId == fieldId && !laDonHuy(node->data.status)) {
+        if (node->data.fieldId == fieldId) {
             error = "Không thể xóa sân đã có dữ liệu đặt chỗ; hãy chuyển sang ngừng hoạt động.";
             return false;
         }
+    }
+    LinkedList<Tournament> tournaments;
+    if (!repository_.loadTournaments(tournaments, error)) return false;
+    for (auto* n = tournaments.get_head(); n; n = n->next) {
+        if (n->data.getRequestedFieldId() == fieldId) { error = "Field is referenced by a tournament"; return false; }
     }
     fields.removeIf([&fieldId](const VenueFieldRecord& field) {
         return field.fieldId == fieldId;
@@ -529,6 +543,45 @@ bool VenueService::createBooking(
     std::string& bookingId,
     std::string& error
 ) const {
+    bookingId.clear();
+    LinkedList<VenueBookingRequest> requests; requests.push_back(request);
+    LinkedList<std::string> ids;
+    if (!createBookings(requests, ids, error)) return false;
+    bookingId = ids.get_head()->data;
+    return true;
+}
+
+bool VenueService::createBookings(const LinkedList<VenueBookingRequest>& requests,
+                                  LinkedList<std::string>& ids, std::string& error) const {
+    ids.clear(); error.clear();
+    if (requests.isEmpty()) { error = "Empty booking request"; return false; }
+    LinkedList<VenueFacilityRecord> facilities;
+    LinkedList<VenueFieldRecord> fields;
+    LinkedList<VenuePriceRecord> prices;
+    LinkedList<Tournament> tournaments;
+    LinkedList<VenueBookingRecord> bookings;
+    if (!repository_.loadFacilities(facilities, error) || !repository_.loadFields(fields, error) ||
+        !repository_.loadPrices(prices, error) || !repository_.loadBookings(bookings, error) ||
+        !repository_.loadTournaments(tournaments, error)) return false;
+    LinkedList<std::string> staged;
+    for (auto* n = requests.get_head(); n; n = n->next) {
+        std::string id;
+        if (!prepareBooking(n->data, facilities, fields, prices, tournaments, bookings, id, error)) return false;
+        staged.push_back(id);
+    }
+    // No persisted writes until EVERY request is valid.
+    if (!repository_.saveBookings(bookings, error)) return false;
+    ids = std::move(staged);
+    return true;
+}
+
+bool VenueService::prepareBooking(const VenueBookingRequest& request,
+                                  const LinkedList<VenueFacilityRecord>& facilities,
+                                  const LinkedList<VenueFieldRecord>& fields,
+                                  const LinkedList<VenuePriceRecord>& prices,
+                                  const LinkedList<Tournament>& tournaments,
+                                  LinkedList<VenueBookingRecord>& bookings,
+                                  std::string& bookingId, std::string& error) const {
     error.clear();
     if (request.customerId.empty() || request.customerPhone.empty() ||
         !coThoiLuongHopLe(request.durationMinutes) ||
@@ -541,19 +594,11 @@ bool VenueService::createBooking(
         error = "Không thể đặt sân vào ngày trong quá khứ.";
         return false;
     }
-    LinkedList<VenueFacilityRecord> facilities;
-    LinkedList<VenueFieldRecord> fields;
-    LinkedList<VenuePriceRecord> prices;
-    LinkedList<VenueBookingRecord> bookings;
-    if (!repository_.loadFacilities(facilities, error) ||
-        !repository_.loadFields(fields, error) ||
-        !repository_.loadPrices(prices, error) ||
-        !repository_.loadBookings(bookings, error)) {
-        return false;
-    }
     HashTable<std::string, const VenueBookingRecord*> bookingsById;
+    IdGenerator idGenerator("BK-", 6);
     for (auto* node = bookings.get_head(); node != nullptr; node = node->next) {
         bookingsById.insert(node->data.bookingId, &node->data);
+        idGenerator.observe(node->data.bookingId);
     }
     const VenueFieldRecord* field = nullptr;
     HashTable<std::string, const VenueFieldRecord*> fieldsById;
@@ -582,7 +627,7 @@ bool VenueService::createBooking(
     const int start = phutSangSo(request.startTime);
     const int opening = phutSangSo(facility->openTime);
     const int closing = phutSangSo(facility->closeTime);
-    if (start < opening || start + request.durationMinutes > closing) {
+    if (opening < 0 || closing <= opening || start < opening || start + request.durationMinutes > closing) {
         error = "Khung giờ nằm ngoài giờ hoạt động của cơ sở.";
         return false;
     }
@@ -597,19 +642,11 @@ bool VenueService::createBooking(
         error = "Cơ sở chưa cấu hình giá cho ca đã chọn.";
         return false;
     }
-    for (auto* node = bookings.get_head(); node != nullptr; node = node->next) {
-        const VenueBookingRecord& oldBooking = node->data;
-        if (oldBooking.fieldId != request.fieldId ||
-            chuanHoaNgay(oldBooking.date) != date || laDonHuy(oldBooking.status)) {
-            continue;
-        }
-        const int oldStart = phutSangSo(oldBooking.startTime);
-        const int oldEnd = phutSangSo(oldBooking.endTime);
-        if (oldStart >= 0 && oldEnd > oldStart &&
-            xungDot(start, start + request.durationMinutes, oldStart, oldEnd)) {
-            error = "Khung giờ này đã được đặt.";
-            return false;
-        }
+    LinkedList<AvailabilityService::Interval> occupied;
+    if (!AvailabilityService::collectDay(bookings, tournaments, request.fieldId, date, occupied, error)) return false;
+    std::string conflict;
+    if (AvailabilityService::hasConflict(occupied, start, start + request.durationMinutes, conflict)) {
+        error = "Khung gio da duoc giu cho: " + conflict; return false;
     }
 
     if (!request.bookingId.empty()) {
@@ -620,15 +657,7 @@ bool VenueService::createBooking(
         }
         bookingId = request.bookingId;
     } else {
-        int sequence = bookings.size() + 1;
-        bool duplicate = true;
-        while (duplicate) {
-            char id[32];
-            std::snprintf(id, sizeof(id), "BK-%06d", sequence++);
-            bookingId = id;
-            const VenueBookingRecord* existing = nullptr;
-            duplicate = bookingsById.search(bookingId, existing);
-        }
+        bookingId = idGenerator.next();
     }
     bookings.push_back({
         bookingId,
@@ -644,5 +673,5 @@ bool VenueService::createBooking(
         priceVnd,
         "CONFIRMED"
     });
-    return repository_.saveBookings(bookings, error);
+    return true;
 }

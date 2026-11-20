@@ -161,9 +161,8 @@ void LichDatScreen::render() {
 
 void LichDatScreen::renderBoLoc() {
     ImGui::PushStyleColor(ImGuiCol_Text, GUI::Theme::Colors::MutedText);
-    ImGui::TextUnformatted(u8"Lọc trạng thái đơn đặt:");
+    ImGui::TextUnformatted(u8"Lọc trạng thái đơn đặt");
     ImGui::PopStyleColor();
-    ImGui::SameLine();
 
     const char* boLocLabels[] = {
         u8"Tất cả đơn",
@@ -173,7 +172,7 @@ void LichDatScreen::renderBoLoc() {
     };
 
     for (int i = 0; i < 4; ++i) {
-        if (i > 0) ImGui::SameLine(0.0f, 8.0f);
+        if (i > 0 && (ImGui::GetContentRegionAvail().x >= 600.0f || i % 2 == 1)) ImGui::SameLine(0.0f, 8.0f);
 
         bool isSelected = (locTrangThai_ == i);
         std::string btnFilterId = std::string(boLocLabels[i]) + "##filter";
@@ -204,17 +203,7 @@ void LichDatScreen::renderTableDonDat() {
         tableState_,
         [this](const Widgets::TableRow& row, int col) {
             if (col == 5) {
-                // Trạng thái Badge
-                const std::string& tt = row.oDuLieu[5];
-                if (tt == u8"Đã xác nhận") {
-                    Widgets::BadgeTrong(tt.c_str());
-                } else if (tt == u8"Đã hoàn thành" || tt == u8"Đã thanh toán") {
-                    Widgets::BadgeDaDat(tt.c_str());
-                } else if (tt == u8"Đã hủy") {
-                    Widgets::BadgeCanhBao(tt.c_str());
-                } else {
-                    Widgets::Badge(tt.c_str(), GUI::Theme::Colors::GrayHover, GUI::Theme::Colors::DarkText);
-                }
+                Widgets::BookingStatusBadge(row.oDuLieu[5].c_str());
             } else if (col == 6) {
                 // Cột Thao tác: Nút Hủy
                 const bool coTheHuy = row.oDuLieu[5] == u8"Chờ xác nhận" || row.oDuLieu[5] == u8"Đã xác nhận" || row.oDuLieu[5] == u8"Chờ duyệt";

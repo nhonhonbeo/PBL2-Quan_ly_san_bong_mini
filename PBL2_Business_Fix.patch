@@ -1,0 +1,947 @@
+diff --git a/include/Repository/VenueRepository.h b/include/Repository/VenueRepository.h
+--- a/include/Repository/VenueRepository.h
++++ b/include/Repository/VenueRepository.h
+@@ -3,5 +3,6 @@
+ #include <string>
+ 
+ #include "Core/LinkedList.h"
++#include "Tournament/Tournament.h"
+ 
+ class FileManager;
+@@ -80,6 +81,7 @@
+                              bool allows60Minutes,
+                              bool allows90Minutes,
+                              std::string& error) const;
++    bool loadTournaments(LinkedList<Tournament>& records, std::string& error) const;
+     bool loadBookings(LinkedList<VenueBookingRecord>& records,
+                       std::string& error) const;
+     bool saveBookings(const LinkedList<VenueBookingRecord>& records,
+diff --git a/src/Repository/VenueRepository.cpp b/src/Repository/VenueRepository.cpp
+--- a/src/Repository/VenueRepository.cpp
++++ b/src/Repository/VenueRepository.cpp
+@@ -1,4 +1,5 @@
+ #include "Repository/VenueRepository.h"
++#include "Repository/TournamentRepository.h"
+ 
+ #include <array>
+ #include <cstdio>
+@@ -341,4 +342,8 @@
+     return atomicWrite(file_manager_, "data/accounts.txt", accounts, error);
++}
++
++bool VenueRepository::loadTournaments(LinkedList<Tournament>& records, std::string& error) const {
++    return TournamentRepository(file_manager_).loadAll(records, error);
+ }
+ 
+ bool VenueRepository::loadBookings(
+diff --git a/include/Service/AvailabilityService.h b/include/Service/AvailabilityService.h
+new file mode 100644
+--- /dev/null
++++ b/include/Service/AvailabilityService.h
+@@ -0,0 +1,59 @@
++#pragma once
++#include <string>
++#include "Core/DateTime.h"
++#include "Core/LinkedList.h"
++#include "Repository/VenueRepository.h"
++#include "Booking/Booking.h"
++
++// A read-only, day-specific reservation index shared by availability queries
++// and booking creation. No duplication of persisted state.
++namespace AvailabilityService {
++struct Interval { int start; int end; std::string id; };
++inline int minutes(const std::string& time) {
++    if (!DateTime::isValidTime(time)) return -1;
++    return std::stoi(time.substr(0,2))*60 + std::stoi(time.substr(3,2));
++}
++inline bool overlap(int a, int b, int c, int d) { return a < d && c < b; }
++inline bool reservesTime(TournamentStatus s) {
++    return s == TournamentStatus::CONFIRMED || s == TournamentStatus::IN_PROGRESS || s == TournamentStatus::FINISHED;
++}
++inline bool parseInterval(const std::string& text, int& start, int& end) {
++    auto sep = text.find(" - ");
++    if (sep == std::string::npos) return false;
++    start = minutes(text.substr(0,sep)); end = minutes(text.substr(sep+3));
++    return start >= 0 && end > start;
++}
++inline bool collectDay(const LinkedList<VenueBookingRecord>& bookings,
++                       const LinkedList<Tournament>& tournaments,
++                       const std::string& field, const std::string& day,
++                       LinkedList<Interval>& out, std::string& error) {
++    out.clear();
++    for (auto* n = bookings.get_head(); n; n = n->next) {
++        const auto& b = n->data;
++        if (b.fieldId != field || Booking::textToStatus(b.status) == BookingStatus::CANCELLED) continue;
++        auto date = DateTime::toIsoDate(b.date);
++        if (date.empty()) { error = "Invalid booking date"; return false; }
++        if (date != day) continue;
++        int s = minutes(b.startTime), e = minutes(b.endTime);
++        if (s < 0 || e <= s) { error = "Invalid booking interval"; return false; }
++        out.push_back({s,e,b.bookingId});
++    }
++    for (auto* n = tournaments.get_head(); n; n = n->next) {
++        const auto& t = n->data;
++        if (t.getRequestedFieldId() != field || !reservesTime(t.getStatus())) continue;
++        auto first = DateTime::toIsoDate(t.getStartDate()), last = DateTime::toIsoDate(t.getEndDate());
++        if (first.empty() || last.empty() || first > last) { error = "Invalid tournament dates"; return false; }
++        if (day < first || day > last) continue;
++        int s, e;
++        if (!parseInterval(t.getTimeSlot(),s,e)) { error = "Invalid tournament interval"; return false; }
++        out.push_back({s,e,t.getTournamentId()});
++    }
++    return true;
++}
++inline bool hasConflict(const LinkedList<Interval>& reservations, int start, int end, std::string& id) {
++    for (auto* n = reservations.get_head(); n; n = n->next) {
++        if (overlap(start,end,n->data.start,n->data.end)) { id = n->data.id; return true; }
++    }
++    return false;
++}
++} // namespace AvailabilityService
+diff --git a/include/Service/VenueService.h b/include/Service/VenueService.h
+--- a/include/Service/VenueService.h
++++ b/include/Service/VenueService.h
+@@ -75,10 +75,19 @@
+     bool deleteField(const std::string& requesterOwnerId,
+                      const std::string& fieldId,
+                      std::string& error) const;
++    bool createBookings(const LinkedList<VenueBookingRequest>& requests,
++                        LinkedList<std::string>& ids, std::string& error) const;
+     bool createBooking(const VenueBookingRequest& request,
+                        std::string& bookingId,
+                        std::string& error) const;
+ 
+ private:
++    bool prepareBooking(const VenueBookingRequest& request,
++                         const LinkedList<VenueFacilityRecord>& facilities,
++                         const LinkedList<VenueFieldRecord>& fields,
++                         const LinkedList<VenuePriceRecord>& prices,
++                         const LinkedList<Tournament>& tournaments,
++                         LinkedList<VenueBookingRecord>& bookings,
++                         std::string& id, std::string& error) const;
+     const VenueRepository& repository_;
+ };
+diff --git a/src/Service/VenueService.cpp b/src/Service/VenueService.cpp
+--- a/src/Service/VenueService.cpp
++++ b/src/Service/VenueService.cpp
+@@ -7,4 +7,6 @@
+ #include "Core/DateTime.h"
+ #include "Core/HashTable.h"
++#include "Service/AvailabilityService.h"
++#include "Core/IdGenerator.h"
+ 
+ namespace {
+@@ -297,6 +299,11 @@
+         error = "Giờ hoạt động của cơ sở không hợp lệ.";
+         return false;
+     }
++    LinkedList<Tournament> tournaments;
++    LinkedList<AvailabilityService::Interval> occupied;
++    if (!repository_.loadTournaments(tournaments, error) ||
++        !AvailabilityService::collectDay(bookings, tournaments, fieldId,
++                                        chuanHoaNgay(date), occupied, error)) return false;
+     for (int start = opening; start + durationMinutes <= closing; start += 30) {
+         VenueSlotRecord slot;
+         slot.startTime = gioTuPhut(start);
+@@ -308,21 +315,7 @@
+         slot.past = DateTime::isPastSlot(date, slot.startTime);
+         slot.available = !slot.past;
+-        for (auto* node = bookings.get_head(); node != nullptr; node = node->next) {
+-            const VenueBookingRecord& booking = node->data;
+-            if (booking.fieldId != fieldId ||
+-                chuanHoaNgay(booking.date) != chuanHoaNgay(date) ||
+-                laDonHuy(booking.status)) {
+-                continue;
+-            }
+-            const int bookedStart = phutSangSo(booking.startTime);
+-            const int bookedEnd = phutSangSo(booking.endTime);
+-            if (bookedStart >= 0 && bookedEnd > bookedStart &&
+-                xungDot(start, start + durationMinutes, bookedStart, bookedEnd)) {
+-                slot.available = false;
+-                slot.bookingId = booking.bookingId;
+-                break;
+-            }
+-        }
++        if (AvailabilityService::hasConflict(occupied, start, start + durationMinutes, slot.bookingId))
++            slot.available = false;
+         slots.push_back(slot);
+     }
+     return true;
+@@ -482,3 +475,19 @@
++        if (current->status == 0 && field.status != 0) {
++            LinkedList<VenueBookingRecord> bookings;
++            LinkedList<Tournament> tournaments;
++            if (!repository_.loadBookings(bookings, error) || !repository_.loadTournaments(tournaments, error)) return false;
++            for (auto* n = bookings.get_head(); n; n = n->next) {
++                const auto& b = n->data;
++                if (b.fieldId == field.fieldId && !laDonHuy(b.status) &&
++                    Booking::textToStatus(b.status) != BookingStatus::COMPLETED &&
++                    !DateTime::isPastDate(b.date)) { error = "Field has active bookings"; return false; }
++            }
++            for (auto* n = tournaments.get_head(); n; n = n->next) {
++                const auto& t = n->data;
++                if (t.getRequestedFieldId() == field.fieldId && t.isApproved() &&
++                    !DateTime::isPastDate(t.getEndDate())) { error = "Field has active tournaments"; return false; }
++            }
++        }
+         *current = field;
+         return repository_.saveFields(fields, error) &&
+                repository_.seedIfNeeded(error);
+@@ -515,7 +524,12 @@
+     for (auto* node = bookings.get_head(); node != nullptr; node = node->next) {
+-        if (node->data.fieldId == fieldId && !laDonHuy(node->data.status)) {
++        if (node->data.fieldId == fieldId) {
+             error = "Không thể xóa sân đã có dữ liệu đặt chỗ; hãy chuyển sang ngừng hoạt động.";
+             return false;
+         }
+     }
++    LinkedList<Tournament> tournaments;
++    if (!repository_.loadTournaments(tournaments, error)) return false;
++    for (auto* n = tournaments.get_head(); n; n = n->next) {
++        if (n->data.getRequestedFieldId() == fieldId) { error = "Field is referenced by a tournament"; return false; }
++    }
+     fields.removeIf([&fieldId](const VenueFieldRecord& field) {
+@@ -529,6 +543,45 @@
+     std::string& bookingId,
+     std::string& error
+ ) const {
++    bookingId.clear();
++    LinkedList<VenueBookingRequest> requests; requests.push_back(request);
++    LinkedList<std::string> ids;
++    if (!createBookings(requests, ids, error)) return false;
++    bookingId = ids.get_head()->data;
++    return true;
++}
++
++bool VenueService::createBookings(const LinkedList<VenueBookingRequest>& requests,
++                                  LinkedList<std::string>& ids, std::string& error) const {
++    ids.clear(); error.clear();
++    if (requests.isEmpty()) { error = "Empty booking request"; return false; }
++    LinkedList<VenueFacilityRecord> facilities;
++    LinkedList<VenueFieldRecord> fields;
++    LinkedList<VenuePriceRecord> prices;
++    LinkedList<Tournament> tournaments;
++    LinkedList<VenueBookingRecord> bookings;
++    if (!repository_.loadFacilities(facilities, error) || !repository_.loadFields(fields, error) ||
++        !repository_.loadPrices(prices, error) || !repository_.loadBookings(bookings, error) ||
++        !repository_.loadTournaments(tournaments, error)) return false;
++    LinkedList<std::string> staged;
++    for (auto* n = requests.get_head(); n; n = n->next) {
++        std::string id;
++        if (!prepareBooking(n->data, facilities, fields, prices, tournaments, bookings, id, error)) return false;
++        staged.push_back(id);
++    }
++    // No persisted writes until EVERY request is valid.
++    if (!repository_.saveBookings(bookings, error)) return false;
++    ids = std::move(staged);
++    return true;
++}
++
++bool VenueService::prepareBooking(const VenueBookingRequest& request,
++                                  const LinkedList<VenueFacilityRecord>& facilities,
++                                  const LinkedList<VenueFieldRecord>& fields,
++                                  const LinkedList<VenuePriceRecord>& prices,
++                                  const LinkedList<Tournament>& tournaments,
++                                  LinkedList<VenueBookingRecord>& bookings,
++                                  std::string& bookingId, std::string& error) const {
+     error.clear();
+     if (request.customerId.empty() || request.customerPhone.empty() ||
+         !coThoiLuongHopLe(request.durationMinutes) ||
+@@ -541,17 +594,9 @@
+         error = "Không thể đặt sân vào ngày trong quá khứ.";
+         return false;
+     }
+-    LinkedList<VenueFacilityRecord> facilities;
+-    LinkedList<VenueFieldRecord> fields;
+-    LinkedList<VenuePriceRecord> prices;
+-    LinkedList<VenueBookingRecord> bookings;
+-    if (!repository_.loadFacilities(facilities, error) ||
+-        !repository_.loadFields(fields, error) ||
+-        !repository_.loadPrices(prices, error) ||
+-        !repository_.loadBookings(bookings, error)) {
+-        return false;
+-    }
+     HashTable<std::string, const VenueBookingRecord*> bookingsById;
++    IdGenerator idGenerator("BK-", 6);
+     for (auto* node = bookings.get_head(); node != nullptr; node = node->next) {
+         bookingsById.insert(node->data.bookingId, &node->data);
++        idGenerator.observe(node->data.bookingId);
+     }
+@@ -582,7 +627,7 @@
+     const int start = phutSangSo(request.startTime);
+     const int opening = phutSangSo(facility->openTime);
+     const int closing = phutSangSo(facility->closeTime);
+-    if (start < opening || start + request.durationMinutes > closing) {
++    if (opening < 0 || closing <= opening || start < opening || start + request.durationMinutes > closing) {
+         error = "Khung giờ nằm ngoài giờ hoạt động của cơ sở.";
+         return false;
+     }
+@@ -597,19 +642,11 @@
+         error = "Cơ sở chưa cấu hình giá cho ca đã chọn.";
+         return false;
+     }
+-    for (auto* node = bookings.get_head(); node != nullptr; node = node->next) {
+-        const VenueBookingRecord& oldBooking = node->data;
+-        if (oldBooking.fieldId != request.fieldId ||
+-            chuanHoaNgay(oldBooking.date) != date || laDonHuy(oldBooking.status)) {
+-            continue;
+-        }
+-        const int oldStart = phutSangSo(oldBooking.startTime);
+-        const int oldEnd = phutSangSo(oldBooking.endTime);
+-        if (oldStart >= 0 && oldEnd > oldStart &&
+-            xungDot(start, start + request.durationMinutes, oldStart, oldEnd)) {
+-            error = "Khung giờ này đã được đặt.";
+-            return false;
+-        }
++    LinkedList<AvailabilityService::Interval> occupied;
++    if (!AvailabilityService::collectDay(bookings, tournaments, request.fieldId, date, occupied, error)) return false;
++    std::string conflict;
++    if (AvailabilityService::hasConflict(occupied, start, start + request.durationMinutes, conflict)) {
++        error = "Khung gio da duoc giu cho: " + conflict; return false;
+     }
+ 
+     if (!request.bookingId.empty()) {
+@@ -621,13 +658,5 @@
+         bookingId = request.bookingId;
+     } else {
+-        int sequence = bookings.size() + 1;
+-        bool duplicate = true;
+-        while (duplicate) {
+-            char id[32];
+-            std::snprintf(id, sizeof(id), "BK-%06d", sequence++);
+-            bookingId = id;
+-            const VenueBookingRecord* existing = nullptr;
+-            duplicate = bookingsById.search(bookingId, existing);
+-        }
++        bookingId = idGenerator.next();
+     }
+     bookings.push_back({
+@@ -644,5 +673,5 @@
+         priceVnd,
+         "CONFIRMED"
+     });
+-    return repository_.saveBookings(bookings, error);
++    return true;
+ }
+diff --git a/src/Service/BookingService.cpp b/src/Service/BookingService.cpp
+--- a/src/Service/BookingService.cpp
++++ b/src/Service/BookingService.cpp
+@@ -107,37 +107,8 @@
+         previousEnd = start + request.durationMinutes;
+     }
+ 
+-    // 2. Tải bản sao trạng thái ban đầu của Bookings để rollback khi gặp lỗi
+-    LinkedList<VenueBookingRecord> originalBookings;
+-    if (!booking_repository_.loadAll(originalBookings, error)) {
+-        return false;
+-    }
+-
+-    // 3. Tiến hành đặt từng ca kèm theo dõi danh sách để rollback nguyên khối nếu bất kỳ bước nào thất bại
+-    LinkedList<std::string> createdBookingIds;
+-    bool allSuccess = true;
+-
+-    for (auto* node = requests.get_head(); node != nullptr; node = node->next) {
+-        std::string currentBookingId;
+-        if (!venue_service_.createBooking(node->data, currentBookingId, error)) {
+-            allSuccess = false;
+-            break;
+-        }
+-        createdBookingIds.push_back(currentBookingId);
+-    }
+-
+-    if (!allSuccess) {
+-        // Rollback toàn bộ đơn đặt sân
+-        std::string rollbackErr;
+-        if (!booking_repository_.saveAll(originalBookings, rollbackErr)) {
+-            error += ". Loi nghiem trong: Khong the khoi phuc trang thai bookings: " + rollbackErr;
+-        }
+-        bookingIds.clear();
+-        return false;
+-    }
+-
+-    bookingIds = createdBookingIds;
+-    return true;
++    // Validate and stage the complete batch, then persist a single snapshot.
++    return venue_service_.createBookings(requests, bookingIds, error);
+ }
+ 
+ bool BookingService::cancelBooking(const std::string& bookingId,
+diff --git a/src/Service/FieldService.cpp b/src/Service/FieldService.cpp
+--- a/src/Service/FieldService.cpp
++++ b/src/Service/FieldService.cpp
+@@ -94,7 +94,8 @@
+         return false;
+     }
+-    field.setStatus(status);
+-    return field_repository_.update(field, error);
++    VenueFieldRecord record{field.getFieldId(), field.getOwnerUserId(), field.getName(),
++        static_cast<int>(field.getSize()), static_cast<int>(status), field.getRules()};
++    return venue_service_.updateField(requesterOwnerId, record, error);
+ }
+ 
+ bool FieldService::getFields(const std::string& ownerId, int fieldSize,
+diff --git a/src/Service/TournamentService.cpp b/src/Service/TournamentService.cpp
+--- a/src/Service/TournamentService.cpp
++++ b/src/Service/TournamentService.cpp
+@@ -8,3 +8,4 @@
+ #include "Repository/TournamentRepository.h"
++#include "Service/AvailabilityService.h"
+ 
+ namespace {
+@@ -119,14 +120,18 @@
+     }
+ 
+     std::string tStartSlot, tEndSlot;
+-    tachKhung(tournament.getTimeSlot(), tStartSlot, tEndSlot);
++    int start, end;
++    if (!AvailabilityService::parseInterval(tournament.getTimeSlot(), start, end) ||
++        !tachKhung(tournament.getTimeSlot(), tStartSlot, tEndSlot)) {
++        error = "Invalid tournament time interval"; return false;
++    }
+ 
+     // 1. Kiểm tra trùng lịch với giải đấu khác
+     LinkedList<Tournament> allTournaments;
+-    if (tournament_repository_.loadAll(allTournaments, error)) {
++    if (!tournament_repository_.loadAll(allTournaments, error)) return false;
++    {
+         for (auto* node = allTournaments.get_head(); node != nullptr; node = node->next) {
+             const Tournament& existing = node->data;
+             if (existing.getTournamentId() == excludeId) continue;
+-            if (
+-                existing.getStatus() == TournamentStatus::CANCELLED) continue;
++            if (!AvailabilityService::reservesTime(existing.getStatus())) continue;
+             if (existing.getRequestedFieldId() != tournament.getRequestedFieldId()) continue;
+@@ -134,4 +139,5 @@
+             const std::string exStartIso = DateTime::toIsoDate(existing.getStartDate());
+             const std::string exEndIso   = DateTime::toIsoDate(existing.getEndDate());
++            if (exStartIso.empty() || exEndIso.empty() || exStartIso > exEndIso) { error = "Invalid stored tournament dates"; return false; }
+ 
+             bool dateOverlap = (DateTime::compareDate(startDateIso, exEndIso) <= 0 &&
+@@ -152,5 +158,6 @@
+     // 2. Kiểm tra trùng lịch với đơn đặt sân còn hiệu lực
+     LinkedList<VenueBookingRecord> bookings;
+     std::string bookError;
+-    if (booking_repository_.loadAll(bookings, bookError)) {
++    if (!booking_repository_.loadAll(bookings, bookError)) { error = bookError; return false; }
++    {
+         for (auto* node = bookings.get_head(); node != nullptr; node = node->next) {
+@@ -183,5 +190,7 @@
++    if (!target.isPending()) { error = "Only pending tournaments may be approved"; return false; }
++    if (DateTime::isPastDate(target.getStartDate())) { error = "Tournament start date has passed"; return false; }
+     if (!checkOverlap(target, tournamentId, error)) {
+         return false;
+     }
+-    target.setStatus(TournamentStatus::CONFIRMED);
++    target.confirm();
+     return tournament_repository_.update(target, error);
+@@ -194,5 +203,6 @@
+     if (!tournament_repository_.findById(tournamentId, target, error)) {
+         return false;
+     }
++    if (!target.isPending()) { error = "Only pending tournaments may be rejected"; return false; }
+     target.reject(reason.empty() ? u8"Trùng lịch sân hoặc quy mô không phù hợp." : reason);
+     return tournament_repository_.update(target, error);
+@@ -212,5 +222,5 @@
+     Tournament g = tournament;
+     if (g.getTournamentId().empty()) {
+         LinkedList<Tournament> list;
+-        tournament_repository_.loadAll(list, error);
++        if (!tournament_repository_.loadAll(list, error)) return false;
+         LinkedList<std::string> ids;
+@@ -231,5 +241,8 @@
+     if (!tournament_repository_.findById(tournament.getTournamentId(), target, error)) {
+         return false;
++    }
++    if (target.isFinished() || target.isRejected() || target.getStatus() != tournament.getStatus()) {
++        error = "Invalid tournament modification"; return false;
+     }
+     if (!checkOverlap(tournament, tournament.getTournamentId(), error)) {
+         return false;
+@@ -240,5 +253,9 @@
+ bool TournamentService::huyGiaiDau(const std::string& tournamentId,
+                                   std::string& error) {
+-    return tournament_repository_.remove(tournamentId, error);
++    Tournament target;
++    if (!tournament_repository_.findById(tournamentId, target, error)) return false;
++    if (target.isFinished() || target.isRejected()) { error = "Tournament is already closed"; return false; }
++    target.cancel();
++    return tournament_repository_.update(target, error);
+ }
+ 
+@@ -259,5 +276,5 @@
+     Tournament g = tournament;
+     if (g.getTournamentId().empty()) {
+         LinkedList<Tournament> list;
+-        tournament_repository_.loadAll(list, error);
++        if (!tournament_repository_.loadAll(list, error)) return false;
+         LinkedList<std::string> ids;
+diff --git a/src/Repository/TournamentRepository.cpp b/src/Repository/TournamentRepository.cpp
+--- a/src/Repository/TournamentRepository.cpp
++++ b/src/Repository/TournamentRepository.cpp
+@@ -151,5 +151,9 @@
+     LinkedList<Tournament> list;
+     if (!loadAll(list, error)) return false;
++    if (tournament.getTournamentId().empty()) { error = "Tournament ID is required"; return false; }
++    for (auto* n = list.get_head(); n; n = n->next) {
++        if (n->data.getTournamentId() == tournament.getTournamentId()) { error = "Duplicate tournament ID"; return false; }
++    }
+     list.push_back(tournament);
+     return saveAll(list, error);
+ }
+@@ -164,6 +168,6 @@
+         tournament);
+     if (!found) {
+-        list.push_back(tournament);
++        error = "Tournament not found"; return false;
+     }
+     return saveAll(list, error);
+ }
+diff --git a/src/GUI/App/FacadeTournament.cpp b/src/GUI/App/FacadeTournament.cpp
+--- a/src/GUI/App/FacadeTournament.cpp
++++ b/src/GUI/App/FacadeTournament.cpp
+@@ -47,6 +47,7 @@
+ }
+ 
+ KetQua Facade::duyetGiaiDau(const std::string& maGiai) {
++    if (!getGiaiDau(maGiai)) return {false, "Tournament or field not owned by current owner"};
+     std::string error;
+     if (!tournament_service_.duyetGiaiDau(maGiai, error)) return {false, error};
+     refreshCache();
+@@ -54,6 +55,7 @@
+ }
+ 
+ KetQua Facade::tuChoiGiaiDau(const std::string& maGiai, const std::string& lyDo) {
++    if (!getGiaiDau(maGiai)) return {false, "Tournament or field not owned by current owner"};
+     std::string error;
+     if (!tournament_service_.tuChoiGiaiDau(maGiai, lyDo, error)) return {false, error};
+     refreshCache();
+@@ -61,6 +63,7 @@
+ }
+ 
+ KetQua Facade::taoGiaiDauThuCong(const GiaiDauInfo& giaiMoi) {
++    if (!getSanBong(giaiMoi.maSan)) return {false, "Tournament or field not owned by current owner"};
+     Tournament t = toTournament(giaiMoi, TournamentStatus::CONFIRMED);
+     std::string outId, error;
+     if (!tournament_service_.taoGiaiDauThuCong(t, outId, error)) return {false, error};
+@@ -69,6 +72,7 @@
+ }
+ 
+ KetQua Facade::suaGiaiDau(const GiaiDauInfo& giaiCapNhat) {
++    if (!getGiaiDau(giaiCapNhat.maGiai) || !getSanBong(giaiCapNhat.maSan)) return {false, "Tournament or field not owned by current owner"};
+     Tournament t = toTournament(giaiCapNhat, static_cast<TournamentStatus>(static_cast<int>(giaiCapNhat.trangThai)));
+     std::string error;
+     if (!tournament_service_.suaGiaiDau(t, error)) return {false, error};
+@@ -77,6 +81,7 @@
+ }
+ 
+ KetQua Facade::huyGiaiDau(const std::string& maGiai) {
++    if (!getGiaiDau(maGiai)) return {false, "Tournament or field not owned by current owner"};
+     std::string error;
+     if (!tournament_service_.huyGiaiDau(maGiai, error)) return {false, error};
+     refreshCache();
+diff --git a/src/Repository/CustomerRepository.cpp b/src/Repository/CustomerRepository.cpp
+--- a/src/Repository/CustomerRepository.cpp
++++ b/src/Repository/CustomerRepository.cpp
+@@ -1,3 +1,5 @@
+ ﻿#include "Repository/CustomerRepository.h"
++#include "Repository/VenueRepository.h"
++#include "Booking/Booking.h"
+ 
+ #include <sstream>
+@@ -388,29 +390,16 @@
+ 
+ bool CustomerRepository::hasCompletedBooking(const std::string& customerId,
+                                              const std::string& fieldId) const {
+-    LinkedList<std::string> lines;
+-    std::string err;
+-    if (!file_manager_.readAllLines("data/bookings.txt", lines, err)) {
+-        return false;
+-    }
+-    std::string phone = customerId;
+-    Customer c("", "", "", "", "");
+-    std::string ignoredErr;
+-    if (findCustomerByUserId(customerId, c, ignoredErr)) {
+-        phone = c.get_phone_number();
+-    }
+-    for (auto* node = lines.get_head(); node != nullptr; node = node->next) {
+-        LinkedList<std::string> parts;
+-        tachTruong(node->data, parts);
+-        if (parts.size() < 6) continue;
+-        const std::string* cId = layTruong(parts, 1);
+-        const std::string* fId = layTruong(parts, 3);
+-        const std::string* st = layTruong(parts, 4);
+-        if (cId && fId && st) {
+-            if ((*cId == customerId || *cId == phone) && *fId == fieldId && *st == "2") {
+-                return true;
+-            }
+-        }
++    Customer customer; std::string error;
++    if (!findCustomerByUserId(customerId, customer, error)) return false;
++    VenueRepository venue(file_manager_);
++    LinkedList<VenueBookingRecord> bookings;
++    if (!venue.loadBookings(bookings, error)) return false;
++    for (auto* n = bookings.get_head(); n; n = n->next) {
++        const auto& b = n->data;
++        if (b.fieldId == fieldId && (b.customerId == customer.getUserId() ||
++            (b.customerId.empty() && b.customerPhone == customer.get_phone_number())) &&
++            Booking::textToStatus(b.status) == BookingStatus::COMPLETED) return true;
+     }
+     return false;
+ }
+diff --git a/src/Service/CustomerService.cpp b/src/Service/CustomerService.cpp
+--- a/src/Service/CustomerService.cpp
++++ b/src/Service/CustomerService.cpp
+@@ -6,2 +6,3 @@
+ #include "Core/DateTime.h"
++#include "Core/IdGenerator.h"
+ #include "Customer/Review.h"
+@@ -15,82 +16,40 @@
+ bool CustomerService::addReview(const Review& review, std::string& error) {
+-    if (review.getRating() < 1 || review.getRating() > 5) {
+-        error = u8"Đánh giá phải từ 1 đến 5 sao.";
+-        return false;
+-    }
+-    if (review.getComment().empty()) {
+-        error = u8"Nội dung đánh giá không được để trống.";
+-        return false;
+-    }
+-    if (!customer_repository_.hasCompletedBooking(review.getCustomerId(), review.getFieldId())) {
+-        error = u8"Chỉ có thể đánh giá sân sau khi đã hoàn tất ca thuê tại sân này.";
+-        return false;
+-    }
+-
+-    LinkedList<Review> existingReviews;
+-    if (customer_repository_.loadAllReviews(existingReviews, error)) {
+-        for (auto* n = existingReviews.get_head(); n != nullptr; n = n->next) {
+-            if (!review.getBookingId().empty() && n->data.getBookingId() == review.getBookingId()) {
+-                error = u8"Đơn đặt sân này đã được đánh giá trước đó.";
+-                return false;
+-            }
+-        }
+-    }
+-
+-    Review toSave = review;
+-    if (toSave.getReviewId().empty()) {
+-        int maxSeq = 0;
+-        for (auto* n = existingReviews.get_head(); n != nullptr; n = n->next) {
+-            const std::string& id = n->data.getReviewId();
+-            if (id.rfind("RV", 0) == 0 && id.length() > 2) {
+-                try {
+-                    int seq = std::stoi(id.substr(2));
+-                    if (seq > maxSeq) maxSeq = seq;
+-                } catch (...) {}
+-            }
+-        }
+-        char buf[32];
+-        std::snprintf(buf, sizeof(buf), "RV%02d", maxSeq + 1);
+-        toSave = Review(buf, review.getCustomerId(), review.getFieldId(),
+-                        review.getBookingId(), review.getRating(),
+-                        review.getCreatedAt().empty() ? DateTime::today() : review.getCreatedAt(),
+-                        review.getComment(), review.getCustomerName());
+-    }
+-
+-    return customer_repository_.saveReview(toSave, error);
++    // New reviews always receive a generated ID. This is not an edit entry point.
++    return addOrUpdateReview(Review("", review.getCustomerId(), review.getFieldId(),
++        review.getBookingId(), review.getRating(), review.getCreatedAt(),
++        review.getComment(), review.getCustomerName()), error);
+ }
+ 
+ bool CustomerService::addOrUpdateReview(const Review& review, std::string& error) {
+-    if (review.getRating() < 1 || review.getRating() > 5) {
+-        error = u8"Đánh giá phải từ 1 đến 5 sao.";
+-        return false;
++    if (review.getRating() < 1 || review.getRating() > 5 ||
++        review.getComment().find_first_not_of(" \t\r\n") == std::string::npos) {
++        error = "Invalid rating or empty comment"; return false;
+     }
+-    if (review.getComment().empty()) {
+-        error = u8"Nội dung đánh giá không được để trống.";
+-        return false;
++    Customer actor;
++    if (!customer_repository_.findCustomerByUserId(review.getCustomerId(), actor, error)) return false;
++    if (!customer_repository_.hasCompletedBooking(actor.getUserId(), review.getFieldId())) {
++        error = u8"Chỉ có thể đánh giá sân sau khi đã hoàn tất ca thuê tại sân này."; return false;
+     }
+-    Review toSave = review;
+     LinkedList<Review> existing;
+-    if (!customer_repository_.loadAllReviews(existing, error)) {
+-        return false;
++    if (!customer_repository_.loadAllReviews(existing, error)) return false;
++    IdGenerator generator("RV", 2);
++    bool editing = !review.getReviewId().empty(), found = false;
++    std::string date = DateTime::today();
++    for (auto* n = existing.get_head(); n; n = n->next) {
++        const auto& old = n->data;
++        generator.observe(old.getReviewId());
++        const bool sameOwner = old.getCustomerId() == actor.getUserId() ||
++                               old.getCustomerId() == actor.get_phone_number();
++        if (editing && old.getReviewId() == review.getReviewId()) {
++            if (!sameOwner || old.getFieldId() != review.getFieldId()) { error = "Review ownership mismatch"; return false; }
++            found = true; date = old.getCreatedAt();
++        } else if (!editing && sameOwner && old.getFieldId() == review.getFieldId()) {
++            error = "Review already exists for this field"; return false;
++        }
+     }
+-    if (toSave.getReviewId().empty()) {
+-        int maxSeq = 0;
+-        for (auto* n = existing.get_head(); n != nullptr; n = n->next) {
+-            const std::string& id = n->data.getReviewId();
+-            if (id.rfind("RV", 0) == 0 && id.length() > 2) {
+-                try {
+-                    int seq = std::stoi(id.substr(2));
+-                    if (seq > maxSeq) maxSeq = seq;
+-                } catch (...) {}
+-            }
+-        }
+-        char buf[32];
+-        std::snprintf(buf, sizeof(buf), "RV%02d", maxSeq + 1);
+-        toSave = Review(buf, review.getCustomerId(), review.getFieldId(),
+-                        review.getBookingId(), review.getRating(),
+-                        review.getCreatedAt().empty() ? DateTime::today() : review.getCreatedAt(),
+-                        review.getComment(), review.getCustomerName());
+-    }
++    if (editing && !found) { error = "Review not found"; return false; }
++    Review toSave(editing ? review.getReviewId() : generator.next(), actor.getUserId(),
++        review.getFieldId(), "", review.getRating(), date, review.getComment(), actor.get_name());
+     return customer_repository_.saveReview(toSave, error);
+ }
+ 
+diff --git a/src/GUI/App/FacadeRenter.cpp b/src/GUI/App/FacadeRenter.cpp
+--- a/src/GUI/App/FacadeRenter.cpp
++++ b/src/GUI/App/FacadeRenter.cpp
+@@ -107,3 +107,5 @@
+-    for (const auto& g : danhSachGiaiDau_) if (g.sdtKhach == sdt) ds.push_back(g);
++    User* actor = Session::getInstance().getUser();
++    if (!actor || actor->get_account_type() != "Customer" || actor->get_phone_number() != sdt) return ds;
++    for (const auto& g : danhSachGiaiDau_) if (g.sdtKhach == sdt || g.sdtKhach == actor->get_user_id()) ds.push_back(g);
+     return ds;
+ }
+@@ -111,3 +113,11 @@
+ KetQua Facade::guiYeuCauTaoGiai(const GiaiDauInfo& giaiMoi) {
++    User* actor = Session::getInstance().getUser();
++    if (!actor || actor->get_account_type() != "Customer" || actor->get_phone_number() != giaiMoi.sdtKhach)
++        return {false, "Tournament request requires the current customer"};
++    bool available = false;
++    for (const auto& field : danhSachSan_) if (field.maSan == giaiMoi.maSan && !field.dangBaoTri) available = true;
++    if (!available) return {false, "Field is not available"};
+     Tournament t = toTournament(giaiMoi, TournamentStatus::REQUESTED);
++    t.setRequesterUserId(actor->get_user_id());
++    t.setRequesterName(actor->get_name());
+     std::string outId, error;
+@@ -134,4 +144,8 @@
+                                 const std::string& danhGiaId) {
+-    Review r(danhGiaId, sdt, maSan, "", soSao, DateTime::today(), noiDung, tenKhach);
++    User* actor = Session::getInstance().getUser();
++    if (!actor || actor->get_account_type() != "Customer" || actor->get_phone_number() != sdt)
++        return {false, "Review requires the current customer"};
++    (void)tenKhach;
++    Review r(danhGiaId, actor->get_user_id(), maSan, "", soSao, DateTime::today(), noiDung, actor->get_name());
+     std::string error;
+     if (!customer_service_.addOrUpdateReview(r, error)) return {false, error};
+@@ -144,3 +158,5 @@
+ KetQua Facade::capNhatThongTinUser(const std::string& sdtCu, const std::string& hoTenMoi, const std::string& sdtMoi) {
++    User* actor = Session::getInstance().getUser();
++    if (!actor || actor->get_phone_number() != sdtCu || hoTenMoi.empty()) return {false, "Invalid profile update"};
+     std::string error;
+     if (!account_service_.updateUser(sdtCu, hoTenMoi, sdtMoi, error)) return {false, error};
+@@ -151,3 +167,5 @@
+ KetQua Facade::doiMatKhauUser(const std::string& sdt, const std::string& matKhauCu, const std::string& matKhauMoi) {
++    User* actor = Session::getInstance().getUser();
++    if (!actor || actor->get_phone_number() != sdt) return {false, "Account ownership mismatch"};
+     std::string err;
+     if (!account_service_.authenticate(sdt, matKhauCu, err)) return {false, u8"Mật khẩu hiện tại không chính xác!"};
+diff --git a/src/GUI/App/FacadeVenue.cpp b/src/GUI/App/FacadeVenue.cpp
+--- a/src/GUI/App/FacadeVenue.cpp
++++ b/src/GUI/App/FacadeVenue.cpp
+@@ -36,6 +36,19 @@
+                            LinkedList<VenueSlotRecord>& slots, std::string& err, bool choPhepNgayQuaKhu) const { return venue_service_.getSlots(fieldId, ngay, thoiLuongPhut, slots, err, choPhepNgayQuaKhu); }
+ 
+-bool Facade::datSanTheoKhungGio(const VenueBookingRequest& req, std::string& bId, std::string& err) const { return booking_service_.createBooking(req, bId, err); }
++bool Facade::datSanTheoKhungGio(const VenueBookingRequest& req, std::string& bId, std::string& err) const {
++    bId.clear(); User* actor = Session::getInstance().getUser();
++    if (!actor || actor->get_account_type() != "Customer" || req.customerId != actor->get_user_id()) {
++        err = "Booking requires the current customer"; return false;
++    }
++    return booking_service_.createBooking(req, bId, err);
++}
+ 
+-bool Facade::datNhieuKhungGio(const LinkedList<VenueBookingRequest>& reqs, LinkedList<std::string>& bIds, std::string& err) const { return booking_service_.createBookings(reqs, bIds, err); }
++bool Facade::datNhieuKhungGio(const LinkedList<VenueBookingRequest>& reqs, LinkedList<std::string>& bIds, std::string& err) const {
++    bIds.clear(); User* actor = Session::getInstance().getUser();
++    if (!actor || actor->get_account_type() != "Customer") { err = "Customer login required"; return false; }
++    for (auto* n = reqs.get_head(); n; n = n->next) {
++        if (n->data.customerId != actor->get_user_id()) { err = "Booking owner mismatch"; return false; }
++    }
++    return booking_service_.createBookings(reqs, bIds, err);
++}
+ 
+diff --git a/src/GUI/App/FacadeCustomer.cpp b/src/GUI/App/FacadeCustomer.cpp
+--- a/src/GUI/App/FacadeCustomer.cpp
++++ b/src/GUI/App/FacadeCustomer.cpp
+@@ -19,9 +19,9 @@
+ std::vector<KhachHangInfo> Facade::getDanhSachKhachHangCuaChuSan() const {
+     User* owner = Session::getInstance().getUser();
+-    if (!owner) return danhSachKhachHang_;
++    if (!owner || owner->get_account_type() != "Owner") return {};
+     std::unordered_map<std::string, bool> booked;
+-    for (const auto& b : danhSachDonDat_) if (b.ownerUserId == owner->get_user_id()) booked[b.sdt] = true;
++    for (const auto& b : danhSachDonDat_) if (b.ownerUserId == owner->get_user_id()) booked[b.customerId] = true;
+     std::vector<KhachHangInfo> list;
+-    for (const auto& kh : danhSachKhachHang_) if (booked[kh.sdt]) list.push_back(kh);
++    for (const auto& kh : danhSachKhachHang_) if (booked[kh.id]) list.push_back(kh);
+     return list;
+ }
+@@ -48,4 +48,7 @@
+ float Facade::getDiemTrungBinhToanCoSo() const {
+-    float score = 0.0f; std::string err;
+-    return customer_service_.getAverageRatingOverall(score, err) ? score : 0.0f;
++    const auto reviews = getDanhSachDanhGia();
++    if (reviews.empty()) return 0.0f;
++    float sum = 0.0f;
++    for (const auto& review : reviews) sum += review.soSao;
++    return sum / static_cast<float>(reviews.size());
+ }
+@@ -66,5 +69,13 @@
+ std::vector<DonDatSanInfo> Facade::getLichSuDatCuaKhach(const std::string& sdt) const {
+     std::vector<DonDatSanInfo> lichSu;
+-    for (const auto& b : danhSachDonDat_) if (b.sdt == sdt) lichSu.push_back(b);
++    Customer customer; std::string error;
++    if (!customer_service_.findCustomer(sdt, customer, error)) return lichSu;
++    User* actor = Session::getInstance().getUser();
++    if (!actor) return lichSu;
++    for (const auto& b : danhSachDonDat_) {
++        if (b.customerId != customer.getUserId()) continue;
++        if (actor->get_user_id() == customer.getUserId() ||
++            (actor->get_account_type() == "Owner" && b.ownerUserId == actor->get_user_id())) lichSu.push_back(b);
++    }
+     return lichSu;
+ }
+@@ -80,5 +91,15 @@
+ std::vector<DanhGiaInfo> Facade::getDanhGiaCuaKhach(const std::string& sdt) const {
+     std::vector<DanhGiaInfo> list;
+-    for (const auto& r : danhSachDanhGia_) if (r.sdt == sdt) list.push_back(r);
++    Customer customer; std::string error;
++    if (!customer_service_.findCustomer(sdt, customer, error)) return list;
++    User* actor = Session::getInstance().getUser();
++    if (!actor) return list;
++    for (const auto& r : danhSachDanhGia_) {
++        if (r.sdt != customer.getUserId() && r.sdt != customer.get_phone_number()) continue;
++        if (actor->get_user_id() == customer.getUserId()) list.push_back(r);
++        else if (actor->get_account_type() == "Owner") {
++            for (const auto& field : danhSachSan_) if (field.maSan == r.maSan && field.ownerUserId == actor->get_user_id()) { list.push_back(r); break; }
++        }
++    }
+     return list;
+ }
+diff --git a/src/Core/DateTime.cpp b/src/Core/DateTime.cpp
+--- a/src/Core/DateTime.cpp
++++ b/src/Core/DateTime.cpp
+@@ -10,2 +10,4 @@
+     if (value.size() != 10U || value[4] != '-' || value[7] != '-') return false;
++    for (std::size_t i = 0; i < value.size(); ++i)
++        if (i != 4 && i != 7 && (value[i] < '0' || value[i] > '9')) return false;
+     std::istringstream input(value);
+@@ -23,2 +25,4 @@
+     if (value.size() != 5U || value[2] != ':') return false;
++    for (std::size_t i = 0; i < value.size(); ++i)
++        if (i != 2 && (value[i] < '0' || value[i] > '9')) return false;
+     std::istringstream input(value);
+diff --git a/tests/core/test_id_generator.cpp b/tests/core/test_id_generator.cpp
+new file mode 100644
+--- /dev/null
++++ b/tests/core/test_id_generator.cpp
+@@ -0,0 +1,10 @@
++#include <cassert>
++#include "Core/IdGenerator.h"
++int main() {
++    IdGenerator ids("BK-", 6);
++    ids.observe("BK-000042");
++    ids.observe("BK-000004");
++    ids.observe("BK-bad");
++    assert(ids.next() == "BK-000043");
++    assert(ids.next() == "BK-000044");
++}
+diff --git a/tests/core/test_schedule_rules.cpp b/tests/core/test_schedule_rules.cpp
+new file mode 100644
+--- /dev/null
++++ b/tests/core/test_schedule_rules.cpp
+@@ -0,0 +1,23 @@
++#include <cassert>
++#include "Service/AvailabilityService.h"
++int main() {
++    using namespace AvailabilityService;
++    assert(!overlap(60, 120, 120, 180));
++    assert(overlap(60, 150, 120, 180));
++    int start, end;
++    assert(parseInterval("18:00 - 19:30", start, end));
++    assert(start == 1080 && end == 1170);
++    assert(!parseInterval("19:00 - 18:00", start, end));
++    assert(!parseInterval("99:00 - 19:00", start, end));
++    LinkedList<VenueBookingRecord> bookings;
++    LinkedList<Tournament> tournaments;
++    tournaments.push_back(Tournament("T1","C1","Cup","F1","2030-01-01","2030-01-03","",TournamentStatus::CONFIRMED,"","","18:00 - 20:00"));
++    tournaments.push_back(Tournament("T2","C1","Pending","F1","2030-01-01","2030-01-03","",TournamentStatus::REQUESTED,"","","16:00 - 17:00"));
++    LinkedList<Interval> occupied; std::string error, id;
++    assert(collectDay(bookings,tournaments,"F1","2030-01-02",occupied,error));
++    assert(hasConflict(occupied,1140,1200,id) && id == "T1");
++    assert(!hasConflict(occupied,960,1020,id));
++    assert(!hasConflict(occupied,1200,1260,id));
++    assert(collectDay(bookings,tournaments,"F1","2030-01-04",occupied,error));
++    assert(occupied.isEmpty());
++}
+diff --git a/tests/test_single_source.cpp b/tests/test_single_source.cpp
+--- a/tests/test_single_source.cpp
++++ b/tests/test_single_source.cpp
+@@ -27,22 +27,14 @@
+     std::string err;
+     const std::string testPhone = "0999111222";
+     CustomerRepository freshRepo(fm);
+ 
+-    // Kiểm tra Review được lưu và đọc lại từ cùng một nguồn dữ liệu.
+-    Review r("RV-SSOT", testPhone, "S5-01", "", 5, DateTime::today(), "San rat tot", "Nguoi Dung Test");
+-    assert(custService.addOrUpdateReview(r, err));
++    // An unregistered/non-renting customer cannot create a review.
++    Review r("", testPhone, "S5-01", "", 5, DateTime::today(), "San rat tot", "Nguoi Dung Test");
++    assert(!custService.addOrUpdateReview(r, err));
+ 
+     LinkedList<Review> loadedReviews;
+     assert(freshRepo.loadAllReviews(loadedReviews, err));
+-    bool foundReview = false;
+-    for (auto* n = loadedReviews.get_head(); n; n = n->next) {
+-        if (n->data.getReviewId() == "RV-SSOT") {
+-            foundReview = true;
+-            assert(n->data.getRating() == 5);
+-            assert(n->data.getComment() == "San rat tot");
+-            break;
+-        }
+-    }
+-    assert(foundReview);
++    for (auto* n = loadedReviews.get_head(); n; n = n->next)
++        assert(n->data.getCustomerId() != testPhone);
+ 
+     // Kiểm tra yêu cầu Tournament được lưu và đọc lại từ cùng một nguồn dữ liệu.
+@@ -72,7 +64,10 @@
+     assert(loadedT.getStatus() == TournamentStatus::CONFIRMED);
+ 
+     // Clean up test tournament
+     assert(tournService.huyGiaiDau(outId, err));
+-    assert(!freshTournRepo.findById(outId, loadedT, err));
++    assert(freshTournRepo.findById(outId, loadedT, err));
++    assert(loadedT.getStatus() == TournamentStatus::CANCELLED);
++    assert(!tournService.duyetGiaiDau(outId, err));
++    assert(freshTournRepo.remove(outId, err)); // remove only synthetic test data
+ 
+     // Dọn bản ghi Review được tạo bởi kiểm thử.
+diff --git a/Makefile b/Makefile
+--- a/Makefile
++++ b/Makefile
+@@ -58,2 +58,8 @@
++test-schedule-regression:
++	@mkdir -p $(BUILD_DIR)
++	$(file >$(BUILD_DIR)/biz_sources.rsp,$(BUSINESS_SOURCES))
++	$(CXX) $(CXXFLAGS) tests/core/test_schedule_rules.cpp @$(BUILD_DIR)/biz_sources.rsp -o $(BUILD_DIR)/test_schedule_rules$(EXE_EXT)
++	$(BUILD_DIR)/test_schedule_rules$(EXE_EXT)
++
+ test-booking:
+ 	@mkdir -p $(BUILD_DIR)

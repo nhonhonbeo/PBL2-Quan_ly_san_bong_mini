@@ -6,6 +6,7 @@
 #include "Core/DateTime.h"
 #include "Repository/BookingRepository.h"
 #include "Repository/TournamentRepository.h"
+#include "Service/AvailabilityService.h"
 
 namespace {
 
@@ -119,20 +120,25 @@ bool TournamentService::checkOverlap(const Tournament& tournament,
     }
 
     std::string tStartSlot, tEndSlot;
-    tachKhung(tournament.getTimeSlot(), tStartSlot, tEndSlot);
+    int start, end;
+    if (!AvailabilityService::parseInterval(tournament.getTimeSlot(), start, end) ||
+        !tachKhung(tournament.getTimeSlot(), tStartSlot, tEndSlot)) {
+        error = "Invalid tournament time interval"; return false;
+    }
 
     // 1. Kiểm tra trùng lịch với giải đấu khác
     LinkedList<Tournament> allTournaments;
-    if (tournament_repository_.loadAll(allTournaments, error)) {
+    if (!tournament_repository_.loadAll(allTournaments, error)) return false;
+    {
         for (auto* node = allTournaments.get_head(); node != nullptr; node = node->next) {
             const Tournament& existing = node->data;
             if (existing.getTournamentId() == excludeId) continue;
-            if (
-                existing.getStatus() == TournamentStatus::CANCELLED) continue;
+            if (!AvailabilityService::reservesTime(existing.getStatus())) continue;
             if (existing.getRequestedFieldId() != tournament.getRequestedFieldId()) continue;
 
             const std::string exStartIso = DateTime::toIsoDate(existing.getStartDate());
             const std::string exEndIso   = DateTime::toIsoDate(existing.getEndDate());
+            if (exStartIso.empty() || exEndIso.empty() || exStartIso > exEndIso) { error = "Invalid stored tournament dates"; return false; }
 
             bool dateOverlap = (DateTime::compareDate(startDateIso, exEndIso) <= 0 &&
                                 DateTime::compareDate(endDateIso, exStartIso) >= 0);
@@ -152,7 +158,8 @@ bool TournamentService::checkOverlap(const Tournament& tournament,
     // 2. Kiểm tra trùng lịch với đơn đặt sân còn hiệu lực
     LinkedList<VenueBookingRecord> bookings;
     std::string bookError;
-    if (booking_repository_.loadAll(bookings, bookError)) {
+    if (!booking_repository_.loadAll(bookings, bookError)) { error = bookError; return false; }
+    {
         for (auto* node = bookings.get_head(); node != nullptr; node = node->next) {
             const VenueBookingRecord& b = node->data;
             if (b.fieldId != tournament.getRequestedFieldId()) continue;
@@ -180,10 +187,12 @@ bool TournamentService::duyetGiaiDau(const std::string& tournamentId,
     if (!tournament_repository_.findById(tournamentId, target, error)) {
         return false;
     }
+    if (!target.isPending()) { error = "Only pending tournaments may be approved"; return false; }
+    if (DateTime::isPastDate(target.getStartDate())) { error = "Tournament start date has passed"; return false; }
     if (!checkOverlap(target, tournamentId, error)) {
         return false;
     }
-    target.setStatus(TournamentStatus::CONFIRMED);
+    target.confirm();
     return tournament_repository_.update(target, error);
 }
 
@@ -194,6 +203,7 @@ bool TournamentService::tuChoiGiaiDau(const std::string& tournamentId,
     if (!tournament_repository_.findById(tournamentId, target, error)) {
         return false;
     }
+    if (!target.isPending()) { error = "Only pending tournaments may be rejected"; return false; }
     target.reject(reason.empty() ? u8"Trùng lịch sân hoặc quy mô không phù hợp." : reason);
     return tournament_repository_.update(target, error);
 }
@@ -212,7 +222,7 @@ bool TournamentService::taoGiaiDauThuCong(const Tournament& tournament,
     Tournament g = tournament;
     if (g.getTournamentId().empty()) {
         LinkedList<Tournament> list;
-        tournament_repository_.loadAll(list, error);
+        if (!tournament_repository_.loadAll(list, error)) return false;
         LinkedList<std::string> ids;
         for (auto* n = list.get_head(); n != nullptr; n = n->next) ids.push_back(n->data.getTournamentId());
         int nextSeq = timMaxSeq(ids, "GD-") + 1;
@@ -231,6 +241,9 @@ bool TournamentService::suaGiaiDau(const Tournament& tournament,
     if (!tournament_repository_.findById(tournament.getTournamentId(), target, error)) {
         return false;
     }
+    if (target.isFinished() || target.isRejected() || target.getStatus() != tournament.getStatus()) {
+        error = "Invalid tournament modification"; return false;
+    }
     if (!checkOverlap(tournament, tournament.getTournamentId(), error)) {
         return false;
     }
@@ -239,7 +252,11 @@ bool TournamentService::suaGiaiDau(const Tournament& tournament,
 
 bool TournamentService::huyGiaiDau(const std::string& tournamentId,
                                   std::string& error) {
-    return tournament_repository_.remove(tournamentId, error);
+    Tournament target;
+    if (!tournament_repository_.findById(tournamentId, target, error)) return false;
+    if (target.isFinished() || target.isRejected()) { error = "Tournament is already closed"; return false; }
+    target.cancel();
+    return tournament_repository_.update(target, error);
 }
 
 bool TournamentService::guiYeuCauTaoGiai(const Tournament& tournament,
@@ -259,7 +276,7 @@ bool TournamentService::guiYeuCauTaoGiai(const Tournament& tournament,
     Tournament g = tournament;
     if (g.getTournamentId().empty()) {
         LinkedList<Tournament> list;
-        tournament_repository_.loadAll(list, error);
+        if (!tournament_repository_.loadAll(list, error)) return false;
         LinkedList<std::string> ids;
         for (auto* n = list.get_head(); n != nullptr; n = n->next) ids.push_back(n->data.getTournamentId());
         int nextSeq = timMaxSeq(ids, "GD-") + 1;

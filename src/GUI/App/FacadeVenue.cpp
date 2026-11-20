@@ -35,9 +35,22 @@ bool Facade::getDanhSachSanTheoChuSan(const std::string& ownerId, int loaiSan, b
 bool Facade::getKhungGioSan(const std::string& fieldId, const std::string& ngay, int thoiLuongPhut,
                            LinkedList<VenueSlotRecord>& slots, std::string& err, bool choPhepNgayQuaKhu) const { return venue_service_.getSlots(fieldId, ngay, thoiLuongPhut, slots, err, choPhepNgayQuaKhu); }
 
-bool Facade::datSanTheoKhungGio(const VenueBookingRequest& req, std::string& bId, std::string& err) const { return booking_service_.createBooking(req, bId, err); }
+bool Facade::datSanTheoKhungGio(const VenueBookingRequest& req, std::string& bId, std::string& err) const {
+    bId.clear(); User* actor = Session::getInstance().getUser();
+    if (!actor || actor->get_account_type() != "Customer" || req.customerId != actor->get_user_id()) {
+        err = "Booking requires the current customer"; return false;
+    }
+    return booking_service_.createBooking(req, bId, err);
+}
 
-bool Facade::datNhieuKhungGio(const LinkedList<VenueBookingRequest>& reqs, LinkedList<std::string>& bIds, std::string& err) const { return booking_service_.createBookings(reqs, bIds, err); }
+bool Facade::datNhieuKhungGio(const LinkedList<VenueBookingRequest>& reqs, LinkedList<std::string>& bIds, std::string& err) const {
+    bIds.clear(); User* actor = Session::getInstance().getUser();
+    if (!actor || actor->get_account_type() != "Customer") { err = "Customer login required"; return false; }
+    for (auto* n = reqs.get_head(); n; n = n->next) {
+        if (n->data.customerId != actor->get_user_id()) { err = "Booking owner mismatch"; return false; }
+    }
+    return booking_service_.createBookings(reqs, bIds, err);
+}
 
 bool Facade::capNhatGiaCoSo(int loaiSan, int thoiLuongPhut, const std::string& gioBatDau,
                            long long giaVnd, std::string& error) {
@@ -242,9 +255,12 @@ std::map<std::pair<std::string, std::string>, Widgets::SlotInfo> Facade::getTinh
     LinkedList<VenueFieldRecord> fields;
     if (!venue_service_.getFields(owner->get_user_id(), 0, true, fields, error)) return maTran;
 
+    LinkedList<VenueSlotRecord> baseSlots;
+    if (!venue_service_.getFacilitySlots(owner->get_user_id(), baseSlots, error)) return maTran;
     for (auto* fn = fields.get_head(); fn; fn = fn->next) {
         LinkedList<VenueSlotRecord> slots;
-        if (!venue_service_.getSlots(fn->data.fieldId, ngay, dur, slots, error, true)) continue;
+        if (fn->data.status != 0) slots = baseSlots;
+        else if (!venue_service_.getSlots(fn->data.fieldId, ngay, dur, slots, error, true)) continue;
         for (auto* sn = slots.get_head(); sn; sn = sn->next) {
             std::string slotKey = sn->data.startTime + " - " + sn->data.endTime;
             Widgets::SlotInfo info;
@@ -253,7 +269,15 @@ std::map<std::pair<std::string, std::string>, Widgets::SlotInfo> Facade::getTinh
                 info.ghiChu = fn->data.rules;
             } else {
                 info.status = !sn->data.bookingId.empty() ? Widgets::SlotStatus::DaDat
-                            : (sn->data.past ? Widgets::SlotStatus::DaQua : Widgets::SlotStatus::Trong);
+                            : (sn->data.past ? Widgets::SlotStatus::DaQua :
+                               (sn->data.available ? Widgets::SlotStatus::Trong : Widgets::SlotStatus::Unknown));
+                for (const auto& g : danhSachGiaiDau_) {
+                    if (!sn->data.bookingId.empty() && g.maGiai == sn->data.bookingId && g.maSan == fn->data.fieldId) {
+                        info.status = Widgets::SlotStatus::GiaiDau;
+                        info.tenKhachHang = g.tenGiai;
+                        break;
+                    }
+                }
                 info.giaTien = static_cast<int>(sn->data.priceVnd);
                 info.ghiChu = sn->data.bookingId;
             }

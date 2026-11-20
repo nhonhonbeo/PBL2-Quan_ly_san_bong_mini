@@ -84,7 +84,7 @@ void OwnerShellScreen::render() {
         if (ImGui::BeginChild("##OwnerRightContent", ImVec2(0.0f, 0.0f), false)) {
             renderTopBar();
 
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(22.0f, 18.0f));
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.0f, 12.0f));
             if (ImGui::BeginChild("##OwnerScrollContent", ImVec2(0.0f, 0.0f),
                                   ImGuiChildFlags_AlwaysUseWindowPadding)) {
                 renderContentArea();

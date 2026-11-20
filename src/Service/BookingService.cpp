@@ -107,37 +107,8 @@ bool BookingService::createBookings(
         previousEnd = start + request.durationMinutes;
     }
 
-    // 2. Tải bản sao trạng thái ban đầu của Bookings để rollback khi gặp lỗi
-    LinkedList<VenueBookingRecord> originalBookings;
-    if (!booking_repository_.loadAll(originalBookings, error)) {
-        return false;
-    }
-
-    // 3. Tiến hành đặt từng ca kèm theo dõi danh sách để rollback nguyên khối nếu bất kỳ bước nào thất bại
-    LinkedList<std::string> createdBookingIds;
-    bool allSuccess = true;
-
-    for (auto* node = requests.get_head(); node != nullptr; node = node->next) {
-        std::string currentBookingId;
-        if (!venue_service_.createBooking(node->data, currentBookingId, error)) {
-            allSuccess = false;
-            break;
-        }
-        createdBookingIds.push_back(currentBookingId);
-    }
-
-    if (!allSuccess) {
-        // Rollback toàn bộ đơn đặt sân
-        std::string rollbackErr;
-        if (!booking_repository_.saveAll(originalBookings, rollbackErr)) {
-            error += ". Loi nghiem trong: Khong the khoi phuc trang thai bookings: " + rollbackErr;
-        }
-        bookingIds.clear();
-        return false;
-    }
-
-    bookingIds = createdBookingIds;
-    return true;
+    // Validate and stage the complete batch, then persist a single snapshot.
+    return venue_service_.createBookings(requests, bookingIds, error);
 }
 
 bool BookingService::cancelBooking(const std::string& bookingId,

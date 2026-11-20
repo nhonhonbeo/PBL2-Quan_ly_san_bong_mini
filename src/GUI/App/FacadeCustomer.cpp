@@ -18,11 +18,11 @@ std::vector<KhachHangInfo> Facade::getDanhSachKhachHang() const { return danhSac
 
 std::vector<KhachHangInfo> Facade::getDanhSachKhachHangCuaChuSan() const {
     User* owner = Session::getInstance().getUser();
-    if (!owner) return danhSachKhachHang_;
+    if (!owner || owner->get_account_type() != "Owner") return {};
     std::unordered_map<std::string, bool> booked;
-    for (const auto& b : danhSachDonDat_) if (b.ownerUserId == owner->get_user_id()) booked[b.sdt] = true;
+    for (const auto& b : danhSachDonDat_) if (b.ownerUserId == owner->get_user_id()) booked[b.customerId] = true;
     std::vector<KhachHangInfo> list;
-    for (const auto& kh : danhSachKhachHang_) if (booked[kh.sdt]) list.push_back(kh);
+    for (const auto& kh : danhSachKhachHang_) if (booked[kh.id]) list.push_back(kh);
     return list;
 }
 
@@ -46,8 +46,11 @@ std::vector<DanhGiaInfo> Facade::getDanhSachDanhGia() const {
 }
 
 float Facade::getDiemTrungBinhToanCoSo() const {
-    float score = 0.0f; std::string err;
-    return customer_service_.getAverageRatingOverall(score, err) ? score : 0.0f;
+    const auto reviews = getDanhSachDanhGia();
+    if (reviews.empty()) return 0.0f;
+    float sum = 0.0f;
+    for (const auto& review : reviews) sum += review.soSao;
+    return sum / static_cast<float>(reviews.size());
 }
 
 std::map<std::string, float> Facade::getDiemTrungBinhTungSan() const {
@@ -65,7 +68,15 @@ std::map<std::string, float> Facade::getDiemTrungBinhTungSan() const {
 
 std::vector<DonDatSanInfo> Facade::getLichSuDatCuaKhach(const std::string& sdt) const {
     std::vector<DonDatSanInfo> lichSu;
-    for (const auto& b : danhSachDonDat_) if (b.sdt == sdt) lichSu.push_back(b);
+    Customer customer; std::string error;
+    if (!customer_service_.findCustomer(sdt, customer, error)) return lichSu;
+    User* actor = Session::getInstance().getUser();
+    if (!actor) return lichSu;
+    for (const auto& b : danhSachDonDat_) {
+        if (b.customerId != customer.getUserId()) continue;
+        if (actor->get_user_id() == customer.getUserId() ||
+            (actor->get_account_type() == "Owner" && b.ownerUserId == actor->get_user_id())) lichSu.push_back(b);
+    }
     return lichSu;
 }
 
@@ -79,7 +90,17 @@ std::vector<DonDatSanInfo> Facade::getLichSuDatCuaKhachCuaChuSan(const std::stri
 
 std::vector<DanhGiaInfo> Facade::getDanhGiaCuaKhach(const std::string& sdt) const {
     std::vector<DanhGiaInfo> list;
-    for (const auto& r : danhSachDanhGia_) if (r.sdt == sdt) list.push_back(r);
+    Customer customer; std::string error;
+    if (!customer_service_.findCustomer(sdt, customer, error)) return list;
+    User* actor = Session::getInstance().getUser();
+    if (!actor) return list;
+    for (const auto& r : danhSachDanhGia_) {
+        if (r.sdt != customer.getUserId() && r.sdt != customer.get_phone_number()) continue;
+        if (actor->get_user_id() == customer.getUserId()) list.push_back(r);
+        else if (actor->get_account_type() == "Owner") {
+            for (const auto& field : danhSachSan_) if (field.maSan == r.maSan && field.ownerUserId == actor->get_user_id()) { list.push_back(r); break; }
+        }
+    }
     return list;
 }
 

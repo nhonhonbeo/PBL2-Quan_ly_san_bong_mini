@@ -47,6 +47,7 @@ GiaiDauInfo* Facade::getGiaiDau(const std::string& maGiai) {
 }
 
 KetQua Facade::duyetGiaiDau(const std::string& maGiai) {
+    if (!getGiaiDau(maGiai)) return {false, "Tournament or field not owned by current owner"};
     std::string error;
     if (!tournament_service_.duyetGiaiDau(maGiai, error)) return {false, error};
     refreshCache();
@@ -54,6 +55,7 @@ KetQua Facade::duyetGiaiDau(const std::string& maGiai) {
 }
 
 KetQua Facade::tuChoiGiaiDau(const std::string& maGiai, const std::string& lyDo) {
+    if (!getGiaiDau(maGiai)) return {false, "Tournament or field not owned by current owner"};
     std::string error;
     if (!tournament_service_.tuChoiGiaiDau(maGiai, lyDo, error)) return {false, error};
     refreshCache();
@@ -61,6 +63,7 @@ KetQua Facade::tuChoiGiaiDau(const std::string& maGiai, const std::string& lyDo)
 }
 
 KetQua Facade::taoGiaiDauThuCong(const GiaiDauInfo& giaiMoi) {
+    if (!getSanBong(giaiMoi.maSan)) return {false, "Tournament or field not owned by current owner"};
     Tournament t = toTournament(giaiMoi, TournamentStatus::CONFIRMED);
     std::string outId, error;
     if (!tournament_service_.taoGiaiDauThuCong(t, outId, error)) return {false, error};
@@ -69,6 +72,7 @@ KetQua Facade::taoGiaiDauThuCong(const GiaiDauInfo& giaiMoi) {
 }
 
 KetQua Facade::suaGiaiDau(const GiaiDauInfo& giaiCapNhat) {
+    if (!getGiaiDau(giaiCapNhat.maGiai) || !getSanBong(giaiCapNhat.maSan)) return {false, "Tournament or field not owned by current owner"};
     Tournament t = toTournament(giaiCapNhat, static_cast<TournamentStatus>(static_cast<int>(giaiCapNhat.trangThai)));
     std::string error;
     if (!tournament_service_.suaGiaiDau(t, error)) return {false, error};
@@ -77,6 +81,7 @@ KetQua Facade::suaGiaiDau(const GiaiDauInfo& giaiCapNhat) {
 }
 
 KetQua Facade::huyGiaiDau(const std::string& maGiai) {
+    if (!getGiaiDau(maGiai)) return {false, "Tournament or field not owned by current owner"};
     std::string error;
     if (!tournament_service_.huyGiaiDau(maGiai, error)) return {false, error};
     refreshCache();

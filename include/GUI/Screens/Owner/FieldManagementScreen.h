@@ -72,6 +72,7 @@ private:
     std::vector<std::string> dsMaSanSlot_;
     std::vector<std::string> dsKhungGioSlot_;
     std::map<std::pair<std::string, std::string>, Widgets::SlotInfo> maTranSlot_;
+    std::string bookingToComplete_;
 
     std::function<void()> onChuyenSangWizardCallback_;
 };

@@ -1,4 +1,5 @@
 #include "Repository/VenueRepository.h"
+#include "Repository/TournamentRepository.h"
 
 #include <array>
 #include <cstdio>
@@ -339,6 +340,10 @@ bool VenueRepository::updateFacilityHours(
         return false;
     }
     return atomicWrite(file_manager_, "data/accounts.txt", accounts, error);
+}
+
+bool VenueRepository::loadTournaments(LinkedList<Tournament>& records, std::string& error) const {
+    return TournamentRepository(file_manager_).loadAll(records, error);
 }
 
 bool VenueRepository::loadBookings(

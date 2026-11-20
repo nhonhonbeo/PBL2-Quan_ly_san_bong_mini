@@ -8,6 +8,8 @@ namespace {
 
 bool parseDate(const std::string& value, int& year, int& month, int& day) {
     if (value.size() != 10U || value[4] != '-' || value[7] != '-') return false;
+    for (std::size_t i = 0; i < value.size(); ++i)
+        if (i != 4 && i != 7 && (value[i] < '0' || value[i] > '9')) return false;
     std::istringstream input(value);
     char first = '\0';
     char second = '\0';
@@ -21,6 +23,8 @@ bool parseDate(const std::string& value, int& year, int& month, int& day) {
 
 bool parseTime(const std::string& value, int& hour, int& minute) {
     if (value.size() != 5U || value[2] != ':') return false;
+    for (std::size_t i = 0; i < value.size(); ++i)
+        if (i != 2 && (value[i] < '0' || value[i] > '9')) return false;
     std::istringstream input(value);
     char separator = '\0';
     return static_cast<bool>(input >> hour >> separator >> minute) && separator == ':' &&

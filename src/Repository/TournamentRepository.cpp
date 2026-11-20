@@ -150,6 +150,10 @@ bool TournamentRepository::saveAll(const LinkedList<Tournament>& tournaments,
 bool TournamentRepository::save(const Tournament& tournament, std::string& error) {
     LinkedList<Tournament> list;
     if (!loadAll(list, error)) return false;
+    if (tournament.getTournamentId().empty()) { error = "Tournament ID is required"; return false; }
+    for (auto* n = list.get_head(); n; n = n->next) {
+        if (n->data.getTournamentId() == tournament.getTournamentId()) { error = "Duplicate tournament ID"; return false; }
+    }
     list.push_back(tournament);
     return saveAll(list, error);
 }
@@ -163,7 +167,7 @@ bool TournamentRepository::update(const Tournament& tournament, std::string& err
         },
         tournament);
     if (!found) {
-        list.push_back(tournament);
+        error = "Tournament not found"; return false;
     }
     return saveAll(list, error);
 }

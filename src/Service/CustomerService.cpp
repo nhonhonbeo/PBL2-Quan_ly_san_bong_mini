@@ -4,6 +4,7 @@
 
 #include "Account/Customer.h"
 #include "Core/DateTime.h"
+#include "Core/IdGenerator.h"
 #include "Customer/Review.h"
 #include "Repository/CustomerRepository.h"
 
@@ -13,84 +14,42 @@ CustomerService::CustomerService(CustomerRepository& customerRepository)
 // LÝ DO CHỌN: Chống đánh giá trùng lặp theo bookingId hoặc theo (customerId + fieldId)
 // đảm bảo khách hàng chỉ gửi đánh giá sau khi đã hoàn tất ca đặt sân.
 bool CustomerService::addReview(const Review& review, std::string& error) {
-    if (review.getRating() < 1 || review.getRating() > 5) {
-        error = u8"Đánh giá phải từ 1 đến 5 sao.";
-        return false;
-    }
-    if (review.getComment().empty()) {
-        error = u8"Nội dung đánh giá không được để trống.";
-        return false;
-    }
-    if (!customer_repository_.hasCompletedBooking(review.getCustomerId(), review.getFieldId())) {
-        error = u8"Chỉ có thể đánh giá sân sau khi đã hoàn tất ca thuê tại sân này.";
-        return false;
-    }
-
-    LinkedList<Review> existingReviews;
-    if (customer_repository_.loadAllReviews(existingReviews, error)) {
-        for (auto* n = existingReviews.get_head(); n != nullptr; n = n->next) {
-            if (!review.getBookingId().empty() && n->data.getBookingId() == review.getBookingId()) {
-                error = u8"Đơn đặt sân này đã được đánh giá trước đó.";
-                return false;
-            }
-        }
-    }
-
-    Review toSave = review;
-    if (toSave.getReviewId().empty()) {
-        int maxSeq = 0;
-        for (auto* n = existingReviews.get_head(); n != nullptr; n = n->next) {
-            const std::string& id = n->data.getReviewId();
-            if (id.rfind("RV", 0) == 0 && id.length() > 2) {
-                try {
-                    int seq = std::stoi(id.substr(2));
-                    if (seq > maxSeq) maxSeq = seq;
-                } catch (...) {}
-            }
-        }
-        char buf[32];
-        std::snprintf(buf, sizeof(buf), "RV%02d", maxSeq + 1);
-        toSave = Review(buf, review.getCustomerId(), review.getFieldId(),
-                        review.getBookingId(), review.getRating(),
-                        review.getCreatedAt().empty() ? DateTime::today() : review.getCreatedAt(),
-                        review.getComment(), review.getCustomerName());
-    }
-
-    return customer_repository_.saveReview(toSave, error);
+    // New reviews always receive a generated ID. This is not an edit entry point.
+    return addOrUpdateReview(Review("", review.getCustomerId(), review.getFieldId(),
+        review.getBookingId(), review.getRating(), review.getCreatedAt(),
+        review.getComment(), review.getCustomerName()), error);
 }
 
 bool CustomerService::addOrUpdateReview(const Review& review, std::string& error) {
-    if (review.getRating() < 1 || review.getRating() > 5) {
-        error = u8"Đánh giá phải từ 1 đến 5 sao.";
-        return false;
+    if (review.getRating() < 1 || review.getRating() > 5 ||
+        review.getComment().find_first_not_of(" \t\r\n") == std::string::npos) {
+        error = "Invalid rating or empty comment"; return false;
     }
-    if (review.getComment().empty()) {
-        error = u8"Nội dung đánh giá không được để trống.";
-        return false;
+    Customer actor;
+    if (!customer_repository_.findCustomerByUserId(review.getCustomerId(), actor, error)) return false;
+    if (!customer_repository_.hasCompletedBooking(actor.getUserId(), review.getFieldId())) {
+        error = u8"Chỉ có thể đánh giá sân sau khi đã hoàn tất ca thuê tại sân này."; return false;
     }
-    Review toSave = review;
     LinkedList<Review> existing;
-    if (!customer_repository_.loadAllReviews(existing, error)) {
-        return false;
-    }
-    if (toSave.getReviewId().empty()) {
-        int maxSeq = 0;
-        for (auto* n = existing.get_head(); n != nullptr; n = n->next) {
-            const std::string& id = n->data.getReviewId();
-            if (id.rfind("RV", 0) == 0 && id.length() > 2) {
-                try {
-                    int seq = std::stoi(id.substr(2));
-                    if (seq > maxSeq) maxSeq = seq;
-                } catch (...) {}
-            }
+    if (!customer_repository_.loadAllReviews(existing, error)) return false;
+    IdGenerator generator("RV", 2);
+    bool editing = !review.getReviewId().empty(), found = false;
+    std::string date = DateTime::today();
+    for (auto* n = existing.get_head(); n; n = n->next) {
+        const auto& old = n->data;
+        generator.observe(old.getReviewId());
+        const bool sameOwner = old.getCustomerId() == actor.getUserId() ||
+                               old.getCustomerId() == actor.get_phone_number();
+        if (editing && old.getReviewId() == review.getReviewId()) {
+            if (!sameOwner || old.getFieldId() != review.getFieldId()) { error = "Review ownership mismatch"; return false; }
+            found = true; date = old.getCreatedAt();
+        } else if (!editing && sameOwner && old.getFieldId() == review.getFieldId()) {
+            error = "Review already exists for this field"; return false;
         }
-        char buf[32];
-        std::snprintf(buf, sizeof(buf), "RV%02d", maxSeq + 1);
-        toSave = Review(buf, review.getCustomerId(), review.getFieldId(),
-                        review.getBookingId(), review.getRating(),
-                        review.getCreatedAt().empty() ? DateTime::today() : review.getCreatedAt(),
-                        review.getComment(), review.getCustomerName());
     }
+    if (editing && !found) { error = "Review not found"; return false; }
+    Review toSave(editing ? review.getReviewId() : generator.next(), actor.getUserId(),
+        review.getFieldId(), "", review.getRating(), date, review.getComment(), actor.get_name());
     return customer_repository_.saveReview(toSave, error);
 }
 

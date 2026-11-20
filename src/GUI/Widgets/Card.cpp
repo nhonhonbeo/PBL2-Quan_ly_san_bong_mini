@@ -7,7 +7,7 @@
 namespace Widgets {
 
 void Card(const char* id, const char* tieuDe, const std::function<void()>& noiDung) {
-    Card(id, tieuDe, 18.0f, 16.0f, noiDung);
+    Card(id, tieuDe, 14.0f, 12.0f, noiDung);
 }
 
 void Card(const char* id, const char* tieuDe, float paddingX, float paddingY, const std::function<void()>& noiDung) {

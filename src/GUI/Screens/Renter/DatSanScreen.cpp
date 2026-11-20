@@ -95,12 +95,13 @@ void DatSanScreen::reloadViewModel() {
                 selectedFieldStillExists = true;
                 tenSanChon_ = field->data.name;
                 loaiSanChon_ = field->data.size;
-                break;
             }
         }
         if (!selectedFieldStillExists) {
             maSanChon_.clear();
             tenSanChon_.clear();
+            cacCaDangChon_.clear();
+            capNhatTongTien();
         }
         reloadSlots();
     }

@@ -64,7 +64,8 @@ bool SlotGrid::Render(
     bool choPhepChon,
     const std::string& maSanDangChon,
     const std::string& khungGioDangChon,
-    const std::function<void(const std::string&, const std::string&)>& onSlotClicked
+    const std::function<void(const std::string&, const std::string&)>& onSlotClicked,
+    bool allowBookedAction
 ) {
     ImGui::PushID(id);
     bool coThayDoi = false;
@@ -97,8 +98,8 @@ bool SlotGrid::Render(
 
     ImGui::EndGroup();
 
-    // Chú giải màu bên phải
-    ImGui::SameLine(0.0f, 30.0f);
+    // Legend gets its own row on narrow desktop windows.
+    if (ImGui::GetContentRegionAvail().x >= 1000.0f) ImGui::SameLine(0.0f, 20.0f);
     ImGui::BeginGroup();
 
     auto veChuGiai = [](const char* label, ImU32 mauNen, ImU32 mauVien) {
@@ -109,7 +110,7 @@ bool SlotGrid::Render(
         dl->AddRect(p0, p1, mauVien, 3.0f, 0, 1.0f);
         ImGui::SetCursorScreenPos(ImVec2(p0.x + 20.0f, p0.y - 2.0f));
         ImGui::TextUnformatted(label);
-        ImGui::SameLine(0.0f, 16.0f);
+        if (ImGui::GetContentRegionAvail().x > 165.0f) ImGui::SameLine(0.0f, 12.0f);
     };
 
     veChuGiai(u8"Trống",
@@ -117,12 +118,15 @@ bool SlotGrid::Render(
               GUI::Theme::Colors::toU32(GUI::Theme::Colors::GrassGreen));
 
     veChuGiai(u8"Đã đặt",
-              GUI::Theme::Colors::toU32(ImVec4(0.99f, 0.88f, 0.89f, 1.0f)),
-              GUI::Theme::Colors::toU32(GUI::Theme::Colors::RedDanger));
+              GUI::Theme::Colors::toU32(ImVec4(0.86f, 0.92f, 0.99f, 1.0f)),
+              GUI::Theme::Colors::toU32(GUI::Theme::Colors::Info));
 
+    veChuGiai(u8"Giải đấu",
+              GUI::Theme::Colors::toU32(ImVec4(0.93f, 0.89f, 0.98f, 1.0f)),
+              GUI::Theme::Colors::toU32(ImVec4(0.43f, 0.25f, 0.65f, 1.0f)));
     veChuGiai(u8"Bảo trì",
-              GUI::Theme::Colors::toU32(ImVec4(0.92f, 0.93f, 0.94f, 1.0f)),
-              GUI::Theme::Colors::toU32(GUI::Theme::Colors::Gray));
+              GUI::Theme::Colors::toU32(ImVec4(0.99f, 0.94f, 0.80f, 1.0f)),
+              GUI::Theme::Colors::toU32(GUI::Theme::Colors::Warning));
 
     veChuGiai(u8"Đã qua",
               GUI::Theme::Colors::toU32(ImVec4(0.91f, 0.92f, 0.93f, 1.0f)),
@@ -157,7 +161,9 @@ bool SlotGrid::Render(
                                ImGuiTableFlags_SizingStretchProp |
                                ImGuiTableFlags_ScrollX;
 
-    if (ImGui::BeginTable("##slot_table", totalCols, tblFlags)) {
+    const float innerWidth = 130.0f + 118.0f * static_cast<float>(danhSachMaSan.size());
+    if (ImGui::BeginTable("##slot_table", totalCols, tblFlags, ImVec2(0.0f, 0.0f), innerWidth)) {
+        ImGui::TableSetupScrollFreeze(1, 0);
         // Cột 0: Khung giờ
         ImGui::TableSetupColumn(u8"Khung giờ", ImGuiTableColumnFlags_WidthFixed, 120.0f);
         for (const auto& maSan : danhSachMaSan) {
@@ -190,6 +196,9 @@ bool SlotGrid::Render(
                 auto it = maTranSlot.find(key);
                 if (it != maTranSlot.end()) {
                     info = it->second;
+                } else {
+                    info.status = SlotStatus::Unknown;
+                    info.ghiChu = u8"Không có dữ liệu cho khung giờ này.";
                 }
 
                 bool isSelected = (choPhepChon && maSan == maSanDangChon && khungGio == khungGioDangChon);
@@ -207,22 +216,34 @@ bool SlotGrid::Render(
                         statusLabel = u8"ĐANG CHỌN";
                         break;
                     case SlotStatus::DaDat:
-                        bgCol = ImVec4(0.99f, 0.88f, 0.89f, 1.0f);
-                        borderCol = GUI::Theme::Colors::RedDanger;
-                        textCol = GUI::Theme::Colors::RedDanger;
-                        statusLabel = u8"ĐÃ ĐẶT";
+                        bgCol = ImVec4(0.86f, 0.92f, 0.99f, 1.0f);
+                        borderCol = GUI::Theme::Colors::Info;
+                        textCol = GUI::Theme::Colors::Info;
+                        statusLabel = u8"Đã đặt";
                         break;
                     case SlotStatus::BaoTri:
-                        bgCol = ImVec4(0.92f, 0.93f, 0.94f, 1.0f);
-                        borderCol = GUI::Theme::Colors::Gray;
-                        textCol = GUI::Theme::Colors::Gray;
-                        statusLabel = u8"BẢO TRÌ";
+                        bgCol = ImVec4(0.99f, 0.94f, 0.80f, 1.0f);
+                        borderCol = GUI::Theme::Colors::Warning;
+                        textCol = GUI::Theme::Colors::Warning;
+                        statusLabel = u8"Bảo trì";
                         break;
                     case SlotStatus::DaQua:
                         bgCol = ImVec4(0.91f, 0.92f, 0.93f, 1.0f);
                         borderCol = GUI::Theme::Colors::Gray;
                         textCol = GUI::Theme::Colors::Gray;
                         statusLabel = u8"ĐÃ QUA";
+                        break;
+                    case SlotStatus::GiaiDau:
+                        bgCol = ImVec4(0.93f, 0.89f, 0.98f, 1.0f);
+                        borderCol = ImVec4(0.43f, 0.25f, 0.65f, 1.0f);
+                        textCol = borderCol;
+                        statusLabel = u8"Giải đấu";
+                        break;
+                    case SlotStatus::Unknown:
+                        bgCol = GUI::Theme::Colors::GrayHover;
+                        borderCol = GUI::Theme::Colors::Border;
+                        textCol = GUI::Theme::Colors::TextSecondary;
+                        statusLabel = u8"Chưa rõ";
                         break;
                     case SlotStatus::Trong:
                     default:
@@ -243,8 +264,8 @@ bool SlotGrid::Render(
                 ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
                 ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
 
-                if (ImGui::Button((std::string(statusLabel) + btnId).c_str(), ImVec2(-1.0f, 32.0f))) {
-                    if (choPhepChon && info.status == SlotStatus::Trong) {
+                if (ImGui::Button((std::string(statusLabel) + btnId).c_str(), ImVec2(-1.0f, 30.0f))) {
+                    if (choPhepChon && (info.status == SlotStatus::Trong || (allowBookedAction && info.status == SlotStatus::DaDat))) {
                         if (onSlotClicked) {
                             onSlotClicked(maSan, khungGio);
                         }
@@ -277,6 +298,11 @@ bool SlotGrid::Render(
                         if (!info.ghiChu.empty()) {
                             ImGui::Text(u8"Lý do: %s", info.ghiChu.c_str());
                         }
+                    } else if (info.status == SlotStatus::GiaiDau) {
+                        ImGui::TextWrapped(u8"Giải đấu: %s", info.tenKhachHang.c_str());
+                        ImGui::TextWrapped(u8"Mã giải: %s", info.ghiChu.c_str());
+                    } else if (info.status == SlotStatus::Unknown) {
+                        ImGui::TextWrapped(u8"Không có dữ liệu xác nhận khả dụng.");
                     } else if (info.status == SlotStatus::DaQua) {
                         ImGui::TextUnformatted(
                             u8"Trạng thái: Khung giờ đã qua, không thể đặt."

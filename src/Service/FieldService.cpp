@@ -93,8 +93,9 @@ bool FieldService::setFieldStatus(const std::string& requesterOwnerId,
         error = "Không có quyền thay đổi trạng thái sân của chủ sân khác.";
         return false;
     }
-    field.setStatus(status);
-    return field_repository_.update(field, error);
+    VenueFieldRecord record{field.getFieldId(), field.getOwnerUserId(), field.getName(),
+        static_cast<int>(field.getSize()), static_cast<int>(status), field.getRules()};
+    return venue_service_.updateField(requesterOwnerId, record, error);
 }
 
 bool FieldService::getFields(const std::string& ownerId, int fieldSize,

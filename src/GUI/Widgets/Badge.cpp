@@ -1,4 +1,5 @@
 #include "GUI/Widgets/Badge.h"
+#include <string>
 
 #include "GUI/Theme/Theme.h"
 #include "GUI/Theme/Fonts.h"
@@ -13,9 +14,10 @@ void Badge(const char* text, const ImVec4& bgMau, const ImVec4& textMau) {
     ImFont* font = GUI::Theme::getFonts().small;
     if (font) ImGui::PushFont(font);
     ImVec2 txtSize = ImGui::CalcTextSize(text);
-    float padX = 8.0f;
-    float padY = 3.0f;
-    ImVec2 badgeSize(txtSize.x + padX * 2.0f, txtSize.y + padY * 2.0f);
+    float padX = 9.0f;
+    float padY = 4.0f;
+    constexpr float dotSpace = 10.0f;
+    ImVec2 badgeSize(txtSize.x + padX * 2.0f + dotSpace, txtSize.y + padY * 2.0f);
 
     ImVec2 p0 = ImGui::GetCursorScreenPos();
     ImVec2 p1 = ImVec2(p0.x + badgeSize.x, p0.y + badgeSize.y);
@@ -26,9 +28,10 @@ void Badge(const char* text, const ImVec4& bgMau, const ImVec4& textMau) {
     float rounding = badgeSize.y * 0.5f;
 
     drawList->AddRectFilled(p0, p1, GUI::Theme::Colors::toU32(bgMau), rounding);
-    // Viền nhẹ cùng tông chữ để đảm bảo phân tách rõ ràng trên mọi màn hình
-
-    drawList->AddText(ImVec2(p0.x + padX, p0.y + padY), GUI::Theme::Colors::toU32(textMau), text);
+    drawList->AddRect(p0, p1, GUI::Theme::Colors::toU32(textMau, 0.28f), rounding);
+    drawList->AddCircleFilled(ImVec2(p0.x + padX + 2.0f, p0.y + badgeSize.y * 0.5f),
+                             3.0f, GUI::Theme::Colors::toU32(textMau));
+    drawList->AddText(ImVec2(p0.x + padX + dotSpace, p0.y + padY), GUI::Theme::Colors::toU32(textMau), text);
 
     ImGui::Dummy(badgeSize);
     if (font) ImGui::PopFont();
@@ -58,6 +61,17 @@ void BadgeNoiBat(const char* text) {
 void BadgeCanhBao(const char* text) {
     // Nền đỏ pastel, chữ đỏ đậm #DC2626
     Badge(text, ImVec4(0.996f, 0.886f, 0.886f, 1.0f), GUI::Theme::Colors::Danger);
+}
+
+void BookingStatusBadge(const char* status) {
+    const std::string s = status ? status : "";
+    if (s == "CONFIRMED" || s == u8"Đã xác nhận") BadgeDaDat(u8"Đã xác nhận");
+    else if (s == "COMPLETED" || s == u8"Đã hoàn thành" || s == u8"Đã hoàn tất") BadgeTrong(u8"Hoàn thành");
+    else if (s == "PAID" || s == u8"Đã thanh toán") BadgeTrong(u8"Đã thanh toán");
+    else if (s == "CANCELLED" || s == u8"Đã hủy") BadgeCanhBao(u8"Đã hủy");
+    else if (s == "PENDING" || s == u8"Chờ xác nhận" || s == u8"Chờ duyệt") BadgeBaoTri(u8"Chờ xác nhận");
+    else if (s == "NO_SHOW") BadgeBaoTri(u8"Không đến");
+    else Badge(s.empty() ? u8"Chưa rõ" : s.c_str(), GUI::Theme::Colors::GrayHover, GUI::Theme::Colors::TextSecondary);
 }
 
 }  // namespace Widgets

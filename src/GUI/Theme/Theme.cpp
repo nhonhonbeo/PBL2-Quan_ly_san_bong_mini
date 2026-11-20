@@ -23,12 +23,12 @@ void apply() {
     // ==========================================
     // LÝ DO CHỌN: Hệ thống khoảng cách chuẩn bội số 4-8px (8pt grid system),
     // đảm bảo phân cấp rõ ràng, dễ nhìn, không chen chúc.
-    style.WindowPadding     = ImVec2(20.0f, 16.0f);
-    style.FramePadding      = ImVec2(12.0f, 9.0f);
+    style.WindowPadding     = ImVec2(16.0f, 12.0f);
+    style.FramePadding      = ImVec2(10.0f, 7.0f);
     style.ButtonTextAlign   = ImVec2(0.5f, 0.5f);
-    style.CellPadding       = ImVec2(12.0f, 8.0f);
-    style.ItemSpacing       = ImVec2(12.0f, 8.0f);
-    style.ItemInnerSpacing  = ImVec2(8.0f, 6.0f);
+    style.CellPadding       = ImVec2(8.0f, 6.0f);
+    style.ItemSpacing       = ImVec2(8.0f, 6.0f);
+    style.ItemInnerSpacing  = ImVec2(6.0f, 4.0f);
     style.TouchExtraPadding = ImVec2(0.0f, 0.0f);
     style.IndentSpacing     = 18.0f;
 
@@ -110,11 +110,11 @@ void apply() {
     colors[ImGuiCol_ResizeGripActive]      = Colors::PrimaryDark;
 
     // Bảng dữ liệu (Table)
-    colors[ImGuiCol_TableHeaderBg]         = ImVec4(0.933f, 0.953f, 0.941f, 1.0f); // #EEF3F0
+    colors[ImGuiCol_TableHeaderBg]         = ImVec4(0.922f, 0.937f, 0.957f, 1.0f);
     colors[ImGuiCol_TableBorderStrong]     = Colors::Border;
-    colors[ImGuiCol_TableBorderLight]      = ImVec4(0.910f, 0.930f, 0.920f, 0.7f);
+    colors[ImGuiCol_TableBorderLight]      = ImVec4(0.875f, 0.902f, 0.929f, 0.8f);
     colors[ImGuiCol_TableRowBg]            = Colors::Surface;
-    colors[ImGuiCol_TableRowBgAlt]         = ImVec4(0.976f, 0.984f, 0.980f, 1.0f);
+    colors[ImGuiCol_TableRowBgAlt]         = ImVec4(0.965f, 0.973f, 0.984f, 1.0f);
 
     // Khác
     colors[ImGuiCol_TextSelectedBg]        = ImVec4(0.086f, 0.525f, 0.357f, 0.25f);

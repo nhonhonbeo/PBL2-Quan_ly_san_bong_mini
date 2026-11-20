@@ -16,5 +16,7 @@ void BadgeDaDat(const char* text = u8"Đã đặt");
 void BadgeBaoTri(const char* text = u8"Bảo trì");
 void BadgeNoiBat(const char* text);
 void BadgeCanhBao(const char* text);
+// Stable display mapping for both legacy labels and persisted status codes.
+void BookingStatusBadge(const char* status);
 
 }  // namespace Widgets

@@ -3,6 +3,7 @@
 #include <string>
 
 #include "Core/LinkedList.h"
+#include "Tournament/Tournament.h"
 
 class FileManager;
 
@@ -80,6 +81,7 @@ public:
                              bool allows60Minutes,
                              bool allows90Minutes,
                              std::string& error) const;
+    bool loadTournaments(LinkedList<Tournament>& records, std::string& error) const;
     bool loadBookings(LinkedList<VenueBookingRecord>& records,
                       std::string& error) const;
     bool saveBookings(const LinkedList<VenueBookingRecord>& records,

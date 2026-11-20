@@ -55,6 +55,12 @@ test-core:
 	$(CXX) $(CXXFLAGS) tests/core/test_id_generator.cpp -o $(BUILD_DIR)/test_id_generator$(EXE_EXT)
 	$(BUILD_DIR)/test_id_generator$(EXE_EXT)
 
+test-schedule-regression:
+	@mkdir -p $(BUILD_DIR)
+	$(file >$(BUILD_DIR)/biz_sources.rsp,$(BUSINESS_SOURCES))
+	$(CXX) $(CXXFLAGS) tests/core/test_schedule_rules.cpp @$(BUILD_DIR)/biz_sources.rsp -o $(BUILD_DIR)/test_schedule_rules$(EXE_EXT)
+	$(BUILD_DIR)/test_schedule_rules$(EXE_EXT)
+
 test-booking:
 	@mkdir -p $(BUILD_DIR)
 	$(file >$(BUILD_DIR)/biz_sources.rsp,$(BUSINESS_SOURCES))

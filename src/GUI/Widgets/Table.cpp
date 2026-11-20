@@ -51,6 +51,7 @@ bool Table(
     float availWidth = ImGui::GetContentRegionAvail().x;
     float searchWidth = 260.0f;
 
+    const std::string previousKeyword = state.tuKhoaTimKiem;
     InputText(
         nullptr,
         "##table_search",
@@ -59,6 +60,10 @@ bool Table(
         u8"Tìm kiếm nhanh...",
         std::min(searchWidth, availWidth)
     );
+    if (previousKeyword != state.tuKhoaTimKiem) {
+        state.trangHienTai = 1;
+        state.dongDangChon = -1;
+    }
 
     ImGui::Spacing();
 
@@ -153,7 +158,7 @@ bool Table(
             const auto& col = cacCot[colIdx];
             ImGui::TableSetupColumn(col.tenCot.c_str(), col.flags, col.chieuRong);
         }
-        if (scrollX) ImGui::TableSetupScrollFreeze(0, 1);
+        if (scrollX) ImGui::TableSetupScrollFreeze(1, 1);
         ImGui::TableHeadersRow();
 
         if (ImGuiTableSortSpecs* sortSpecs = ImGui::TableGetSortSpecs()) {
@@ -172,7 +177,7 @@ bool Table(
             size_t origIdx = filteredIndices[i];
             const auto& row = danhSachDong[origIdx];
 
-            ImGui::TableNextRow(ImGuiTableRowFlags_None, 42.0f);
+            ImGui::TableNextRow(ImGuiTableRowFlags_None, 36.0f);
             bool isRowSelected = (state.dongDangChon == static_cast<int>(origIdx));
 
             for (size_t colIdx = 0; colIdx < cacCot.size(); ++colIdx) {
@@ -195,8 +200,9 @@ bool Table(
                     customRenderCell(row, static_cast<int>(colIdx));
                 } else {
                     std::string cellText = (colIdx < row.oDuLieu.size()) ? row.oDuLieu[colIdx] : "";
+                    const float cellWidth = ImGui::GetContentRegionAvail().x;
                     ImGui::TextUnformatted(cellText.c_str());
-                    if (ImGui::IsItemHovered() && ImGui::CalcTextSize(cellText.c_str()).x > ImGui::GetContentRegionAvail().x)
+                    if (ImGui::IsItemHovered() && ImGui::CalcTextSize(cellText.c_str()).x > cellWidth)
                         ImGui::SetTooltip("%s", cellText.c_str());
                 }
             }
@@ -223,7 +229,7 @@ bool Table(
     if (smallFont != nullptr) ImGui::PopFont();
 
     if (totalPages == 1) { ImGui::PopID(); return clickedRowEvent; }
-    ImGui::SameLine();
+    if (availWidth > 620.0f) ImGui::SameLine();
     float navWidth = 260.0f;
     if (availWidth > 480.0f) ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), availWidth - navWidth));
 
